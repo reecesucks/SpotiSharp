@@ -10,10 +10,10 @@ public class BackendConnector
     
     private BackendConnector()
     {
-        StorageHandler.ClientId = SecureStorage.Default.GetAsync("clientId").Result;
-        StorageHandler.RefreshToken = SecureStorage.Default.GetAsync("refreshToken").Result;
         MauiConnector.OnOpenBrowser += OpenBrowser;
         StorageHandler.OnDataChange += StoreInSecureStorage;
+
+        _ = InitializeStorageAsync();
     }
 
     private static async void OpenBrowser(Uri uri)
@@ -25,5 +25,10 @@ public class BackendConnector
     {
         SecureStorage.Default.SetAsync(key, value);
     }
-        
+
+    private async Task InitializeStorageAsync()
+    {
+        StorageHandler.ClientId = await SecureStorage.Default.GetAsync("clientId");
+        StorageHandler.RefreshToken = await SecureStorage.Default.GetAsync("refreshToken");
+    }
 }
