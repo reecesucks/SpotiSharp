@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:spotiSharp="clr-namespace:SpotiSharp"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             x:Class="SpotiSharp.DetailPlaylistPage">
+        <FlexLayout>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <views:HeaderView Grid.Row="0" Grid.Column="0"/>
+                <Grid Grid.Row="1" Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Image Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
+                           Source="{Binding ImageURL}"
+                           Aspect="AspectFill"
+                           HeightRequest="150"
+                           WidthRequest="150" />
+                    <Label Grid.Row="0" Grid.Column="1"
+                           Text="{Binding PlaylistName}" FontSize="40" Margin="30,10,10,10"/>
+                    <Label Grid.Row="1" Grid.Column="1"
+                           Text="{Binding PlaylistDescription}" Margin="30,10,10,10"/>
+                </Grid>
+                <spotiSharp:SongsListView Grid.Row="2" Grid.Column="0"
+                                          x:Name="SongsListView"
+                                          PlayListId="{Binding PlaylistId}" />
+                <views:PlayerBarView Grid.Row="3" Grid.Column="0"/>
+            </Grid>
+        </FlexLayout>
+</views:BasePage>

@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                xmlns:views="using:SpotiSharp.Views"
+                x:Class="SpotiSharp.MainPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <views:HeaderView Grid.Row="0" Grid.Column="0" />
+        <VerticalStackLayout Grid.Row="1" Grid.Column="0" Margin="50,20,20,20">
+            <Label Text="SpotiSharp"
+                   VerticalOptions="Center"
+                   Margin="0,50,50,50"
+                   FontSize="100" />
+            <Label
+                Text="Spotisharp is an app to create playlists. This can be done with never seen before precision."
+                FontSize="20" Margin="20" />
+            <Label FontSize="20" Margin="20,0,20,20" IsVisible="{Binding IsUserIsNotAuthenticated}" Text="You are not authenticated. To authenticate go to the ''Authentication'' page"/>
+        </VerticalStackLayout>
+        <views:PlayerBarView Grid.Row="2" Grid.Column="0" />
+    </Grid>
+</views:BasePage>

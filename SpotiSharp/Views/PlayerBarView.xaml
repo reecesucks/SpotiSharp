@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SpotiSharp.Views.PlayerBarView">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Row="0" Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Image Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
+                   Source="{Binding SongImageURL}"
+                   HeightRequest="60" />
+            <Label Grid.Row="1" Grid.Column="1" Text="{Binding SongName}" FontSize="18" Margin="20,0,0,0" VerticalOptions="Center" />
+        </Grid>
+        <Grid Grid.Row="0" Grid.Column="1" VerticalOptions="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="45" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Row="0" Grid.Column="0" TextColor="{StaticResource Primary}" Text="Shuffle" Margin="5,0,5,0" VerticalOptions="Center" />
+            <Switch Grid.Row="0" Grid.Column="1" ThumbColor="{StaticResource Gray900}" OnColor="{StaticResource Primary}" IsToggled="{Binding ShuffleSwitch}" Margin="5,0,0,0"/>
+            <Button Grid.Row="0" Grid.Column="2" BackgroundColor="{StaticResource Gray900}" Text="Back" Command="{Binding SongBack}" Margin="10,0,5,0"/>
+            <Button Grid.Row="0" Grid.Column="3" BackgroundColor="{StaticResource Gray900}" Text="Play/Pause" Command="{Binding TogglePlaying}" Margin="5,0,5,0"/>
+            <Button Grid.Row="0" Grid.Column="4" BackgroundColor="{StaticResource Gray900}" Text="Skip" Command="{Binding SongSkip}" Margin="5,0,5,0"/>
+            <Button Grid.Row="0" Grid.Column="5" BackgroundColor="{StaticResource Gray900}" Text="Repeat" Command="{Binding ChangeRepeat}" Margin="5,0,0,0"/>
+        </Grid>
+        <Frame Grid.Row="0" Grid.Column="2" BackgroundColor="Transparent" BorderColor="Transparent" />
+        <Slider Grid.Row="0" Grid.Column="3"
+                WidthRequest="200"
+                Minimum="0"
+                Maximum="100"
+                Value="{Binding SelectedVolume}"
+                Margin="0,0,20,0"
+                VerticalOptions="Center" 
+                ThumbColor="{StaticResource Primary}"
+                MinimumTrackColor="{StaticResource Primary}"/>
+    </Grid>
+</ContentView>

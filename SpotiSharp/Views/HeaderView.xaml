@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SpotiSharp.Views.HeaderView">
+    <Grid
+        Margin="0"
+        Padding="10"
+        HeightRequest="80">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <ImageButton 
+            Grid.Column="0"
+            Source="spotisharp_logo.png"
+            HeightRequest="60"
+            Margin="10"
+            HorizontalOptions="Start"
+            BackgroundColor="{StaticResource Black}"
+            Command="{Binding ItemClicked}"
+            CommandParameter="MainPage">
+        </ImageButton>
+        <HorizontalStackLayout
+            Grid.Column="1"
+            HorizontalOptions="End">
+
+            <Button
+                Padding="0, 0, 40, 0"
+                Text="Create Playlist"
+                FontSize="22"
+                BackgroundColor="Transparent"
+                Command="{Binding ItemClicked}"
+                CommandParameter="PlaylistCreatorPage"
+                BorderColor="Transparent" />
+
+            <Button
+                Padding="0, 0, 40, 0"
+                Text="Saved Playlists"
+                FontSize="22"
+                BackgroundColor="Transparent"
+                Command="{Binding ItemClicked}" 
+                CommandParameter="ManagePlayListsPage"
+                BorderColor="Transparent"/>
+            
+            <Button
+                Padding="0, 0, 40, 0"
+                Text="Authentication"
+                FontSize="22"
+                BackgroundColor="Transparent"
+                Command="{Binding ItemClicked}"
+                CommandParameter="AuthenticationPage"
+                BorderColor="Transparent"/>
+            
+            <Button
+                Padding="0, 0, 40, 0"
+                Text="Settings"
+                FontSize="22"
+                BackgroundColor="Transparent"
+                Command="{Binding ItemClicked}"
+                CommandParameter="SettingsPage"
+                BorderColor="Transparent"/>
+        </HorizontalStackLayout>
+    </Grid>
+</ContentView>

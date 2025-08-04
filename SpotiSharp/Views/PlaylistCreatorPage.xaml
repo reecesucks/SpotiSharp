@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                xmlns:views="clr-namespace:SpotiSharp.Views"
+                xmlns:inputs="clr-namespace:Syncfusion.Maui.Inputs;assembly=Syncfusion.Maui.Inputs"
+                xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
+                xmlns:converters="clr-namespace:SpotiSharp.Converters"
+                x:Class="SpotiSharp.Views.PlaylistCreatorPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <views:HeaderView Grid.Row="0" />
+        <Label Grid.Row="1" Text="You need to Authenticated to create playlists" FontSize="30" Margin="10"
+               IsVisible="{Binding IsAuthenticated, Converter={converters:BooleanConverter}}" />
+        <Frame Grid.Row="2" IsVisible="{Binding IsAuthenticated}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Label Grid.Row="0" Text="Create a new playlist" Margin="10" FontSize="35" />
+                <Entry Grid.Row="1" WidthRequest="600" HorizontalOptions="Start" Margin="10" FontSize="24" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
+                <Grid Grid.Row="2" VerticalOptions="Fill">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Frame Grid.Column="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <inputs:SfComboBox Grid.Row="0" Grid.Column="0" BackgroundColor="{StaticResource Gray900}" TextColor="{StaticResource Primary}" Margin="5" IsEditable="False"
+                                               ItemsSource="{Binding PlaylistNamesIds}"
+                                               SelectedItem="{Binding SelectedPlaylistNameId}" />
+                            <Button BackgroundColor="{StaticResource Gray900}" Grid.Row="0" Grid.Column="1" Margin="5" Text="+"
+                                    Command="{Binding AddSongsFromPlaylist}" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
+                        </Grid>
+                    </Frame>
+                    <Frame Grid.Column="1" Grid.ColumnSpan="2">
+                        <ScrollView>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <core:SfBusyIndicator Grid.Row="0" HeightRequest="10" HorizontalOptions="Fill"
+                                                      AnimationType="LinearMaterial"
+                                                      IsRunning="{Binding IsFilteringPlaylist}" 
+                                                      IndicatorColor="{StaticResource Primary}"/>
+                                <views:PlaylistCreationSonglistView Grid.Row="1" Grid.RowSpan="2" />
+                            </Grid>
+                        </ScrollView>
+                    </Frame>
+                    <Frame Grid.Column="3">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <inputs:SfComboBox Grid.Column="0" BackgroundColor="{StaticResource Gray900}" TextColor="{StaticResource Primary}" Margin="5" HorizontalOptions="Fill"
+                                                   IsEditable="False"
+                                                   ItemsSource="{Binding Filters}"
+                                                   SelectedItem="{Binding SelectedFilter}" />
+                                <Button Grid.Column="1" BackgroundColor="{StaticResource Gray900}" Margin="5" Text="+" Command="{Binding AddFilter}" />
+                            </Grid>
+
+                            <Button Grid.Row="1" BackgroundColor="{StaticResource Gray900}" Margin="5" Command="{Binding ApplyFilters}" Text="ApplyFilters" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
+                            <ScrollView Grid.Row="2" Margin="5">
+                                <VerticalStackLayout x:Name="FilterLayout">
+
+                                </VerticalStackLayout>
+                            </ScrollView>
+                        </Grid>
+                    </Frame>
+                </Grid>
+                <Button Grid.Row="3" BackgroundColor="{StaticResource Gray900}" Text="Create Playlist" HeightRequest="65" FontSize="24" HorizontalOptions="Fill" Margin="100,20,100,20" Command="{Binding CreatePlaylist}" />
+            </Grid>
+        </Frame>
+        <views:PlayerBarView Grid.Row="3" />
+    </Grid>
+</views:BasePage>

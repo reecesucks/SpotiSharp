@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Shell
+    x:Class="SpotiSharp.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:SpotiSharp"
+    xmlns:views="using:SpotiSharp.Views"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.NavBarIsVisible="false">
+    <ShellContent
+        Title="Home"
+        ContentTemplate="{DataTemplate local:MainPage}"
+        Route="MainPage" />
+    <ShellContent
+        Title="Create Playlists"
+        ContentTemplate="{DataTemplate views:PlaylistCreatorPage}"
+        Route="PlaylistCreatorPage" />
+    <ShellContent
+        Title="Manage Playlists"
+        ContentTemplate="{DataTemplate local:ManagePlaylistsPage}"
+        Route="ManagePlayListsPage" />
+    <ShellContent
+        Title="Authentication"
+        ContentTemplate="{DataTemplate local:AuthenticationPage}"
+        Route="AuthenticationPage" />
+    <ShellContent
+        Title="Settings"
+        ContentTemplate="{DataTemplate views:SettingsPage}"
+        Route="SettingsPage" />
+</Shell>

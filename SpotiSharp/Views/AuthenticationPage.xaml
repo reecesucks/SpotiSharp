@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                xmlns:views="clr-namespace:SpotiSharp.Views"
+                x:Class="SpotiSharp.AuthenticationPage">
+        <VerticalStackLayout>
+            <views:HeaderView/>
+            <Grid Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Row="0" Grid.Column="0"
+                        HeightRequest="120"
+                        WidthRequest="120"
+                        StrokeThickness="5"
+                        HorizontalOptions="Center"
+                        Stroke="{Binding AuthenticationStatusColor}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="60" />
+                    </Border.StrokeShape>
+                    <Frame
+                        HeightRequest="100"
+                        WidthRequest="100"
+                        CornerRadius="50"
+                        Padding="0"
+                        Margin="0"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                        <Image Aspect="AspectFit"
+                               HeightRequest="100"
+                               WidthRequest="100"
+                               VerticalOptions="Center"
+                               HorizontalOptions="Center"
+                               SemanticProperties.Description="Spotify Profile Picture"
+                               Source="{Binding ProfilePictureURL}" />
+                    </Frame>
+                </Border>
+                <Label Grid.Row="0" Grid.Column="1"
+                       Text="{Binding UserName}"
+                       FontSize="20"
+                       VerticalOptions="Center"
+                       Margin="20,10,10,10" />
+            </Grid>
+            <Entry
+                Placeholder="Client ID"
+                Margin="10,5,5,5"
+                WidthRequest="500"
+                Text="{Binding ClientId}"
+                HorizontalOptions="Start" />
+            <Button
+                x:Name="Connect"
+                Text="Connect"
+                Command="{Binding ConnectToSpotifyAPI}"
+                Margin="10,5,5,5"
+                WidthRequest="150"
+                BackgroundColor="{StaticResource Gray900}"
+                HorizontalOptions="Start" />
+            <VerticalStackLayout Margin="10">
+                <Label Text="How To Authenticate" FontSize="35" Margin="5,10,10,10"/>
+                <Label Text="1. Login on the spotify developer portal" FontSize="24" Margin="5"/>
+                <Grid Margin="10,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Label Grid.Column="0" Grid.Row="0" VerticalOptions="Center" Text="You will need to have Spotify premium to use all features of this application. You can get to the spotify developer portal via this link:"/> 
+                    <Button Grid.Column="1" Grid.Row="0" Text="https://developer.spotify.com/dashboard/" Command="{Binding OpenSpotifyDevDashBoard}" BackgroundColor="Transparent" BorderColor="Transparent" Margin="0" Padding="0" VerticalOptions="Center" WidthRequest="300" HeightRequest="10"/>
+                </Grid>
+                <Label Text="2. Create a spotify app" FontSize="24" Margin="5,0,5,5"/>
+                <Label Text="First click on ''create app'' you can enter any name and description." Margin="10,3,3,3"/>
+                <Label Text="3. Setting the redirect uri" FontSize="24" Margin="5"/>
+                <Label Text="Click on ''edit settings''. Under Redirect URIs enter ''http://127.0.0.1:5000/callback'' this needs to be exact and  click 'add'. After that you need to click save to apply the new settings." Margin="10,3,3,3"/>
+                <Label Text="4. Coping the client id" FontSize="24" Margin="5"/>
+                <Label Text="On the main page of the spotify app you have a field called '^Client ID'' copy the id to the right of that and enter it in the input field in the SpotiSharp application. Finally click the ''Connect'' button above." Margin="10,3,3,3"/>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+        
+</views:BasePage>
