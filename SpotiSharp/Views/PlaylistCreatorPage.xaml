@@ -17,14 +17,19 @@
         <Label Grid.Row="0" Text="You need to Authenticated to create playlists" FontSize="30" Margin="10"
                IsVisible="{Binding IsAuthenticated, Converter={converters:BooleanConverter}}" />
         <Border Grid.Row="1" IsVisible="{Binding IsAuthenticated}">
-            <Grid >
+            <Grid BackgroundColor="AliceBlue" >
                 <Grid.RowDefinitions>
-                    <RowDefinition />
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Entry Grid.Row="0" WidthRequest="600" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
-                <Grid Grid.Row="1" VerticalOptions="Fill">
+                <Grid BackgroundColor="Red" Grid.Row="1" RowDefinitions="*,*,*" ColumnDefinitions="*,*,*">
+                    <inputs:SfComboBox Grid.Row="0" Grid.Column="0" ItemsSource="{Binding SavedShowsNamesId}"></inputs:SfComboBox>
+                    <inputs:SfComboBox Grid.Row="0" Grid.Column="1"></inputs:SfComboBox>
+                </Grid>
+                <Grid Grid.Row="2" VerticalOptions="Fill">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -34,7 +39,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Frame Grid.Column="0">
+                    <Border Grid.Column="0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -49,8 +54,8 @@
                             <Button BackgroundColor="{StaticResource Gray900}" Grid.Row="0" Grid.Column="1" Margin="5" Text="+"
                                     Command="{Binding AddSongsFromPlaylist}" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
                         </Grid>
-                    </Frame>
-                    <Frame Grid.Column="1" Grid.ColumnSpan="2">
+                    </Border>
+                    <Border Grid.Column="1" Grid.ColumnSpan="2">
                         <ScrollView>
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -65,7 +70,7 @@
                                 <views:PlaylistCreationSonglistView Grid.Row="1" Grid.RowSpan="2" />
                             </Grid>
                         </ScrollView>
-                    </Frame>
+                    </Border>
                     <Frame Grid.Column="3">
                         <Grid>
                             <Grid.RowDefinitions>
