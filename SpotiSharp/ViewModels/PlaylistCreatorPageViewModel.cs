@@ -46,7 +46,15 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         get { return _playlistNamesIds; }
         set { SetProperty(ref _playlistNamesIds, value); }
     }
-    
+
+    private List<string> _savedShowsNamesIds;
+
+    public List<string> SavedShowsNamesId
+    {
+        get { return _savedShowsNamesIds; }
+        set { SetProperty(ref _savedShowsNamesIds, value); }
+    }
+
     private TrackFilter _selectedFilter;
 
     public string SelectedFilter
@@ -84,6 +92,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     internal override void OnAppearing()
     {
         PlaylistNamesIds = PlaylistListModel.PlayLists.Select(p => $"{p.PlayListTitle}\n{p.PlayListId}").ToList();
+        SavedShowsNamesId = PlaylistListModel.SavedShows.Select(s => $"{s.Show.Name}\n{s.Show.Id}").ToList();
         IsAuthenticated = Authentication.SpotifyClient != null;
     }
 

@@ -1,4 +1,5 @@
-﻿using SpotifyAPI.Web;
+﻿using System.ComponentModel;
+using SpotifyAPI.Web;
 
 namespace SpotiSharpBackend;
 
@@ -334,6 +335,19 @@ public class APICaller
     public int GetUserLikedSongsAmount()
     {
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.GetTracks().Result.Total ?? 0);
+    }
+
+    public List<SavedShow> GetSavedShows()
+    {
+        var result = new List<SavedShow>();
+        var req = HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.GetShows().Result);
+
+        if (req.Items != null)
+        {
+            result.AddRange(req.Items);
+        }
+
+        return result;
     }
 
     #endregion

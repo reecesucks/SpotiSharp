@@ -1,4 +1,5 @@
-﻿using SpotiSharpBackend;
+﻿using SpotifyAPI.Web;
+using SpotiSharpBackend;
 using Constants = SpotiSharp.Consts.Constants;
 
 namespace SpotiSharp.Models;
@@ -21,7 +22,7 @@ public class PlaylistListModel
     {
         LoadPlaylist();
     }
-    
+
     internal static void LoadPlaylist()
     {
         var tmpPlaylist = new List<Playlist>();
@@ -38,5 +39,31 @@ public class PlaylistListModel
             tmpPlaylist.Add(new Playlist(playlist.Id, playlist.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, playlist.Name, playlist.Tracks.Total));
         }
         _playLists = tmpPlaylist;
+    }
+
+    private static List<SavedShow> _savedShows = new List<SavedShow>();
+
+    public static List<SavedShow> SavedShows
+    {
+        get
+        {
+            LoadSavedShows();
+            return _savedShows;
+        }
+        private set => _savedShows = value;
+    }
+
+    internal static void LoadSavedShows()
+    {
+        var tmpSavedShowList = new List<SavedShow>();
+
+        // followed playlists
+        var savedShows = APICaller.Instance?.GetSavedShows();
+        if (savedShows == null) return;
+        foreach (var show in savedShows)
+        {
+            tmpSavedShowList.Add(show);
+        }
+        _savedShows = tmpSavedShowList;
     }
 }
