@@ -7,7 +7,6 @@ namespace SpotiSharp.ViewModels;
 
 public delegate void AddingFilter(TrackFilter trackFilter, Guid guid, List<object> parameters);
 
-
 public class PlaylistCreatorPageViewModel : BaseViewModel
 {
     public static event AddingFilter OnAddingFilter;

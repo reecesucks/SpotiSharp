@@ -14,20 +14,17 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <views:HeaderView Grid.Row="0" />
-        <Label Grid.Row="1" Text="You need to Authenticated to create playlists" FontSize="30" Margin="10"
+        <Label Grid.Row="0" Text="You need to Authenticated to create playlists" FontSize="30" Margin="10"
                IsVisible="{Binding IsAuthenticated, Converter={converters:BooleanConverter}}" />
-        <Frame Grid.Row="2" IsVisible="{Binding IsAuthenticated}">
-            <Grid>
+        <Border Grid.Row="1" IsVisible="{Binding IsAuthenticated}">
+            <Grid >
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Label Grid.Row="0" Text="Create a new playlist" Margin="10" FontSize="35" />
-                <Entry Grid.Row="1" WidthRequest="600" HorizontalOptions="Start" Margin="10" FontSize="24" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
-                <Grid Grid.Row="2" VerticalOptions="Fill">
+                <Entry Grid.Row="0" WidthRequest="600" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
+                <Grid Grid.Row="1" VerticalOptions="Fill">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -99,7 +96,7 @@
                 </Grid>
                 <Button Grid.Row="3" BackgroundColor="{StaticResource Gray900}" Text="Create Playlist" HeightRequest="65" FontSize="24" HorizontalOptions="Fill" Margin="100,20,100,20" Command="{Binding CreatePlaylist}" />
             </Grid>
-        </Frame>
+        </Border>
         <views:PlayerBarView Grid.Row="3" />
     </Grid>
 </views:BasePage>

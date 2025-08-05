@@ -6,7 +6,7 @@
     <Grid
         Margin="0"
         Padding="10"
-        HeightRequest="80">
+        HeightRequest="200">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
             <ColumnDefinition />
@@ -21,7 +21,7 @@
             Command="{Binding ItemClicked}"
             CommandParameter="MainPage">
         </ImageButton>
-        <HorizontalStackLayout
+        <VerticalStackLayout
             Grid.Column="1"
             HorizontalOptions="End">
 
@@ -29,7 +29,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Create Playlist"
                 FontSize="22"
-                BackgroundColor="Transparent"
+                BackgroundColor="White"
                 Command="{Binding ItemClicked}"
                 CommandParameter="PlaylistCreatorPage"
                 BorderColor="Transparent" />
@@ -38,7 +38,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Saved Playlists"
                 FontSize="22"
-                BackgroundColor="Transparent"
+                BackgroundColor="White"
                 Command="{Binding ItemClicked}" 
                 CommandParameter="ManagePlayListsPage"
                 BorderColor="Transparent"/>
@@ -47,7 +47,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Authentication"
                 FontSize="22"
-                BackgroundColor="Transparent"
+                BackgroundColor="White"
                 Command="{Binding ItemClicked}"
                 CommandParameter="AuthenticationPage"
                 BorderColor="Transparent"/>
@@ -56,10 +56,10 @@
                 Padding="0, 0, 40, 0"
                 Text="Settings"
                 FontSize="22"
-                BackgroundColor="Transparent"
+                BackgroundColor="White"
                 Command="{Binding ItemClicked}"
                 CommandParameter="SettingsPage"
                 BorderColor="Transparent"/>
-        </HorizontalStackLayout>
+        </VerticalStackLayout>
     </Grid>
 </ContentView>
