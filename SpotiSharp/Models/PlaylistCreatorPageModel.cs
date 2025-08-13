@@ -2,6 +2,7 @@
 using SpotifyAPI.Web;
 using SpotiSharp.Consts;
 using SpotiSharp.Interfaces;
+using System.Diagnostics;
 
 namespace SpotiSharp.Models;
 
@@ -130,7 +131,8 @@ public static class PlaylistCreatorPageModel
 
     public static void CreatePlaylist()
     {
-        APICaller.Instance?.CreatePlaylistWithTrackUris(PlaylistName, CurrentFilteredSongs.Select(cfs => cfs.Uri).ToList());
+        Debug.WriteLine("Playlist Created");
+        //APICaller.Instance?.CreatePlaylistWithTrackUris(PlaylistName, CurrentFilteredSongs.Select(cfs => cfs.Uri).ToList());
     }
 
     private static void RemoveFilter(int index)

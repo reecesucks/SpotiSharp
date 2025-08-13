@@ -57,6 +57,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <MauiXaml Update="ViewModels\PlaylistSectionSectionCreatorViewModel.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\AuthenticationPage.xaml">
 	    <SubType>Designer</SubType>
 	  </MauiXaml>
@@ -71,6 +74,9 @@
 	  </MauiXaml>
 	  <MauiXaml Update="Views\PlaylistListView.xaml">
 	    <SubType>Designer</SubType>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\PlaylistSectionSectionCreator.xaml">
+	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\SongsListView.xaml">
 	    <SubType>Designer</SubType>
