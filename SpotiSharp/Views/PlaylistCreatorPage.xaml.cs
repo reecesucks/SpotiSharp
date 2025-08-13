@@ -38,7 +38,7 @@ public partial class PlaylistCreatorPage : BasePage
         if (playlistFilterView == null) return;
         Application.Current.Dispatcher.Dispatch(() =>
         {
-            FilterLayout.Add(playlistFilterView);
+          //  FilterLayout.Add(playlistFilterView);
         });
         FilterViews.Add(playlistFilterView);
     }
@@ -47,7 +47,7 @@ public partial class PlaylistCreatorPage : BasePage
     {
         Application.Current.Dispatcher.Dispatch(() =>
         {
-            FilterLayout.RemoveAt(index);
+           // FilterLayout.RemoveAt(index);
             FilterViews.RemoveAt(index);
         });
     }
