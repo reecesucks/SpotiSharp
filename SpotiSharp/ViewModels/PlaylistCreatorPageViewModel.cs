@@ -2,6 +2,9 @@
 using SpotiSharpBackend;
 using SpotiSharp.Models;
 using SpotiSharpBackend.Enums;
+using SpotiSharp.Enums;
+using SpotiSharp.Views;
+using System.Collections.ObjectModel;
 
 namespace SpotiSharp.ViewModels;
 
@@ -55,6 +58,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         set { SetProperty(ref _savedShowsNamesIds, value); }
     }
 
+
     private TrackFilter _selectedFilter;
 
     public string SelectedFilter
@@ -85,7 +89,8 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         AddFilter = new Command(AddFilterHandler);
         ApplyFilters = new Command(ApplyFiltersHandler);
         CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
-        
+        AddPlayListSection = new Command(AddPlayListSectionHandler);
+
         PlaylistCreationSonglistViewModel.OnPlalistIsFiltered += () => IsFilteringPlaylist = false;
     }
 
@@ -130,4 +135,15 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand AddFilter { private set; get; }
     public ICommand ApplyFilters { private set; get; }
     public ICommand CreatePlaylist { private set; get; }
+
+    public ICommand AddPlayListSection { private set; get; }
+    public ObservableCollection<object> SectionCreationList { get; } = new ObservableCollection<object>() { new PlaylistSectionSectionCreatorViewModel() };
+
+    private void AddPlayListSectionHandler()
+    {
+        SectionCreationList.Add(new PlaylistSectionSectionCreator()
+        {
+            BindingContext = new PlaylistSectionSectionCreatorViewModel()
+        });
+    }
 }
