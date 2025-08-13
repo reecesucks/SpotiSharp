@@ -24,12 +24,16 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Entry Grid.Row="0" WidthRequest="600" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
-                <Grid BackgroundColor="Red" Grid.Row="1" RowDefinitions="*,*,*" ColumnDefinitions="*,*,*">
-                    <inputs:SfComboBox Grid.Row="0" Grid.Column="0" ItemsSource="{Binding SavedShowsNamesId}"></inputs:SfComboBox>
-                    <inputs:SfComboBox Grid.Row="0" Grid.Column="1"></inputs:SfComboBox>
-                </Grid>
-                <Grid Grid.Row="2" VerticalOptions="Fill">
+                <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
+                <StackLayout Grid.Row="1" BindableLayout.ItemsSource="{Binding SectionCreationList}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                            <views:PlaylistSectionSectionCreator/>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </StackLayout>
+                <Button Grid.Row="2 " Text="+" Command="{Binding AddPlayListSection}" ></Button>
+                <!--<Grid Grid.Row="2" VerticalOptions="Fill" IsVisible="False">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -98,7 +102,8 @@
                             </ScrollView>
                         </Grid>
                     </Frame>
-                </Grid>
+                </Grid>-->
+                
                 <Button Grid.Row="3" BackgroundColor="{StaticResource Gray900}" Text="Create Playlist" HeightRequest="65" FontSize="24" HorizontalOptions="Fill" Margin="100,20,100,20" Command="{Binding CreatePlaylist}" />
             </Grid>
         </Border>
