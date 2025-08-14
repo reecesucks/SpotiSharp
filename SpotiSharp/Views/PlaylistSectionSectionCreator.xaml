@@ -4,17 +4,17 @@
              x:Class="SpotiSharp.Views.PlaylistSectionSectionCreator"
              xmlns:inputs="clr-namespace:Syncfusion.Maui.Inputs;assembly=Syncfusion.Maui.Inputs"
              xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
-             xmlns:viewmodel="clr-namespace:SpotiSharp.ViewModels"
-             x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel" >
+             xmlns:viewmodel="clr-namespace:SpotiSharp.ViewModels">
 
-    <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*">
+    <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*"
+          x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
         <Picker Grid.Row="0" Grid.Column="0" 
                 ItemsSource="{Binding Playlists}"
                 SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
                 ItemDisplayBinding="{Binding PlayListTitle}"/>
         <Picker Grid.Row="0" Grid.Column="1" 
                 ItemsSource="{Binding PlaylistSectionTypes}"
-                SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
+                SelectedItem="{Binding SelectedSectionType, Mode=TwoWay}"
                 ItemDisplayBinding="{Binding SectionTypeDescription}"/>
         <Entry Grid.Row="0" Grid.Column="2" Text="1"/>
     </Grid>

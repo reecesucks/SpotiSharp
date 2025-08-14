@@ -25,13 +25,15 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
-                <StackLayout Grid.Row="1" BindableLayout.ItemsSource="{Binding SectionCreationList}">
-                    <BindableLayout.ItemTemplate>
-                        <DataTemplate>
-                            <views:PlaylistSectionSectionCreator/>
-                        </DataTemplate>
-                    </BindableLayout.ItemTemplate>
-                </StackLayout>
+                <ScrollView Grid.Row="1">
+                    <StackLayout BindableLayout.ItemsSource="{Binding SectionCreationList}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
+                                <views:PlaylistSectionSectionCreator />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </StackLayout>
+                </ScrollView>
                 <Button Grid.Row="2 " Text="+" Command="{Binding AddPlayListSection}" ></Button>
                 <!--<Grid Grid.Row="2" VerticalOptions="Fill" IsVisible="False">
                     <Grid.ColumnDefinitions>
