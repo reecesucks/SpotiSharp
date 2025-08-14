@@ -1,9 +1,6 @@
 ﻿
-using System.Linq;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
-using SpotiSharp.ViewModels;
-using SpotiSharpBackend;
 
 namespace SpotiSharp.ViewModels
 {
@@ -17,7 +14,7 @@ namespace SpotiSharp.ViewModels
 
         private List<Playlist> _playlists;
         private Playlist _SelectedPlaylist;
-        
+        private PlaylistSectionType _playlistSectionType;
 
         public List<Playlist> Playlists
         {
@@ -28,6 +25,12 @@ namespace SpotiSharp.ViewModels
         {
             get { return _SelectedPlaylist; }
             set { SetProperty(ref _SelectedPlaylist, value); }
+        }
+
+        public PlaylistSectionType SelectedSectionType
+        {
+            get { return _playlistSectionType; }
+            set { SetProperty(ref _playlistSectionType, value); }
         }
 
         private List<PlaylistSectionType> _playlistSectionTypes;
