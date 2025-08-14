@@ -7,5 +7,6 @@ public partial class PlaylistSectionSectionCreator : ContentView
 	public PlaylistSectionSectionCreator()
 	{
 		InitializeComponent();
+        BindingContext = new PlaylistSectionSectionCreatorViewModel();
     }
 }

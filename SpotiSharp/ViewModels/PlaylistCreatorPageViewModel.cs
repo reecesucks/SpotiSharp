@@ -137,13 +137,10 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand CreatePlaylist { private set; get; }
 
     public ICommand AddPlayListSection { private set; get; }
-    public ObservableCollection<object> SectionCreationList { get; } = new ObservableCollection<object>() { new PlaylistSectionSectionCreatorViewModel() };
+    public ObservableCollection<PlaylistSectionSectionCreatorViewModel> SectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>() { new PlaylistSectionSectionCreatorViewModel() };
 
     private void AddPlayListSectionHandler()
     {
-        SectionCreationList.Add(new PlaylistSectionSectionCreator()
-        {
-            BindingContext = new PlaylistSectionSectionCreatorViewModel()
-        });
+        SectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
     }
 }
