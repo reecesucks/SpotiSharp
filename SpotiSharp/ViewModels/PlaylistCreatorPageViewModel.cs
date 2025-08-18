@@ -5,6 +5,7 @@ using SpotiSharpBackend.Enums;
 using SpotiSharp.Enums;
 using SpotiSharp.Views;
 using System.Collections.ObjectModel;
+using SpotifyAPI.Web;
 
 namespace SpotiSharp.ViewModels;
 
@@ -88,8 +89,11 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         AddSongsFromPlaylist = new Command(AddSongsFromPlaylistHandler);
         AddFilter = new Command(AddFilterHandler);
         ApplyFilters = new Command(ApplyFiltersHandler);
-        CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
         AddPlayListSection = new Command(AddPlayListSectionHandler);
+        
+        //CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
+        CreatePlaylist = new Command(CreationList);
+
 
         PlaylistCreationSonglistViewModel.OnPlalistIsFiltered += () => IsFilteringPlaylist = false;
     }
@@ -143,4 +147,43 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     {
         SectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
     }
-}
+
+    private void CreationList()
+    {
+        List<object> returnObj = new List<object>();
+
+        foreach (PlaylistSectionSectionCreatorViewModel sect in SectionCreationList)
+        {
+            CreateSection(sect, returnObj);
+        }
+
+        var finalObj = returnObj;
+    }
+
+    private async void CreateSection(PlaylistSectionSectionCreatorViewModel vm, List<object> returnObj)
+    {
+        var sectionType = (PlaylistSectionEnum)vm.SelectedSectionType.SectionType;
+
+        switch (sectionType)
+        {
+            case PlaylistSectionEnum.EntirePlaylist:
+                var list = new SongsListModel(vm.SelectedPlaylist.PlayListId);
+
+                var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
+                List<FullTrack>? currentAudioFeatures = apiCallerInstance?.GetMultipleTracksByTrackId(list.Songs.Select(rs => rs.SongId).ToList());
+                var uriList = currentAudioFeatures.Select(x => x.Uri).ToList();
+
+                PlaylistCreatorPageModel.CreatePlaylistWithUriList(PlaylistName, uriList);
+                break;
+            case PlaylistSectionEnum.PercentageOfNewPlaylistRandom:
+                returnObj.Add(null);
+                break;
+            case PlaylistSectionEnum.FixedAmountSelected:
+                returnObj.Add(null);
+                break;
+            case PlaylistSectionEnum.FixedAmountRandom:
+                returnObj.Add(null);
+                break;
+        }
+        }
+    }
