@@ -135,6 +135,11 @@ public static class PlaylistCreatorPageModel
         //APICaller.Instance?.CreatePlaylistWithTrackUris(PlaylistName, CurrentFilteredSongs.Select(cfs => cfs.Uri).ToList());
     }
 
+    public static void CreatePlaylistWithUriList(string playlistName, List<String> uriList)
+    {
+        APICaller.Instance?.CreatePlaylistWithTrackUris(playlistName, uriList);
+    }
+
     private static void RemoveFilter(int index)
     {
         Filters.RemoveAt(index);
