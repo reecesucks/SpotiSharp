@@ -6,6 +6,7 @@ using SpotiSharp.Enums;
 using SpotiSharp.Views;
 using System.Collections.ObjectModel;
 using SpotifyAPI.Web;
+using SpotiSharp.Classes;
 
 namespace SpotiSharp.ViewModels;
 
@@ -14,75 +15,69 @@ public delegate void AddingFilter(TrackFilter trackFilter, Guid guid, List<objec
 public class PlaylistCreatorPageViewModel : BaseViewModel
 {
     public static event AddingFilter OnAddingFilter;
-    
-    private bool _isAuthenticated = false;
 
+    #region "Locals"
+    private List<FullTrack> _playlist = new List<FullTrack>();
+    private SectionCreatorClass _sectionCreatorClass;
+    private bool _isAuthenticated = false;
+    private string _playlistName;
+    private string _selectedPlaylistNameId;
+    private List<string> _playlistNamesIds;
+    private List<string> _savedShowsNamesIds;
+    private TrackFilter _selectedFilter;
+    private List<TrackFilter> _filters = Enum.GetValues<TrackFilter>().ToList();
+    private bool _isFilteringPlaylist = false;
+
+    #endregion
+
+    #region "Properties"
+    public List<FullTrack> Playlist
+    {
+        get { return _playlist; }
+        set { SetProperty(ref _playlist, value);}
+    }
     public bool IsAuthenticated
     {
         get { return _isAuthenticated; }
         set { SetProperty(ref _isAuthenticated, value); }
     }
-    
-    private string _playlistName;
-
     public string PlaylistName
     {
         get { return _playlistName; }
         set
-        {
-            PlaylistCreatorPageModel.PlaylistName = value;
-            SetProperty(ref _playlistName, value);
-        }
+        {PlaylistCreatorPageModel.PlaylistName = value; SetProperty(ref _playlistName, value);}
     }
-    
-    private string _selectedPlaylistNameId;
-
     public string SelectedPlaylistNameId
     {
         get { return _selectedPlaylistNameId; }
         set { SetProperty(ref _selectedPlaylistNameId, value); }
     }
-
-    private List<string> _playlistNamesIds;
-
     public List<string> PlaylistNamesIds
     {
         get { return _playlistNamesIds; }
         set { SetProperty(ref _playlistNamesIds, value); }
     }
-
-    private List<string> _savedShowsNamesIds;
-
     public List<string> SavedShowsNamesId
     {
         get { return _savedShowsNamesIds; }
         set { SetProperty(ref _savedShowsNamesIds, value); }
     }
-
-
-    private TrackFilter _selectedFilter;
-
     public string SelectedFilter
     {
         get { return _selectedFilter.ToString(); }
         set { SetProperty(ref _selectedFilter, Enum.Parse<TrackFilter>(value)); }
     }
-
-    private List<TrackFilter> _filters = Enum.GetValues<TrackFilter>().ToList();
-
     public List<string> Filters
     {
         get { return _filters.Select(f => f.ToString()).ToList(); }
         set { SetProperty(ref _filters, value.Select(Enum.Parse<TrackFilter>).ToList() ); }
     }
-
-    private bool _isFilteringPlaylist = false;
-    
     public bool IsFilteringPlaylist
     {
         get { return _isFilteringPlaylist; }
         set { SetProperty(ref _isFilteringPlaylist, value ); }
     }
+    #endregion
 
     public PlaylistCreatorPageViewModel()
     {
@@ -92,10 +87,11 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         AddPlayListSection = new Command(AddPlayListSectionHandler);
         
         //CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
-        CreatePlaylist = new Command(CreationList);
-
+        CreatePlaylist = new Command(CreatePlaylistBySections);
 
         PlaylistCreationSonglistViewModel.OnPlalistIsFiltered += () => IsFilteringPlaylist = false;
+
+        _sectionCreatorClass = new SectionCreatorClass(_playlist);
     }
 
     internal override void OnAppearing()
@@ -115,7 +111,6 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public static void InvokeAddFilter(TrackFilter trackFilter, Guid guid, List<object> parameters)
     {
         OnAddingFilter?.Invoke(trackFilter, guid, parameters);
-        
     }
 
     private void AddFilterHandler()
@@ -139,7 +134,6 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand AddFilter { private set; get; }
     public ICommand ApplyFilters { private set; get; }
     public ICommand CreatePlaylist { private set; get; }
-
     public ICommand AddPlayListSection { private set; get; }
     public ObservableCollection<PlaylistSectionSectionCreatorViewModel> SectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>() { new PlaylistSectionSectionCreatorViewModel() };
 
@@ -148,42 +142,18 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         SectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
     }
 
-    private void CreationList()
+    private void CreatePlaylistBySections()
     {
-        List<object> returnObj = new List<object>();
-
-        foreach (PlaylistSectionSectionCreatorViewModel sect in SectionCreationList)
+        try
         {
-            CreateSection(sect, returnObj);
+            foreach (PlaylistSectionSectionCreatorViewModel sect in SectionCreationList)
+            {
+                _sectionCreatorClass.CreateSection(sect);
+            }
         }
-
-        var finalObj = returnObj;
-    }
-
-    private async void CreateSection(PlaylistSectionSectionCreatorViewModel vm, List<object> returnObj)
-    {
-        var sectionType = (PlaylistSectionEnum)vm.SelectedSectionType.SectionType;
-
-        switch (sectionType)
+        catch (Exception ex)
         {
-            case PlaylistSectionEnum.EntirePlaylist:
-                var list = new SongsListModel(vm.SelectedPlaylist.PlayListId);
-
-                var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
-                List<FullTrack>? currentAudioFeatures = apiCallerInstance?.GetMultipleTracksByTrackId(list.Songs.Select(rs => rs.SongId).ToList());
-                var uriList = currentAudioFeatures.Select(x => x.Uri).ToList();
-
-                PlaylistCreatorPageModel.CreatePlaylistWithUriList(PlaylistName, uriList);
-                break;
-            case PlaylistSectionEnum.PercentageOfNewPlaylistRandom:
-                returnObj.Add(null);
-                break;
-            case PlaylistSectionEnum.FixedAmountSelected:
-                returnObj.Add(null);
-                break;
-            case PlaylistSectionEnum.FixedAmountRandom:
-                returnObj.Add(null);
-                break;
-        }
+            //logging doesn't exist yet
         }
     }
+}
