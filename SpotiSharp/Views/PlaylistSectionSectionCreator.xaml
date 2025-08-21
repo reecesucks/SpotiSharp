@@ -16,6 +16,7 @@
                 ItemsSource="{Binding PlaylistSectionTypes}"
                 SelectedItem="{Binding SelectedSectionType, Mode=TwoWay}"
                 ItemDisplayBinding="{Binding SectionTypeDescription}"/>
-        <Entry Grid.Row="0" Grid.Column="2" Text="1"/>
+        <Entry Grid.Row="0" Grid.Column="2" 
+               Text="{Binding NumericValue}"/>
     </Grid>
 </ContentView>

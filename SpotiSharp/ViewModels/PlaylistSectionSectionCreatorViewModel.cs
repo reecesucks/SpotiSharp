@@ -12,9 +12,12 @@ namespace SpotiSharp.ViewModels
             _playlistSectionTypes = EnumHelper.GetEnumListAsDictionary<PlaylistSectionEnum>().Select(p => new PlaylistSectionType(p.Key, p.Value)).ToList();
         }
 
+
+        private int _numericValue;
         private List<Playlist> _playlists;
         private Playlist _SelectedPlaylist;
         private PlaylistSectionType _playlistSectionType;
+        private List<PlaylistSectionType> _playlistSectionTypes;
 
         public List<Playlist> Playlists
         {
@@ -33,11 +36,15 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _playlistSectionType, value); }
         }
 
-        private List<PlaylistSectionType> _playlistSectionTypes;
-
         public List<PlaylistSectionType> PlaylistSectionTypes
         {
             get { return _playlistSectionTypes; }
+        }
+
+        public int NumericValue
+        {
+            get { return _numericValue; }
+            set { SetProperty(ref _numericValue, value); }
         }
     }
 }
