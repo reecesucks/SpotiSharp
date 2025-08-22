@@ -20,30 +20,6 @@ namespace SpotiSharp.Classes
             _playlist = playlist;
         }
 
-        //public async void AddSection(PlaylistSectionEnum sectionType, SongsListModel songListModel)
-        //{            
-
-        //    List<FullTrack> result = new List<FullTrack>();
-
-        //    switch (sectionType)
-        //    {
-        //        case PlaylistSectionEnum.EntirePlaylist:
-        //            result = await AddSectionEntirePlaylist(songListModel);
-        //            break;
-        //        case PlaylistSectionEnum.PercentageOfNewPlaylistRandom:
-        //            result = await AddSectionPercentageRandom(songListModel);
-        //            break;
-        //        case PlaylistSectionEnum.FixedAmountSelected:
-        //            result = await AddSectionFixedAmountSelected(songListModel);
-        //            break;
-        //        case PlaylistSectionEnum.FixedAmountRandom:
-        //            result = await AddSectionFixedAmountRandom(songListModel);
-        //            break;
-        //    }
-
-        //    AddTracksToPlaylist(result);
-        //}
-
         private  void AddSectionEntirePlaylist(List<FullTrack> fullPlaylist)
         {
             AddTracksToPlaylist(fullPlaylist);
@@ -66,15 +42,14 @@ namespace SpotiSharp.Classes
             AddTracksToPlaylist(filteredList);
         }
 
-        private void AddSectionFixedAmountSelected(List<FullTrack> fullPlaylist)
+        private void AddSectionFixedAmountSelected(List<FullTrack> selectedTracks)
         {
-            //return new List<FullTrack>();
+            AddTracksToPlaylist(selectedTracks);
         }
 
         private void AddSectionFixedAmountRandom(List<FullTrack> fullPlaylist, int numericVal)
         {
             Random r = new Random();
-
             var filteredList = new List<FullTrack>();
 
             while (filteredList.Count < numericVal)
@@ -83,7 +58,6 @@ namespace SpotiSharp.Classes
                 if (!filteredList.Contains(fullPlaylist[rInt]))
                     filteredList.Add(fullPlaylist[rInt]);
             }
-
 
             AddTracksToPlaylist(filteredList);
         }
@@ -105,7 +79,7 @@ namespace SpotiSharp.Classes
                     AddSectionPercentageRandom(fullTracks, numericValue);
                     break;
                 case PlaylistSectionEnum.FixedAmountSelected:
-                    AddSectionFixedAmountSelected(fullTracks);
+                    AddSectionFixedAmountSelected(vm.SelectedPlaylistTracks);
                     break;
                 case PlaylistSectionEnum.FixedAmountRandom:
                     AddSectionFixedAmountRandom(fullTracks, numericValue);

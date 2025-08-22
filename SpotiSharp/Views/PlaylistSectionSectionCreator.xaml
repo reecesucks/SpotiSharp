@@ -4,19 +4,35 @@
              x:Class="SpotiSharp.Views.PlaylistSectionSectionCreator"
              xmlns:inputs="clr-namespace:Syncfusion.Maui.Inputs;assembly=Syncfusion.Maui.Inputs"
              xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
-             xmlns:viewmodel="clr-namespace:SpotiSharp.ViewModels">
+             xmlns:viewmodel="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:controls="clr-namespace:SpotiSharp.Controls">
 
     <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*"
           x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
         <Picker Grid.Row="0" Grid.Column="0" 
                 ItemsSource="{Binding Playlists}"
                 SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
-                ItemDisplayBinding="{Binding PlayListTitle}"/>
+                ItemDisplayBinding="{Binding PlayListTitle}"
+                SelectedIndexChanged="Playlist_SelectedIndexChanged"/>
         <Picker Grid.Row="0" Grid.Column="1" 
                 ItemsSource="{Binding PlaylistSectionTypes}"
                 SelectedItem="{Binding SelectedSectionType, Mode=TwoWay}"
-                ItemDisplayBinding="{Binding SectionTypeDescription}"/>
-        <Entry Grid.Row="0" Grid.Column="2" 
+                ItemDisplayBinding="{Binding SectionTypeDescription}"
+                SelectedIndexChanged="SectionTypeChangedHandler"/>
+        <Label Grid.Row="0" Grid.Column="2"
+               x:Name="lblPlaceholder"
+               HorizontalTextAlignment="Center"
+               VerticalTextAlignment="Center"
+               Text="select section type"/>
+        <Entry Grid.Row="0" Grid.Column="2"
+               x:Name="entNumericValue"
+               IsVisible="False"
                Text="{Binding NumericValue}"/>
+        <controls:MultiSelectPicker Grid.Row="0" Grid.Column="2"
+                           x:Name="msSongs"
+                           IsVisible="False"
+                           ItemsSource="{Binding SelectedPlaylistTracks}"
+                           DisplayMemberPath="Name">
+        </controls:MultiSelectPicker>
     </Grid>
 </ContentView>
