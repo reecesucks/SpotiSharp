@@ -41,9 +41,9 @@ public class PlaylistListModel
         _playLists = tmpPlaylist;
     }
 
-    private static List<SavedShow> _savedShows = new List<SavedShow>();
+    private static List<FullShow> _savedShows = new List<FullShow>();
 
-    public static List<SavedShow> SavedShows
+    public static List<FullShow> SavedShows
     {
         get
         {
@@ -55,14 +55,14 @@ public class PlaylistListModel
 
     internal static void LoadSavedShows()
     {
-        var tmpSavedShowList = new List<SavedShow>();
+        var tmpSavedShowList = new List<FullShow>();
 
         // followed playlists
         var savedShows = APICaller.Instance?.GetSavedShows();
         if (savedShows == null) return;
         foreach (var show in savedShows)
         {
-            tmpSavedShowList.Add(show);
+            tmpSavedShowList.Add(show.Show);
         }
         _savedShows = tmpSavedShowList;
     }
