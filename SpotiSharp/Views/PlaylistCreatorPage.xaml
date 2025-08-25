@@ -23,10 +23,12 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
                 <ScrollView Grid.Row="1">
-                    <StackLayout BindableLayout.ItemsSource="{Binding SectionCreationList}">
+                    <StackLayout BindableLayout.ItemsSource="{Binding PlaylistSectionCreationList}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
                                 <views:PlaylistSectionSectionCreator />
@@ -34,7 +36,18 @@
                         </BindableLayout.ItemTemplate>
                     </StackLayout>
                 </ScrollView>
-                <Button Grid.Row="2 " Text="+" Command="{Binding AddPlayListSection}" ></Button>
+                <Button Grid.Row="2" Text="+ music" Command="{Binding AddPlayListSection}" ></Button>
+
+                <ScrollView Grid.Row="3">
+                    <StackLayout BindableLayout.ItemsSource="{Binding PodcastSectionCreationList}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:PodcastSectionSectionCreatorViewModel">
+                                <views:PodcastSectionSectionCreator />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </StackLayout>
+                </ScrollView>
+                <Button Grid.Row="4" Text="+ podcast" Command="{Binding AddPodcastSection}" ></Button>
                 <!--<Grid Grid.Row="2" VerticalOptions="Fill" IsVisible="False">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -106,9 +119,16 @@
                     </Frame>
                 </Grid>-->
                 
-                <Button Grid.Row="3" BackgroundColor="{StaticResource Gray900}" Text="Create Playlist" HeightRequest="65" FontSize="24" HorizontalOptions="Fill" Margin="100,20,100,20" Command="{Binding CreatePlaylist}" />
+                <Button Grid.Row="5" BackgroundColor="{StaticResource Gray900}" 
+                        Text="Create Playlist" 
+                        HeightRequest="65" 
+                        FontSize="24" 
+                        HorizontalOptions="Fill" 
+                        Margin="100,20,100,20"
+                        VerticalOptions="End"
+                        Command="{Binding CreatePlaylist}" />
             </Grid>
         </Border>
-        <views:PlayerBarView Grid.Row="3" />
+        <views:PlayerBarView Grid.Row="6" />
     </Grid>
 </views:BasePage>
