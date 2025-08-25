@@ -2,8 +2,6 @@
 using SpotiSharpBackend;
 using SpotiSharp.Models;
 using SpotiSharpBackend.Enums;
-using SpotiSharp.Enums;
-using SpotiSharp.Views;
 using System.Collections.ObjectModel;
 using SpotifyAPI.Web;
 using SpotiSharp.Classes;
@@ -85,6 +83,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         AddFilter = new Command(AddFilterHandler);
         ApplyFilters = new Command(ApplyFiltersHandler);
         AddPlayListSection = new Command(AddPlayListSectionHandler);
+        AddPodcastSection = new Command(AddPodcastListSectionHandler);
         
         //CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
         CreatePlaylist = new Command(CreatePlaylistBySections);
@@ -97,7 +96,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     internal override void OnAppearing()
     {
         PlaylistNamesIds = PlaylistListModel.PlayLists.Select(p => $"{p.PlayListTitle}\n{p.PlayListId}").ToList();
-        SavedShowsNamesId = PlaylistListModel.SavedShows.Select(s => $"{s.Show.Name}\n{s.Show.Id}").ToList();
+        SavedShowsNamesId = PlaylistListModel.SavedShows.Select(s => $"{s.Name}\n{s.Id}").ToList();
         IsAuthenticated = Authentication.SpotifyClient != null;
     }
 
@@ -135,18 +134,26 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand ApplyFilters { private set; get; }
     public ICommand CreatePlaylist { private set; get; }
     public ICommand AddPlayListSection { private set; get; }
-    public ObservableCollection<PlaylistSectionSectionCreatorViewModel> SectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>() { new PlaylistSectionSectionCreatorViewModel() };
+    public ICommand AddPodcastSection { private set; get; }
+
+    public ObservableCollection<PlaylistSectionSectionCreatorViewModel> PlaylistSectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>() { new PlaylistSectionSectionCreatorViewModel() };
+    public ObservableCollection<PodcastSectionSectionCreatorViewModel> PodcastSectionCreationList { get; } = new ObservableCollection<PodcastSectionSectionCreatorViewModel>() { new PodcastSectionSectionCreatorViewModel() };
 
     private void AddPlayListSectionHandler()
     {
-        SectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
+        PlaylistSectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
+    }
+
+    private void AddPodcastListSectionHandler()
+    {
+       PodcastSectionCreationList.Add(new PodcastSectionSectionCreatorViewModel());
     }
 
     private void CreatePlaylistBySections()
     {
         try
         {
-            foreach (PlaylistSectionSectionCreatorViewModel sect in SectionCreationList)
+            foreach (PlaylistSectionSectionCreatorViewModel sect in PlaylistSectionCreationList)
             {
                 _sectionCreatorClass.CreateSection(sect);
             }
