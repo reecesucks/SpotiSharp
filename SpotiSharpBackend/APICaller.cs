@@ -350,5 +350,17 @@ public class APICaller
         return result;
     }
 
+    public List<SimpleEpisode> GetPodcastEpisodesByPodcastId(string showId)
+    {
+        var result = new List<SimpleEpisode>();
+        var req = HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Shows.GetEpisodes(showId).Result);
+
+        if (req.Items != null)
+        {
+            result.AddRange(req.Items);
+        }
+        return result;
+    }
+
     #endregion
 }
