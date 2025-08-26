@@ -54,9 +54,9 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _selectedFullEpisodes, value); }
         }
 
-        public async void OnSelectedPodcastChanged(SavedShow savedShow)
+        public async void OnSelectedPodcastChanged(FullShow savedShow)
         {
-            //var songListModel = new SongsListModel(savedShow.);
+            var songListModel = new PodcastShowModel(savedShow);
             //var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
            // SelectedPlaylistTracks = apiCallerInstance?.GetMultipleTracksByTrackId(songListModel.Songs.Select(s => s.SongId).ToList());
         }
