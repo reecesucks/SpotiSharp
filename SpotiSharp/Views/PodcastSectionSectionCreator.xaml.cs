@@ -13,7 +13,7 @@ public partial class PodcastSectionSectionCreator : ContentView
     public void Podcast_SelectedIndexChanged(object sender, EventArgs e)
     {
         var picker = (Picker)sender;
-        var selectedItem = (SavedShow)picker.SelectedItem;
+        var selectedItem = (FullShow)picker.SelectedItem;
 
         if (BindingContext is PodcastSectionSectionCreatorViewModel vm)
         {
