@@ -29,7 +29,7 @@
         <controls:MultiSelectPicker Grid.Row="0" Grid.Column="2"
                            x:Name="msSongs"
                            IsVisible="False"
-                           ItemsSource="{Binding SelectedPlaylistTracks}"
+                           ItemsSource="{Binding SelectedFullEpisodes}"
                            DisplayMemberPath="Name">
         </controls:MultiSelectPicker>
     </Grid>
