@@ -1,4 +1,5 @@
 ﻿using SpotifyAPI.Web;
+using SpotiSharp.Enums;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
 using static System.Net.Mime.MediaTypeNames;
@@ -11,14 +12,15 @@ namespace SpotiSharp.ViewModels
         private int _numericValue;
         private List<FullShow> _savedShows;
         private FullShow _selectedSavedShow;
-        private List<FullEpisode> _selectedFullEpisodes;
+        private List<SimpleEpisode> _selectedSimpleEpisode;
+        private List<PodcastSectionType> _podcastSectionTypes;
+        
+        private PodcastSectionType _selectedSectionType;
 
-        private PlaylistSectionType _playlistSectionType;
-        private List<PlaylistSectionType> _playlistSectionTypes;
-       
         public PodcastSectionSectionCreatorViewModel()
         {
             _savedShows = PlaylistListModel.SavedShows.ToList();
+            _podcastSectionTypes = EnumHelper.GetEnumListAsDictionary<PodcastSectionEnum>().Select(p => new PodcastSectionType((PodcastSectionEnum)p.Key, p.Value)).ToList();
         }
         public List<FullShow> SavedShows
         {
@@ -31,15 +33,15 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _selectedSavedShow, value); }
         }
 
-        public PlaylistSectionType SelectedSectionType
+        public PodcastSectionType SelectedSectionType
         {
-            get { return _playlistSectionType; }
-            set { SetProperty(ref _playlistSectionType, value); }
+            get { return _selectedSectionType; }
+            set { SetProperty(ref _selectedSectionType, value); }
         }
 
-        public List<PlaylistSectionType> PlaylistSectionTypes
+        public List<PodcastSectionType> PlaylistSectionTypes
         {
-            get { return _playlistSectionTypes; }
+            get { return _podcastSectionTypes; }
         }
 
         public int NumericValue
@@ -48,17 +50,16 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _numericValue, value); }
         }
 
-        public List<FullEpisode> SelectedFullEpisodes
+        public List<SimpleEpisode> SelectedFullEpisodes
         {
-            get { return _selectedFullEpisodes; }
-            set { SetProperty(ref _selectedFullEpisodes, value); }
+            get { return _selectedSimpleEpisode; }
+            set { SetProperty(ref _selectedSimpleEpisode, value); }
         }
 
         public async void OnSelectedPodcastChanged(FullShow savedShow)
         {
             var songListModel = new PodcastShowModel(savedShow);
-            //var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
-           // SelectedPlaylistTracks = apiCallerInstance?.GetMultipleTracksByTrackId(songListModel.Songs.Select(s => s.SongId).ToList());
+            SelectedFullEpisodes = songListModel.Episodes;
         }
     }
 }
