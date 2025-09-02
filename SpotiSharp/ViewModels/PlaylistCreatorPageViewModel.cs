@@ -136,17 +136,16 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand AddPlayListSection { private set; get; }
     public ICommand AddPodcastSection { private set; get; }
 
-    public ObservableCollection<PlaylistSectionSectionCreatorViewModel> PlaylistSectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>() { new PlaylistSectionSectionCreatorViewModel() };
-    public ObservableCollection<PodcastSectionSectionCreatorViewModel> PodcastSectionCreationList { get; } = new ObservableCollection<PodcastSectionSectionCreatorViewModel>() { new PodcastSectionSectionCreatorViewModel() };
+    public ObservableCollection<PlaylistSectionSectionCreatorViewModel> PlaylistSectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>();
 
     private void AddPlayListSectionHandler()
     {
-        PlaylistSectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel());
+        PlaylistSectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel(false));
     }
 
     private void AddPodcastListSectionHandler()
     {
-       PodcastSectionCreationList.Add(new PodcastSectionSectionCreatorViewModel());
+        PlaylistSectionCreationList.Add(new PlaylistSectionSectionCreatorViewModel(true));
     }
 
     private void CreatePlaylistBySections()

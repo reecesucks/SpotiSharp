@@ -1,4 +1,5 @@
 ﻿using SpotiSharp.Enums;
+using SpotiSharp.Interfaces;
 
 namespace SpotiSharp.Models
 {

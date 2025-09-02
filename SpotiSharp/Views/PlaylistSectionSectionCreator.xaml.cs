@@ -1,3 +1,4 @@
+using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
@@ -9,10 +10,9 @@ public partial class PlaylistSectionSectionCreator : ContentView
 	public PlaylistSectionSectionCreator()
 	{
 		InitializeComponent();
-        BindingContext = new PlaylistSectionSectionCreatorViewModel();
     }
 
-    private void SectionTypeChangedHandler(object sender, EventArgs e)
+    private void SectionTypeMusicChangedHandler(object sender, EventArgs e)
     {
         var picker = (Picker)sender;
         var sectionType = (PlaylistSectionType)picker.SelectedItem;
@@ -37,6 +37,27 @@ public partial class PlaylistSectionSectionCreator : ContentView
         }
     }
 
+    private void SectionTypePodChangedHandler(object sender, EventArgs e)
+    {
+        var picker = (Picker)sender;
+        var sectionType = (PodcastSectionType)picker.SelectedItem;
+
+        lblPlaceholderPod.IsVisible = false;
+        entNumericValuePod.IsVisible = false;
+        msSongsPod.IsVisible = false;
+        switch (sectionType.SectionType)
+        {
+
+            case PodcastSectionEnum.NewestUnplayed:
+                break;
+            case PodcastSectionEnum.RandomUnplayed:
+                break;
+            case PodcastSectionEnum.SelectEpisodes:
+                msSongsPod.IsVisible = true;
+                break;
+        }
+    }
+
     public void Playlist_SelectedIndexChanged(object sender, EventArgs e)
     {
         var picker = (Picker)sender;
@@ -45,6 +66,17 @@ public partial class PlaylistSectionSectionCreator : ContentView
         if (BindingContext is PlaylistSectionSectionCreatorViewModel vm)
         {
             vm.OnSelectedPlaylistChanged(selectedItem);
+        }
+    }
+
+    public void Podcast_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        var picker = (Picker)sender;
+        var selectedItem = (FullShow)picker.SelectedItem;
+
+        if (BindingContext is PlaylistSectionSectionCreatorViewModel vm)
+        {
+            vm.OnSelectedPodcastChanged(selectedItem);
         }
     }
 }
