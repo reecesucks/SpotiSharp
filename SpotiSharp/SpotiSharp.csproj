@@ -84,9 +84,6 @@
 	  <MauiXaml Update="Views\PodcastSectionCreator.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PodcastSectionSectionCreator.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\SongsListView.xaml">
 	    <SubType>Designer</SubType>
 	  </MauiXaml>

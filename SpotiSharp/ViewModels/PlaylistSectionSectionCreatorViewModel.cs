@@ -8,18 +8,29 @@ namespace SpotiSharp.ViewModels
 {
     public class PlaylistSectionSectionCreatorViewModel : BaseViewModel
     {
-        public PlaylistSectionSectionCreatorViewModel()
+        public PlaylistSectionSectionCreatorViewModel(bool isPodcast)
         {
-            _playlists = PlaylistListModel.PlayLists.Select(p => p).ToList();
-            _playlistSectionTypes = EnumHelper.GetEnumListAsDictionary<PlaylistSectionEnum>().Select(p => new PlaylistSectionType((PlaylistSectionEnum)p.Key, p.Value)).ToList();
+            SetMode(isPodcast);
         }
 
+        private bool _isPodcast;
         private int _numericValue;
         private List<Playlist> _playlists;
         private Playlist _selectedPlaylist;
         private PlaylistSectionType _playlistSectionType;
         private List<PlaylistSectionType> _playlistSectionTypes;
         private List<FullTrack> _selectedPlaylistTracks;
+
+        private List<FullShow> _savedShows;
+        private FullShow _selectedSavedShow;
+        private List<SimpleEpisode> _selectedSimpleEpisode;
+        private List<PodcastSectionType> _podcastSectionTypes;
+        private PodcastSectionType _selectedSectionType;
+
+        public bool IsPodcast {  get { return _isPodcast; } }
+        public bool IsMusic { get { return !_isPodcast; } }
+
+        public Brush Background => IsPodcast ? new SolidColorBrush(Color.FromHex("#FFA500"))  :  new SolidColorBrush(Color.FromHex("#1DB954"));
 
         public List<Playlist> Playlists
         {
@@ -55,11 +66,59 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _selectedPlaylistTracks, value); }
         }
 
+        #region "PodCast Properties"
+        public List<SimpleEpisode> SelectedFullEpisodes
+        {
+            get { return _selectedSimpleEpisode; }
+            set { SetProperty(ref _selectedSimpleEpisode, value); }
+        }
+        public List<FullShow> SavedShows
+        {
+            get { return _savedShows; }
+            set { SetProperty(ref _savedShows, value); }
+        }
+        public FullShow SelectedSavedShow
+        {
+            get { return _selectedSavedShow; }
+            set { SetProperty(ref _selectedSavedShow, value); }
+        }
+        public List<PodcastSectionType> PodcastSectionTypes
+        {
+            get { return _podcastSectionTypes; }
+        }
+        public PodcastSectionType SelectedSectionTypePod
+        {
+            get { return _selectedSectionType; }
+            set { SetProperty(ref _selectedSectionType, value); }
+        }
+        #endregion
+
+        private void SetMode(bool isPodcast)
+        {
+            _isPodcast = isPodcast;
+
+            if (isPodcast)
+            {
+                _savedShows = PlaylistListModel.SavedShows.ToList();
+                _podcastSectionTypes = EnumHelper.GetEnumListAsDictionary<PodcastSectionEnum>().Select(p => new PodcastSectionType((PodcastSectionEnum)p.Key, p.Value)).ToList();
+            }
+            else
+            {
+                _playlists = PlaylistListModel.PlayLists.Select(p => p).ToList();
+                _playlistSectionTypes = EnumHelper.GetEnumListAsDictionary<PlaylistSectionEnum>().Select(p => new PlaylistSectionType((PlaylistSectionEnum)p.Key, p.Value)).ToList();
+            }
+        }
+
         public async void OnSelectedPlaylistChanged(Playlist playlist)
         {
             var songListModel = new SongsListModel(playlist.PlayListId);
             var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
             SelectedPlaylistTracks =  apiCallerInstance?.GetMultipleTracksByTrackId(songListModel.Songs.Select(s => s.SongId).ToList());
+        }
+        public async void OnSelectedPodcastChanged(FullShow savedShow)
+        {
+            var songListModel = new PodcastShowModel(savedShow);
+            SelectedFullEpisodes = songListModel.Episodes;
         }
     }
 }

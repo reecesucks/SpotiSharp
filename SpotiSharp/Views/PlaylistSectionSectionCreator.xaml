@@ -6,33 +6,69 @@
              xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
              xmlns:viewmodel="clr-namespace:SpotiSharp.ViewModels"
              xmlns:controls="clr-namespace:SpotiSharp.Controls">
+        <Grid ColumnDefinitions="*" RowDefinitions="*">
+        <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*"
+              Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsMusic}"
+              x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
+    <Border Stroke="{Binding Background}" StrokeThickness="4" StrokeShape="RoundRectangle 40,0,0,40" >
+            <Picker Grid.Row="0" Grid.Column="0" 
+                    ItemsSource="{Binding Playlists}"
+                    SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
+                    ItemDisplayBinding="{Binding PlayListTitle}"
+                    SelectedIndexChanged="Playlist_SelectedIndexChanged"/>
+    </Border>
+            <Picker Grid.Row="0" Grid.Column="1" 
+                    ItemsSource="{Binding PlaylistSectionTypes}"
+                    SelectedItem="{Binding SelectedSectionType, Mode=TwoWay}"
+                    ItemDisplayBinding="{Binding SectionTypeDescription}"
+                    SelectedIndexChanged="SectionTypeMusicChangedHandler"/>
+            <Label Grid.Row="0" Grid.Column="2"
+                   x:Name="lblPlaceholder"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center"
+                   Text="select section type"/>
+            <Entry Grid.Row="0" Grid.Column="2"
+                   x:Name="entNumericValue"
+                   IsVisible="False"
+                   Text="{Binding NumericValue}"/>
+            <controls:MultiSelectPicker Grid.Row="0" Grid.Column="2"
+                               x:Name="msSongs"
+                               IsVisible="False"
+                               ItemsSource="{Binding SelectedPlaylistTracks}"
+                               DisplayMemberPath="Name">
+            </controls:MultiSelectPicker>
+        </Grid>
 
-    <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*"
-          x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
-        <Picker Grid.Row="0" Grid.Column="0" 
-                ItemsSource="{Binding Playlists}"
-                SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
-                ItemDisplayBinding="{Binding PlayListTitle}"
-                SelectedIndexChanged="Playlist_SelectedIndexChanged"/>
-        <Picker Grid.Row="0" Grid.Column="1" 
-                ItemsSource="{Binding PlaylistSectionTypes}"
-                SelectedItem="{Binding SelectedSectionType, Mode=TwoWay}"
-                ItemDisplayBinding="{Binding SectionTypeDescription}"
-                SelectedIndexChanged="SectionTypeChangedHandler"/>
-        <Label Grid.Row="0" Grid.Column="2"
-               x:Name="lblPlaceholder"
-               HorizontalTextAlignment="Center"
-               VerticalTextAlignment="Center"
-               Text="select section type"/>
-        <Entry Grid.Row="0" Grid.Column="2"
-               x:Name="entNumericValue"
-               IsVisible="False"
-               Text="{Binding NumericValue}"/>
-        <controls:MultiSelectPicker Grid.Row="0" Grid.Column="2"
-                           x:Name="msSongs"
-                           IsVisible="False"
-                           ItemsSource="{Binding SelectedPlaylistTracks}"
-                           DisplayMemberPath="Name">
-        </controls:MultiSelectPicker>
+        <Grid ColumnDefinitions="*,*,*,*"
+              Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsPodcast}"
+              x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
+            <Border Stroke="{Binding Background}" StrokeThickness="2" StrokeShape="RoundRectangle 40,0,0,40" >
+                <Picker Grid.Row="0" Grid.Column="0" 
+                    ItemsSource="{Binding SavedShows}"
+                    SelectedItem="{Binding SelectedSavedShow, Mode=TwoWay}"
+                    ItemDisplayBinding="{Binding Name}"
+                    SelectedIndexChanged="Podcast_SelectedIndexChanged"/>
+            </Border>
+            <Picker Grid.Row="0" Grid.Column="1" 
+                    ItemsSource="{Binding PodcastSectionTypes}"
+                    SelectedItem="{Binding SelectedSectionTypePod, Mode=TwoWay}"
+                    ItemDisplayBinding="{Binding SectionTypeDescription}"
+                    SelectedIndexChanged="SectionTypePodChangedHandler"/>
+            <Label Grid.Row="0" Grid.Column="2"
+                   x:Name="lblPlaceholderPod"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center"
+                   Text="select section type"/>
+            <Entry Grid.Row="0" Grid.Column="3"
+                   x:Name="entNumericValuePod"
+                   IsVisible="False"
+                   Text="{Binding NumericValue}"/>
+            <controls:MultiSelectPicker Grid.Row="0" Grid.Column="2"
+                               x:Name="msSongsPod"
+                               IsVisible="False"
+                               ItemsSource="{Binding SelectedFullEpisodes}"
+                               DisplayMemberPath="Name">
+            </controls:MultiSelectPicker>
+        </Grid>
     </Grid>
 </ContentView>

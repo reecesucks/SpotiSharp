@@ -36,18 +36,11 @@
                         </BindableLayout.ItemTemplate>
                     </StackLayout>
                 </ScrollView>
-                <Button Grid.Row="2" Text="+ music" Command="{Binding AddPlayListSection}" ></Button>
 
-                <ScrollView Grid.Row="3">
-                    <StackLayout BindableLayout.ItemsSource="{Binding PodcastSectionCreationList}">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="viewmodel:PodcastSectionSectionCreatorViewModel">
-                                <views:PodcastSectionSectionCreator />
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </StackLayout>
-                </ScrollView>
-                <Button Grid.Row="4" Text="+ podcast" Command="{Binding AddPodcastSection}" ></Button>
+                <Grid Grid.Row="3" ColumnDefinitions="*,*">
+                    <Button Grid.Column="0" Text="+ music" Command="{Binding AddPlayListSection}" ></Button>
+                    <Button BackgroundColor="#FFA500" Grid.Column="1" Text="+ podcast" Command="{Binding AddPodcastSection}" ></Button>
+                </Grid>
                 <!--<Grid Grid.Row="2" VerticalOptions="Fill" IsVisible="False">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
