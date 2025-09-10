@@ -15,7 +15,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public static event AddingFilter OnAddingFilter;
 
     #region "Locals"
-    private List<FullTrack> _playlist = new List<FullTrack>();
+    private List<string> _playlistUris = new List<string>();
     private SectionCreatorClass _sectionCreatorClass;
     private bool _isAuthenticated = false;
     private string _playlistName;
@@ -29,10 +29,10 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     #endregion
 
     #region "Properties"
-    public List<FullTrack> Playlist
+    public List<String> Playlist
     {
-        get { return _playlist; }
-        set { SetProperty(ref _playlist, value);}
+        get { return _playlistUris; }
+        set { SetProperty(ref _playlistUris, value);}
     }
     public bool IsAuthenticated
     {
@@ -90,7 +90,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
 
         PlaylistCreationSonglistViewModel.OnPlalistIsFiltered += () => IsFilteringPlaylist = false;
 
-        _sectionCreatorClass = new SectionCreatorClass(_playlist);
+        _sectionCreatorClass = new SectionCreatorClass(_playlistUris);
     }
 
     internal override void OnAppearing()
@@ -154,8 +154,17 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         {
             foreach (PlaylistSectionSectionCreatorViewModel sect in PlaylistSectionCreationList)
             {
-                _sectionCreatorClass.CreateSection(sect);
+                if (sect.IsMusic)
+                {
+                    _sectionCreatorClass.CreateMusicSection(sect);
+                }
+                else
+                {
+                    _sectionCreatorClass.CreatePodcastSection(sect);
+                }
             }
+
+         PlaylistCreatorPageModel.CreatePlaylistWithUriList("test name", _playlistUris);
         }
         catch (Exception ex)
         {
