@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SpotifyAPI.Web;
+﻿using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
@@ -13,14 +8,15 @@ namespace SpotiSharp.Classes
 {
     public class SectionCreatorClass
     {
-        private List<FullTrack>  _playlist { get; set; }
+        private List<String>  _playlistURIs { get; set; }
 
-        public SectionCreatorClass(List<FullTrack> playlist) 
+        public SectionCreatorClass(List<String> playlist) 
         {
-            _playlist = playlist;
+            _playlistURIs = playlist;
         }
 
-        private  void AddSectionEntirePlaylist(List<FullTrack> fullPlaylist)
+        #region "Add music"
+        private void AddSectionEntirePlaylist(List<FullTrack> fullPlaylist)
         {
             AddTracksToPlaylist(fullPlaylist);
         }
@@ -61,7 +57,23 @@ namespace SpotiSharp.Classes
 
             AddTracksToPlaylist(filteredList);
         }
-        public async void CreateSection(PlaylistSectionSectionCreatorViewModel vm)
+
+        private async Task<List<FullTrack>> GetPlaylistFullTracks(string playlistId)
+        {
+            var songListModel = new SongsListModel(playlistId);
+            var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
+            return apiCallerInstance?.GetMultipleTracksByTrackId(songListModel.Songs.Select(s => s.SongId).ToList());
+        }
+        private void AddTracksToPlaylist(List<FullTrack> newTracks)
+        {
+            newTracks.ForEach(track =>
+            {
+                if (!_playlistURIs.Contains(track.Uri))
+                    _playlistURIs.Add(track.Uri);
+            });
+        }
+        #endregion
+        public async void CreateMusicSection(PlaylistSectionSectionCreatorViewModel vm)
         {
             if (vm.SelectedPlaylist is null || vm.SelectedSectionType is null) return;
 
@@ -87,20 +99,40 @@ namespace SpotiSharp.Classes
             }
         }
 
+        public async void CreatePodcastSection(PlaylistSectionSectionCreatorViewModel vm)
+        {
+            if (vm.SelectedSectionTypePod is null || vm.SelectedSavedShow is null) return;
 
-        private async Task<List<FullTrack>> GetPlaylistFullTracks(string playlistId)
-        {
-            var songListModel = new SongsListModel(playlistId);
-            var apiCallerInstance = await APICaller.WaitForRateLimitWindowInstance;
-            return apiCallerInstance?.GetMultipleTracksByTrackId(songListModel.Songs.Select(s => s.SongId).ToList());
-        }
-        private void AddTracksToPlaylist(List<FullTrack> newTracks)
-        {
-            newTracks.ForEach(track =>
+            var sectionType = (PodcastSectionEnum)vm.SelectedSectionTypePod.SectionType;
+            var savedShowId = vm.SelectedSavedShow.Id;
+            var numericValue = vm.NumericValue;
+
+            switch (sectionType)
             {
-                if (!_playlist.Contains(track))
-                    _playlist.Add(track);
-            });
+                case PodcastSectionEnum.NewestUnplayed:
+                    AddPodcastFirstUnplayed(vm.SelectedFullEpisodes);
+                    break;
+                case PodcastSectionEnum.RandomUnplayed:
+                    break;
+                case PodcastSectionEnum.SelectEpisodes:
+                    break;
+            }
         }
+
+        #region "Add podcasts"
+        private async void AddPodcastFirstUnplayed(List<SimpleEpisode> episodes)
+        {
+            var eps = episodes.OrderByDescending(e => e.ReleaseDate).ToList();
+            var ep = eps.FirstOrDefault();
+
+            while (ep.ResumePoint.FullyPlayed || ep.DurationMs - ep.ResumePoint.ResumePositionMs <= 300000)
+            {
+                ep = eps[eps.IndexOf(ep) + 1];
+            }
+
+            if (!_playlistURIs.Contains(ep.Uri))
+                _playlistURIs.Add(ep.Uri);
+        }
+        #endregion
     }
 }
