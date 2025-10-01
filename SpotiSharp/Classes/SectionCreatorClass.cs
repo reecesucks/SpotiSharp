@@ -113,6 +113,7 @@ namespace SpotiSharp.Classes
                     AddPodcastFirstUnplayed(vm.SelectedFullEpisodes);
                     break;
                 case PodcastSectionEnum.RandomUnplayed:
+                    AddRandomUnplayedPodcast(vm.SelectedFullEpisodes);
                     break;
                 case PodcastSectionEnum.SelectEpisodes:
                     break;
@@ -125,13 +126,34 @@ namespace SpotiSharp.Classes
             var eps = episodes.OrderByDescending(e => e.ReleaseDate).ToList();
             var ep = eps.FirstOrDefault();
 
-            while (ep.ResumePoint.FullyPlayed || ep.DurationMs - ep.ResumePoint.ResumePositionMs <= 300000)
+            while (ep.ResumePoint.FullyPlayed || (ep.DurationMs - ep.ResumePoint.ResumePositionMs) <= ep.DurationMs * 0.05)
             {
                 ep = eps[eps.IndexOf(ep) + 1];
             }
 
             if (!_playlistURIs.Contains(ep.Uri))
                 _playlistURIs.Add(ep.Uri);
+        }
+
+        private async void AddRandomUnplayedPodcast(List<SimpleEpisode> episodes)
+        {
+            var eps = episodes.OrderByDescending(e => e.ReleaseDate).ToList();
+
+            Random r = new Random();
+            bool epsiodeSelected = false;
+
+            while (!epsiodeSelected)
+            {
+                int rInt = r.Next(0, eps.Count - 1);
+                var ep = eps[rInt];
+            
+                if (!ep.ResumePoint.FullyPlayed && (ep.DurationMs - ep.ResumePoint.ResumePositionMs) >= ep.DurationMs * 0.05)
+                {
+                    if (!_playlistURIs.Contains(ep.Uri))
+                        _playlistURIs.Add(ep.Uri);
+                    epsiodeSelected = true;
+                }
+            }
         }
         #endregion
     }
