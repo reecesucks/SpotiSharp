@@ -20,6 +20,7 @@ namespace SpotiSharp.ViewModels
         private PlaylistSectionType _playlistSectionType;
         private List<PlaylistSectionType> _playlistSectionTypes;
         private List<FullTrack> _selectedPlaylistTracks;
+        private List<FullTrack> _multiPickerSelections;
 
         private List<FullShow> _savedShows;
         private FullShow _selectedSavedShow;
@@ -64,6 +65,12 @@ namespace SpotiSharp.ViewModels
         {
             get { return _selectedPlaylistTracks; }
             set { SetProperty(ref _selectedPlaylistTracks, value); }
+        }
+
+        public List<FullTrack> MultiPickerSelections
+        {
+            get { return _multiPickerSelections; }
+            set { SetProperty(ref _multiPickerSelections, value); }
         }
 
         #region "PodCast Properties"
