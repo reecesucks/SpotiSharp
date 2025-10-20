@@ -14,6 +14,7 @@ public partial class MultiSelectPicker : ContentView
 
     public static readonly BindableProperty DisplayMemberPathProperty =
         BindableProperty.Create(nameof(DisplayMemberPath), typeof(string), typeof(MultiSelectPicker), default(string));
+    public event EventHandler<IEnumerable<object>> SelectionClosed;
 
     public IEnumerable ItemsSource
     {
@@ -76,7 +77,13 @@ public partial class MultiSelectPicker : ContentView
         }
 
         var closeButton = new Button { Text = "Done" };
-        closeButton.Clicked += async (s, args) => await Application.Current.MainPage.Navigation.PopModalAsync();
+        closeButton.Clicked += async (s, args) =>
+        {
+            var test = SelectedItems;
+            await Application.Current.MainPage.Navigation.PopModalAsync();
+            SelectionClosed?.Invoke(this, SelectedItems);
+        };
+
 
         stack.Children.Add(closeButton);
 
