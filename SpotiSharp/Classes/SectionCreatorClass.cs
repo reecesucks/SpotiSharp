@@ -91,7 +91,7 @@ namespace SpotiSharp.Classes
                     AddSectionPercentageRandom(fullTracks, numericValue);
                     break;
                 case PlaylistSectionEnum.FixedAmountSelected:
-                    AddSectionFixedAmountSelected(vm.SelectedPlaylistTracks);
+                    AddSectionFixedAmountSelected(vm.MultiPickerSelections);
                     break;
                 case PlaylistSectionEnum.FixedAmountRandom:
                     AddSectionFixedAmountRandom(fullTracks, numericValue);

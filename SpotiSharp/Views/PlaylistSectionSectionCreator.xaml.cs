@@ -1,3 +1,4 @@
+using System.Linq;
 using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
@@ -10,6 +11,7 @@ public partial class PlaylistSectionSectionCreator : ContentView
 	public PlaylistSectionSectionCreator()
 	{
 		InitializeComponent();
+        msSongs.SelectionClosed += msSongs_SelectionClosed;
     }
 
     private void SectionTypeMusicChangedHandler(object sender, EventArgs e)
@@ -34,6 +36,14 @@ public partial class PlaylistSectionSectionCreator : ContentView
             case PlaylistSectionEnum.FixedAmountRandom:
                 entNumericValue.IsVisible = true;
                 break;
+        }
+    }
+
+    private void msSongs_SelectionClosed(object sender, IEnumerable<object> selectedTracks)
+    {
+        if (BindingContext is PlaylistSectionSectionCreatorViewModel vm)
+        {
+            vm.MultiPickerSelections = selectedTracks.OfType<FullTrack>().ToList();
         }
     }
 
