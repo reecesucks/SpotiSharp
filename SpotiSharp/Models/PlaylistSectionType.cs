@@ -7,10 +7,10 @@ namespace SpotiSharp.Models
         public PlaylistSectionEnum SectionType { get; set; }
         public string SectionTypeDescription { get; set; }
 
-        public PlaylistSectionType(PlaylistSectionEnum sectionType, string description)
+        public PlaylistSectionType(PlaylistSectionEnum SectionType, string SectionTypeDescription)
         {
-            SectionType = sectionType;
-            SectionTypeDescription = description;
+            this.SectionType = SectionType;
+            this.SectionTypeDescription = SectionTypeDescription;
         }
     }
 }

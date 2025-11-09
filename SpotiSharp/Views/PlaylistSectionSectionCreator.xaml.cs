@@ -1,8 +1,8 @@
-using System.Linq;
 using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
+using Syncfusion.Maui.DataSource.Extensions;
 
 namespace SpotiSharp.Views;
 
@@ -18,6 +18,8 @@ public partial class PlaylistSectionSectionCreator : ContentView
     {
         var picker = (Picker)sender;
         var sectionType = (PlaylistSectionType)picker.SelectedItem;
+        if (sectionType is null)
+            return;
 
         lblPlaceholder.IsVisible = false;
         entNumericValue.IsVisible = false;
@@ -43,7 +45,7 @@ public partial class PlaylistSectionSectionCreator : ContentView
     {
         if (BindingContext is PlaylistSectionSectionCreatorViewModel vm)
         {
-            vm.MultiPickerSelections = selectedTracks.OfType<FullTrack>().ToList();
+            vm.MultiPickerSelections = selectedTracks.OfType<FullTrack>().ToObservableCollection();
         }
     }
 
@@ -51,6 +53,8 @@ public partial class PlaylistSectionSectionCreator : ContentView
     {
         var picker = (Picker)sender;
         var sectionType = (PodcastSectionType)picker.SelectedItem;
+        if (sectionType is null)
+            return;
 
         lblPlaceholderPod.IsVisible = false;
         entNumericValuePod.IsVisible = false;

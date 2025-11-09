@@ -6,13 +6,13 @@ public class Playlist
     public string PlayListImageURL { get; private set; }
     public string PlayListTitle { get; private set; }
     public int SongAmount { get; private set; }
-    
-    public Playlist(string playListId, string playListImageUrl, string playListTitle, int? songAmount)
+
+    public Playlist(string playListId, string playListImageURL, string playListTitle, int songAmount)
     {
         PlayListId = playListId;
-        PlayListImageURL = playListImageUrl;
+        PlayListImageURL = playListImageURL;
         PlayListTitle = playListTitle;
-        SongAmount = songAmount ?? 0;
+        SongAmount = songAmount;
     }
 
     public override bool Equals(object? obj)
