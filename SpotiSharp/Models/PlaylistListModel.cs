@@ -29,14 +29,14 @@ public class PlaylistListModel
         
         // liked playlist
         int? likedSongsAmount = APICaller.Instance?.GetUserLikedSongsAmount();
-        tmpPlaylist.Add(new Playlist(Constants.LIKED_PLALIST_ID, Constants.LIKED_PLALIST_IMAGE_URL, "Liked Songs", likedSongsAmount));
+        tmpPlaylist.Add(new Playlist(Constants.LIKED_PLALIST_ID, Constants.LIKED_PLALIST_IMAGE_URL, "Liked Songs", likedSongsAmount ?? 0));
         
         // followed playlists
         var userPlaylists = APICaller.Instance?.GetAllUserPlaylists();
         if (userPlaylists == null) return;
         foreach (var playlist in userPlaylists)
         {
-            tmpPlaylist.Add(new Playlist(playlist.Id, playlist.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, playlist.Name, playlist.Tracks.Total));
+            tmpPlaylist.Add(new Playlist(playlist.Id, playlist.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, playlist.Name, playlist.Tracks.Total ?? 0));
         }
         _playLists = tmpPlaylist;
     }

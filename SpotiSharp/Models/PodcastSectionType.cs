@@ -1,5 +1,4 @@
 ﻿using SpotiSharp.Enums;
-using SpotiSharp.Interfaces;
 
 namespace SpotiSharp.Models
 {
@@ -8,10 +7,10 @@ namespace SpotiSharp.Models
         public PodcastSectionEnum SectionType { get; set; }
         public string SectionTypeDescription { get; set; }
 
-        public PodcastSectionType(PodcastSectionEnum sectionType, string description)
+        public PodcastSectionType(PodcastSectionEnum SectionType, string SectionTypeDescription)
         {
-            SectionType = sectionType;
-            SectionTypeDescription = description;
+            this.SectionType = SectionType;
+            this.SectionTypeDescription = SectionTypeDescription;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Reflection;
+using SpotifyAPI.Web;
 
 namespace SpotiSharp.Controls;
 
@@ -10,7 +11,7 @@ public partial class MultiSelectPicker : ContentView
         BindableProperty.Create(nameof(ItemsSource), typeof(IEnumerable), typeof(MultiSelectPicker), default(IEnumerable));
 
     public static readonly BindableProperty SelectedItemsProperty =
-        BindableProperty.Create(nameof(SelectedItems), typeof(ObservableCollection<object>), typeof(MultiSelectPicker), new ObservableCollection<object>(), BindingMode.TwoWay);
+        BindableProperty.Create(nameof(SelectedItems), typeof(ObservableCollection<FullTrack>), typeof(MultiSelectPicker), new ObservableCollection<FullTrack>(), BindingMode.TwoWay);
 
     public static readonly BindableProperty DisplayMemberPathProperty =
         BindableProperty.Create(nameof(DisplayMemberPath), typeof(string), typeof(MultiSelectPicker), default(string));
@@ -22,11 +23,11 @@ public partial class MultiSelectPicker : ContentView
         set => SetValue(ItemsSourceProperty, value);
     }
 
-    public ObservableCollection<object> SelectedItems
+    public ObservableCollection<FullTrack> SelectedItems
     {
-        get => (ObservableCollection<object>)GetValue(SelectedItemsProperty);
+        get => (ObservableCollection<FullTrack>)GetValue(SelectedItemsProperty);
         set => SetValue(SelectedItemsProperty, value);
-    }
+    } 
 
     public string DisplayMemberPath
     {
@@ -64,9 +65,9 @@ public partial class MultiSelectPicker : ContentView
             cb.CheckedChanged += (s, args) =>
             {
                 if (args.Value && !SelectedItems.Contains(item))
-                    SelectedItems.Add(item);
+                    SelectedItems.Add((FullTrack)item);
                 else if (!args.Value && SelectedItems.Contains(item))
-                    SelectedItems.Remove(item);
+                    SelectedItems.Remove((FullTrack)item);
 
                 DisplayLabel.Text = SelectedItems.Any()
                     ? string.Join(", ", SelectedItems.Select(GetDisplayText))
@@ -79,7 +80,6 @@ public partial class MultiSelectPicker : ContentView
         var closeButton = new Button { Text = "Done" };
         closeButton.Clicked += async (s, args) =>
         {
-            var test = SelectedItems;
             await Application.Current.MainPage.Navigation.PopModalAsync();
             SelectionClosed?.Invoke(this, SelectedItems);
         };
