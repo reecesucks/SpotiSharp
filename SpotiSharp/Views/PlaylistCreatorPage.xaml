@@ -26,7 +26,14 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
+                <Grid Grid.Row="0">
+                    <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
+                    <Grid HorizontalOptions="End" ColumnDefinitions="*,*,*">
+                        <Button Grid.Column="0" Text="Open Template" BackgroundColor="LightCyan" Command="{Binding OpenTemplate}"></Button>
+                        <Button Grid.Column="1" Text="Save Template" BackgroundColor="LightCyan" Command="{Binding SaveTemplate}"></Button>
+                        <Button Grid.Column="2" Text="Clear Template" BackgroundColor="LightCyan" Command="{Binding ClearTemplate}"></Button>
+                    </Grid>
+                </Grid>
                 <ScrollView Grid.Row="1">
                     <StackLayout BindableLayout.ItemsSource="{Binding PlaylistSectionCreationList}">
                         <BindableLayout.ItemTemplate>

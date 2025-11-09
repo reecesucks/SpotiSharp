@@ -1,4 +1,5 @@
 ﻿
+using System.Collections.ObjectModel;
 using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
@@ -11,6 +12,7 @@ namespace SpotiSharp.ViewModels
         public PlaylistSectionSectionCreatorViewModel(bool isPodcast)
         {
             SetMode(isPodcast);
+            _multiPickerSelections = new ObservableCollection<FullTrack>();
         }
 
         private bool _isPodcast;
@@ -20,7 +22,7 @@ namespace SpotiSharp.ViewModels
         private PlaylistSectionType _playlistSectionType;
         private List<PlaylistSectionType> _playlistSectionTypes;
         private List<FullTrack> _selectedPlaylistTracks;
-        private List<FullTrack> _multiPickerSelections;
+        private ObservableCollection<FullTrack> _multiPickerSelections;
 
         private List<FullShow> _savedShows;
         private FullShow _selectedSavedShow;
@@ -67,7 +69,7 @@ namespace SpotiSharp.ViewModels
             set { SetProperty(ref _selectedPlaylistTracks, value); }
         }
 
-        public List<FullTrack> MultiPickerSelections
+        public ObservableCollection<FullTrack> MultiPickerSelections
         {
             get { return _multiPickerSelections; }
             set { SetProperty(ref _multiPickerSelections, value); }
