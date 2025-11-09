@@ -1,4 +1,5 @@
-﻿using SpotifyAPI.Web;
+﻿using System.Collections.ObjectModel;
+using SpotifyAPI.Web;
 using SpotiSharp.Enums;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
@@ -38,9 +39,9 @@ namespace SpotiSharp.Classes
             AddTracksToPlaylist(filteredList);
         }
 
-        private void AddSectionFixedAmountSelected(List<FullTrack> selectedTracks)
+        private void AddSectionFixedAmountSelected(ObservableCollection<FullTrack> selectedTracks)
         {
-            AddTracksToPlaylist(selectedTracks);
+            AddTracksToPlaylist(selectedTracks.ToList());
         }
 
         private void AddSectionFixedAmountRandom(List<FullTrack> fullPlaylist, int numericVal)

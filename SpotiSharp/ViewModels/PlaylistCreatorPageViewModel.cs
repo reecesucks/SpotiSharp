@@ -5,6 +5,8 @@ using SpotiSharpBackend.Enums;
 using System.Collections.ObjectModel;
 using SpotifyAPI.Web;
 using SpotiSharp.Classes;
+using System.Text.Json;
+using SpotiSharp.Helpers;
 
 namespace SpotiSharp.ViewModels;
 
@@ -25,6 +27,7 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     private TrackFilter _selectedFilter;
     private List<TrackFilter> _filters = Enum.GetValues<TrackFilter>().ToList();
     private bool _isFilteringPlaylist = false;
+    private TemplateStorageHelper _templateStorageHelper;
 
     #endregion
 
@@ -84,13 +87,17 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         ApplyFilters = new Command(ApplyFiltersHandler);
         AddPlayListSection = new Command(AddPlayListSectionHandler);
         AddPodcastSection = new Command(AddPodcastListSectionHandler);
-        
+        OpenTemplate = new Command(OpenTemplateHandler);
+        SaveTemplate = new Command(SaveTemplateHandler);
+        ClearTemplate = new Command(ClearTemplateHandler);
+
         //CreatePlaylist = new Command(PlaylistCreatorPageModel.CreatePlaylist);
         CreatePlaylist = new Command(CreatePlaylistBySections);
 
         PlaylistCreationSonglistViewModel.OnPlalistIsFiltered += () => IsFilteringPlaylist = false;
 
         _sectionCreatorClass = new SectionCreatorClass(_playlistUris);
+        _templateStorageHelper = new TemplateStorageHelper();
     }
 
     internal override void OnAppearing()
@@ -135,6 +142,9 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
     public ICommand CreatePlaylist { private set; get; }
     public ICommand AddPlayListSection { private set; get; }
     public ICommand AddPodcastSection { private set; get; }
+    public ICommand OpenTemplate { private set; get; }
+    public ICommand SaveTemplate { private set; get; }
+    public ICommand ClearTemplate { private set; get; }
 
     public ObservableCollection<PlaylistSectionSectionCreatorViewModel> PlaylistSectionCreationList { get; } = new ObservableCollection<PlaylistSectionSectionCreatorViewModel>();
 
@@ -170,5 +180,54 @@ public class PlaylistCreatorPageViewModel : BaseViewModel
         {
             //logging doesn't exist yet
         }
+    }
+    private async void OpenTemplateHandler()
+    {
+        try
+        {
+            var jsonString = await _templateStorageHelper.GetUserTemplateSelection();
+            ObservableCollection<PlaylistSectionSectionCreatorViewModel> playlistTemplate = JsonSerializer.Deserialize<ObservableCollection<PlaylistSectionSectionCreatorViewModel>>(jsonString);
+            
+            PlaylistSectionCreationList.Clear();
+            
+            foreach (var item in playlistTemplate)
+            {
+                PlaylistSectionCreationList.Add(item);
+
+                if (item.IsPodcast)
+                {
+                    item.SelectedSectionTypePod = item.PodcastSectionTypes.First(t => t.SectionType == item.SelectedSectionTypePod.SectionType);
+                    item.SelectedSavedShow = item.SavedShows.First(e => e.Uri == item.SelectedSavedShow.Uri);
+                }
+                else
+                {
+                    item.SelectedSectionType = item.PlaylistSectionTypes.First(t => t.SectionType == item.SelectedSectionType.SectionType);
+                    var uris = item.MultiPickerSelections.Select(mpt => mpt.Uri).ToList();
+                    item.MultiPickerSelections.Clear();
+                    
+                    foreach (FullTrack i in item.SelectedPlaylistTracks)
+                    {
+                        if (uris.Contains(i.Uri))
+                        {
+                            item.MultiPickerSelections.Add(i);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+
+        }
+    }
+
+    private void SaveTemplateHandler()
+    {
+        _templateStorageHelper.SaveTemplate(PlaylistName, PlaylistSectionCreationList);       
+    }
+
+    private void ClearTemplateHandler()
+    {
+        PlaylistSectionCreationList.Clear();
     }
 }

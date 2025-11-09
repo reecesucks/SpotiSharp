@@ -35,6 +35,7 @@
                                x:Name="msSongs"
                                IsVisible="False"
                                ItemsSource="{Binding SelectedPlaylistTracks}"
+                               SelectedItems="{Binding MultiPickerSelections}"
                                DisplayMemberPath="Name">
             </controls:MultiSelectPicker>
         </Grid>
