@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             x:Class="SpotiSharp.Views.PlaylistsPage">
+    <views:BasePage.Content>
+        <Grid>
+            <Label Text="Playlists" FontSize="35" Margin="10" />
+        </Grid>
+    </views:BasePage.Content>
+</views:BasePage>

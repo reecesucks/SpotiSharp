@@ -1,4 +1,5 @@
-﻿using SpotifyAPI.Web;
+﻿using System.Diagnostics;
+using SpotifyAPI.Web;
 
 namespace SpotiSharpBackend;
 
@@ -23,7 +24,7 @@ public static class Authentication
     {
         _clientId = StorageHandler.ClientId;
         string refreshToken = StorageHandler.RefreshToken;
-        if (_clientId != string.Empty && refreshToken != string.Empty) RefreshAuthentication(refreshToken);
+        if (_clientId != string.Empty && refreshToken != string.Empty) _ = RefreshAuthenticationAsync(refreshToken);
     }
 
     public static void Authenticate(string clientId = "")
@@ -35,8 +36,21 @@ public static class Authentication
         }
         else
         {
-            RefreshAuthentication();
+            _ = RefreshAuthenticationAsync();
         }
+    }
+
+    public static async Task<bool> TryRestoreSessionAsync()
+    {
+        if (SpotifyClient != null) return true;
+
+        var clientId = StorageHandler.ClientId;
+        var refreshToken = StorageHandler.RefreshToken;
+        if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(refreshToken)) return false;
+
+        _clientId = clientId;
+        await RefreshAuthenticationAsync(refreshToken);
+        return SpotifyClient != null;
     }
     
     public static void UserLessAuthenticate()
@@ -97,7 +111,7 @@ public static class Authentication
         MauiConnector.TriggerBrowerOpen(uri);
     }
 
-    private static async void RefreshAuthentication(string refreshToken = null)
+    private static async Task RefreshAuthenticationAsync(string refreshToken = null)
     {
         try
         {
@@ -118,13 +132,20 @@ public static class Authentication
 
     internal static async Task GetCallback(string code)
     {
-        _initialResponse = await new OAuthClient().RequestToken(
-            new PKCETokenRequest(_clientId, code, new Uri("http://127.0.0.1:5000/callback"), _verifier)
-        );
+        try
+        {
+            _initialResponse = await new OAuthClient().RequestToken(
+                new PKCETokenRequest(_clientId, code, new Uri("http://127.0.0.1:5000/callback"), _verifier)
+            );
 
-        SpotifyClient = new SpotifyClient(_initialResponse.AccessToken);
-        StorageHandler.ClientId = _clientId;
-        StorageHandler.RefreshToken = _initialResponse.RefreshToken;
-        OnAuthenticate?.Invoke();
+            SpotifyClient = new SpotifyClient(_initialResponse.AccessToken);
+            StorageHandler.ClientId = _clientId;
+            StorageHandler.RefreshToken = _initialResponse.RefreshToken;
+            OnAuthenticate?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Spotify token exchange failed: {ex}");
+        }
     }
 }

@@ -43,7 +43,7 @@ public class AuthenticationPageViewModel : BaseViewModel
         ConnectToSpotifyAPI = new Command(() => { if (ClientId != null && ClientId != string.Empty) Authentication.Authenticate(ClientId); });
         OpenSpotifyDevDashBoard = new Command(() => Browser.Default.OpenAsync("https://developer.spotify.com/dashboard/", BrowserLaunchMode.SystemPreferred));
         Authentication.OnAuthenticate += RefreshProfile;
-        ClientId = Task.Run(async () => await SecureStorage.Default.GetAsync("clientId")).Result;
+        ClientId = StorageHandler.ClientId;
     }
 
     internal override void OnAppearing()
