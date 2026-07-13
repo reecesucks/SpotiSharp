@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Text.RegularExpressions;
 using SpotiSharpBackend;
 
 namespace SpotiSharpBackend;
@@ -30,11 +29,10 @@ public class CallBackListener
     private void ResponseThread()
     {
         HttpListenerContext context = _httpListener.GetContext();
-        var respURL = context.Request.Url.ToString();
-        var code = Regex.Match(respURL, "(?<=code=).*").ToString();
-        
+        var code = context.Request.QueryString["code"];
+
         byte[] _responseArray;
-        if (code != string.Empty)
+        if (!string.IsNullOrEmpty(code))
         {
             _responseArray = 
                 """

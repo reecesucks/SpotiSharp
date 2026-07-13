@@ -20,6 +20,16 @@
         ContentTemplate="{DataTemplate local:ManagePlaylistsPage}"
         Route="ManagePlayListsPage" />
     <ShellContent
+        x:Name="PlaylistsContent"
+        Title="Playlists"
+        ContentTemplate="{DataTemplate views:PlaylistsPage}"
+        Route="PlaylistsPage" />
+    <ShellContent
+        x:Name="PodcastsContent"
+        Title="Podcasts"
+        ContentTemplate="{DataTemplate views:PodcastsPage}"
+        Route="PodcastsPage" />
+    <ShellContent
         Title="Authentication"
         ContentTemplate="{DataTemplate local:AuthenticationPage}"
         Route="AuthenticationPage" />
