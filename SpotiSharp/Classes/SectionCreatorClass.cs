@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using SpotifyAPI.Web;
 using SpotiSharp.Enums;
+using SpotiSharp.Helpers;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
 using SpotiSharpBackend;
@@ -127,7 +128,7 @@ namespace SpotiSharp.Classes
             var eps = episodes.OrderByDescending(e => e.ReleaseDate).ToList();
             var ep = eps.FirstOrDefault();
 
-            while (ep.ResumePoint.FullyPlayed || (ep.DurationMs - ep.ResumePoint.ResumePositionMs) <= ep.DurationMs * 0.05)
+            while (EpisodeHelper.IsListened(ep))
             {
                 ep = eps[eps.IndexOf(ep) + 1];
             }
@@ -148,7 +149,7 @@ namespace SpotiSharp.Classes
                 int rInt = r.Next(0, eps.Count - 1);
                 var ep = eps[rInt];
             
-                if (!ep.ResumePoint.FullyPlayed && (ep.DurationMs - ep.ResumePoint.ResumePositionMs) >= ep.DurationMs * 0.05)
+                if (!EpisodeHelper.IsListened(ep))
                 {
                     if (!_playlistURIs.Contains(ep.Uri))
                         _playlistURIs.Add(ep.Uri);

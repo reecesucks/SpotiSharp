@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Globalization;
+using SpotiSharp.Helpers;
 using SpotiSharpBackend;
 
 namespace SpotiSharp.Models;
@@ -9,39 +11,41 @@ public class RecentEpisodesModel
 
     private static readonly string[] ReleaseDateFormats = { "yyyy-MM-dd", "yyyy-MM", "yyyy" };
 
-    private static List<RecentEpisode> _recentEpisodes = new List<RecentEpisode>();
+    private static readonly ConcurrentDictionary<string, List<RecentEpisode>> _episodesByShowId = new();
 
-    public static List<RecentEpisode> RecentEpisodes
-    {
-        get
-        {
-            LoadRecentEpisodes();
-            return _recentEpisodes;
-        }
-        private set => _recentEpisodes = value;
-    }
-
-    internal static void LoadRecentEpisodes()
+    internal static List<RecentEpisode> GetRecentEpisodesAcrossAllShows()
     {
         var result = new List<RecentEpisode>();
 
         foreach (var show in PlaylistListModel.SavedShows)
         {
-            var episodes = APICaller.Instance?.GetPodcastEpisodesByPodcastId(show.Id);
-            if (episodes == null) continue;
-
-            result.AddRange(episodes
-                .Select(episode => new RecentEpisode(
-                    episode.Id,
-                    episode.Name,
-                    show.Name,
-                    episode.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty,
-                    ParseReleaseDate(episode.ReleaseDate)))
-                .OrderByDescending(episode => episode.ReleaseDate)
-                .Take(EPISODES_PER_SHOW));
+            result.AddRange(GetRecentEpisodesForShow(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty));
         }
 
-        _recentEpisodes = result.OrderByDescending(episode => episode.ReleaseDate).ToList();
+        return result.OrderByDescending(episode => episode.ReleaseDate).ToList();
+    }
+
+    internal static List<RecentEpisode> GetRecentEpisodesForShow(string showId, string showName, string showImageUrl)
+    {
+        return _episodesByShowId.GetOrAdd(showId, id => FetchRecentEpisodesForShow(id, showName, showImageUrl));
+    }
+
+    private static List<RecentEpisode> FetchRecentEpisodesForShow(string showId, string showName, string showImageUrl)
+    {
+        var episodes = APICaller.Instance?.GetPodcastEpisodesByPodcastId(showId)?.Where(episode => episode != null);
+        if (episodes == null) return new List<RecentEpisode>();
+
+        return episodes
+            .Where(episode => !EpisodeHelper.IsListened(episode))
+            .Select(episode => new RecentEpisode(
+                episode.Id,
+                episode.Name,
+                showName,
+                showImageUrl,
+                ParseReleaseDate(episode.ReleaseDate)))
+            .OrderByDescending(episode => episode.ReleaseDate)
+            .Take(EPISODES_PER_SHOW)
+            .ToList();
     }
 
     private static DateTime ParseReleaseDate(string releaseDate)
