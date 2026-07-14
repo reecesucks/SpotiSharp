@@ -3,38 +3,64 @@
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="SpotiSharp.Views.RecentEpisodesListView">
-    <ListView x:Name="MainListView" ItemsSource="{Binding RecentEpisodes}">
-        <ListView.ItemTemplate>
+    <Grid>
+    <ActivityIndicator IsRunning="{Binding IsLoading}"
+                        IsVisible="{Binding IsLoading}"
+                        HeightRequest="32"
+                        VerticalOptions="Start" />
+    <CollectionView ItemsSource="{Binding ShowGroups}">
+        <CollectionView.ItemTemplate>
             <DataTemplate>
-                <ViewCell AutomationId="{Binding EpisodeId}">
-                    <Grid Margin="10,2,10,2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Image Grid.Column="0" Grid.Row="0" Grid.RowSpan="3"
-                               Source="{Binding ImageUrl}"
+                <VerticalStackLayout>
+                    <Grid Padding="8,8" ColumnDefinitions="56,*,Auto">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleExpanded}" />
+                        </Grid.GestureRecognizers>
+                        <Image Grid.Column="0"
+                               Source="{Binding ShowImageUrl}"
                                Aspect="AspectFill"
-                               HeightRequest="60"
-                               WidthRequest="60" />
-                        <Label Grid.Column="1" Grid.Row="0"
-                               FontSize="18"
+                               HeightRequest="56"
+                               WidthRequest="56" />
+                        <Label Grid.Column="1"
+                               Text="{Binding ShowName}"
+                               FontSize="22"
+                               FontAttributes="Bold"
                                Margin="10,0,0,0"
-                               Text="{Binding EpisodeName}" />
-                        <Label Grid.Column="1" Grid.Row="1"
-                               Margin="10,0,0,0"
-                               Text="{Binding ShowName}" />
-                        <Label Grid.Column="1" Grid.Row="2"
-                               Margin="10,0,0,0"
-                               Text="{Binding ReleaseDate, StringFormat='{0:d}'}" />
+                               VerticalOptions="Center"
+                               LineBreakMode="TailTruncation" />
+                        <Label Grid.Column="2"
+                               Text="▸"
+                               FontSize="20"
+                               VerticalOptions="Center">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding IsExpanded}" Value="True">
+                                    <Setter Property="Text" Value="▾" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
                     </Grid>
-                </ViewCell>
+                    <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                        IsVisible="{Binding IsLoading}"
+                                        HeightRequest="32" />
+                    <VerticalStackLayout IsVisible="{Binding IsExpanded}"
+                                          BindableLayout.ItemsSource="{Binding Episodes}"
+                                          Padding="16,0,8,8">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <VerticalStackLayout Padding="0,6">
+                                    <Label Text="{Binding EpisodeName}"
+                                           FontSize="19"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding ReleaseDate, StringFormat='{0:d}'}"
+                                           FontSize="16"
+                                           TextColor="Gray" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
             </DataTemplate>
-        </ListView.ItemTemplate>
-    </ListView>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+    </Grid>
 </ContentView>
