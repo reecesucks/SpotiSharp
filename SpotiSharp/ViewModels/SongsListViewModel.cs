@@ -6,7 +6,8 @@ namespace SpotiSharp.ViewModels;
 
 public class SongsListViewModel : BaseViewModel
 {
-    private List<Song> _songs;
+    private List<Song> _songs = new List<Song>();
+    private string _latestRequestedPlaylistId;
 
     public List<Song> Songs
     {
@@ -14,9 +15,22 @@ public class SongsListViewModel : BaseViewModel
         set { SetProperty(ref _songs, value); }
     }
 
-    public void OnPlayListIdRefresh(string playlistId)
+    private bool _isLoading;
+    public bool IsLoading
     {
-        var songsListModel = new SongsListModel(playlistId);
+        get { return _isLoading; }
+        private set { SetProperty(ref _isLoading, value); }
+    }
+
+    public async void OnPlayListIdRefresh(string playlistId)
+    {
+        _latestRequestedPlaylistId = playlistId;
+
+        IsLoading = true;
+        var songsListModel = await Task.Run(() => new SongsListModel(playlistId));
+        IsLoading = false;
+
+        if (playlistId != _latestRequestedPlaylistId) return;
         Songs = songsListModel.Songs;
     }
 
