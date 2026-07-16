@@ -22,9 +22,12 @@ public partial class SongsListView : ContentView
         InitializeComponent();
         BindingContext = new SongsListViewModel();
         
-        MainListView.ItemTapped += (sender, args) =>
+        MainListView.SelectionChanged += (sender, args) =>
         {
-            if (BindingContext is SongsListViewModel songsListViewModel) songsListViewModel.ClickSong(args.Item);
+            var selectedSong = args.CurrentSelection.FirstOrDefault();
+            if (selectedSong != null && BindingContext is SongsListViewModel songsListViewModel)
+                songsListViewModel.ClickSong(selectedSong);
+            MainListView.SelectedItem = null;
         };
     }
 }

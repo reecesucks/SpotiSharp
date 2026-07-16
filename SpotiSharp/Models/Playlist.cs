@@ -14,13 +14,4 @@ public class Playlist
         PlayListTitle = playListTitle;
         SongAmount = songAmount;
     }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is not Playlist playlistComp) return false;
-        return playlistComp.PlayListId.Equals(PlayListId) &&
-               playlistComp.PlayListImageURL.Equals(PlayListImageURL) &&
-               playlistComp.PlayListTitle.Equals(PlayListTitle) &&
-               playlistComp.SongAmount.Equals(SongAmount);
-    }
 }

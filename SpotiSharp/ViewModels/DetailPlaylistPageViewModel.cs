@@ -16,14 +16,6 @@ public class DetailPlaylistPageViewModel : BaseViewModel
         }
     }
     
-    private string _imageURL;
-
-    public string ImageURL
-    {
-        get { return _imageURL; }
-        set { SetProperty(ref _imageURL, value); }
-    }
-    
     private string _playlistName;
 
     public string PlaylistName
@@ -31,27 +23,25 @@ public class DetailPlaylistPageViewModel : BaseViewModel
         get { return _playlistName; }
         set { SetProperty(ref _playlistName, value); }
     }
-    
-    private string _playlistDescription;
 
-    public string PlaylistDescription
-    {
-        get { return _playlistDescription; }
-        set { SetProperty(ref _playlistDescription, value); }
-    }
-    
     private DetailPlaylistModel _detailPlaylistModel;
-    
+    private string _latestRequestedPlaylistId;
+
     public DetailPlaylistPageViewModel()
     {
         _detailPlaylistModel = new DetailPlaylistModel();
     }
 
-    private void RefreshPlaylistInfo()
+    private async void RefreshPlaylistInfo()
     {
         if (PlaylistId == null) return;
-        ImageURL = _detailPlaylistModel.GetPlaylistImageURL(PlaylistId);
-        PlaylistName = _detailPlaylistModel.GetPlaylistName(PlaylistId);
-        PlaylistDescription = _detailPlaylistModel.GetPlaylistDescription(PlaylistId);
+
+        var playlistId = PlaylistId;
+        _latestRequestedPlaylistId = playlistId;
+
+        var name = await Task.Run(() => _detailPlaylistModel.GetPlaylistName(playlistId));
+        if (playlistId != _latestRequestedPlaylistId) return;
+
+        PlaylistName = name;
     }
 }
