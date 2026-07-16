@@ -40,6 +40,8 @@ public class ShowGroupViewModel : BaseViewModel
         ToggleExpanded = new Command(ToggleExpandedHandler);
     }
 
+    private bool _hasRevalidated;
+
     private async void ToggleExpandedHandler()
     {
         if (IsExpanded)
@@ -49,11 +51,27 @@ public class ShowGroupViewModel : BaseViewModel
         }
 
         IsExpanded = true;
-        if (Episodes.Count == 0)
+        if (_hasRevalidated) return;
+        _hasRevalidated = true;
+
+        var session = RecentEpisodesModel.GetSessionEpisodesForShow(ShowId);
+        if (session != null)
         {
-            IsLoading = true;
-            Episodes = await Task.Run(() => RecentEpisodesModel.GetRecentEpisodesForShow(ShowId, ShowName, ShowImageUrl));
-            IsLoading = false;
+            Episodes = session;
+            return;
         }
+
+        var cached = await Task.Run(() => RecentEpisodesModel.GetDiskCachedEpisodesForShow(ShowId));
+        if (cached != null)
+            Episodes = cached;
+        else
+            IsLoading = true;
+
+        var fresh = await Task.Run(() => RecentEpisodesModel.RefreshEpisodesForShow(ShowId, ShowName, ShowImageUrl));
+        if (fresh != null && !RecentEpisodesModel.AreEpisodesEqual(Episodes, fresh))
+            Episodes = fresh;
+        IsLoading = false;
+
+        if (fresh == null) _hasRevalidated = false;
     }
 }

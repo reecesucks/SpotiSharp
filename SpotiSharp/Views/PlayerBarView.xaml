@@ -1,61 +1,114 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:SpotiSharp.Converters"
              x:Class="SpotiSharp.Views.PlayerBarView">
-    <Grid>
+    <ContentView.Resources>
+        <converters:BooleanConverter x:Key="InverseBool" />
+        <Style x:Key="IconTapTarget" TargetType="Grid">
+            <Setter Property="WidthRequest" Value="44" />
+            <Setter Property="HeightRequest" Value="44" />
+            <Setter Property="VerticalOptions" Value="Center" />
+        </Style>
+        <Style x:Key="Icon" TargetType="Path">
+            <Setter Property="Fill" Value="{StaticResource Gray300}" />
+            <Setter Property="Aspect" Value="Uniform" />
+            <Setter Property="WidthRequest" Value="20" />
+            <Setter Property="HeightRequest" Value="20" />
+            <Setter Property="HorizontalOptions" Value="Center" />
+            <Setter Property="VerticalOptions" Value="Center" />
+            <Setter Property="InputTransparent" Value="True" />
+        </Style>
+    </ContentView.Resources>
+
+    <Grid Padding="15,5" RowSpacing="2">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <Grid Grid.Row="0" Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Image Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
-                   Source="{Binding SongImageURL}"
-                   HeightRequest="60" />
-            <Label Grid.Row="1" Grid.Column="1" Text="{Binding SongName}" FontSize="18" Margin="20,0,0,0" VerticalOptions="Center" />
-        </Grid>
-        <Grid Grid.Row="0" Grid.Column="1" VerticalOptions="Center">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="45" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Label Grid.Row="0" Grid.Column="0" TextColor="{StaticResource Primary}" Text="Shuffle" Margin="5,0,5,0" VerticalOptions="Center" />
-            <Switch Grid.Row="0" Grid.Column="1" ThumbColor="{StaticResource Gray900}" OnColor="{StaticResource Primary}" IsToggled="{Binding ShuffleSwitch}" Margin="5,0,0,0"/>
-            <Button Grid.Row="0" Grid.Column="2" BackgroundColor="{StaticResource Gray900}" Text="Back" Command="{Binding SongBack}" Margin="10,0,5,0"/>
-            <Button Grid.Row="0" Grid.Column="3" BackgroundColor="{StaticResource Gray900}" Text="Play/Pause" Command="{Binding TogglePlaying}" Margin="5,0,5,0"/>
-            <Button Grid.Row="0" Grid.Column="4" BackgroundColor="{StaticResource Gray900}" Text="Skip" Command="{Binding SongSkip}" Margin="5,0,5,0"/>
-            <Button Grid.Row="0" Grid.Column="5" BackgroundColor="{StaticResource Gray900}" Text="Repeat" Command="{Binding ChangeRepeat}" Margin="5,0,0,0"/>
-        </Grid>
-        <Frame Grid.Row="0" Grid.Column="2" BackgroundColor="Transparent" BorderColor="Transparent" />
-        <Slider Grid.Row="0" Grid.Column="3"
-                WidthRequest="200"
-                Minimum="0"
-                Maximum="100"
-                Value="{Binding SelectedVolume}"
-                Margin="0,0,20,0"
-                VerticalOptions="Center" 
-                ThumbColor="{StaticResource Primary}"
-                MinimumTrackColor="{StaticResource Primary}"/>
+
+        <!-- player controls -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
+
+            <!-- shuffle -->
+            <Grid Style="{StaticResource IconTapTarget}">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeShuffle}" />
+                </Grid.GestureRecognizers>
+                <Path Style="{StaticResource Icon}"
+                      Data="M10.59,9.17L5.41,4L4,5.41l5.17,5.17L10.59,9.17z M14.5,4l2.04,2.04L4,18.59L5.41,20L17.96,7.46L20,9.5V4H14.5z M14.83,13.41l-1.41,1.41l3.13,3.13L14.5,20H20v-5.5l-2.04,2.04L14.83,13.41z">
+                    <Path.Triggers>
+                        <DataTrigger TargetType="Path" Binding="{Binding IsShuffleOn}" Value="True">
+                            <Setter Property="Fill" Value="{StaticResource Primary}" />
+                        </DataTrigger>
+                    </Path.Triggers>
+                </Path>
+            </Grid>
+
+            <!-- previous -->
+            <Grid Style="{StaticResource IconTapTarget}">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SongBack}" />
+                </Grid.GestureRecognizers>
+                <Path Style="{StaticResource Icon}"
+                      Data="M6,6h2v12H6V6z M9.5,12l8.5,6V6L9.5,12z" />
+            </Grid>
+
+            <!-- play / pause -->
+            <Border StrokeShape="Ellipse"
+                    StrokeThickness="0"
+                    BackgroundColor="{StaticResource Primary}"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding TogglePlaying}" />
+                </Border.GestureRecognizers>
+                <Grid>
+                    <Path Style="{StaticResource Icon}"
+                          Fill="{StaticResource Black}"
+                          Data="M8,5v14l11-7L8,5z"
+                          IsVisible="{Binding IsPlaying, Converter={StaticResource InverseBool}}" />
+                    <Path Style="{StaticResource Icon}"
+                          Fill="{StaticResource Black}"
+                          Data="M6,19h4V5H6V19z M14,5v14h4V5H14z"
+                          IsVisible="{Binding IsPlaying}" />
+                </Grid>
+            </Border>
+
+            <!-- next -->
+            <Grid Style="{StaticResource IconTapTarget}">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SongSkip}" />
+                </Grid.GestureRecognizers>
+                <Path Style="{StaticResource Icon}"
+                      Data="M6,18l8.5-6L6,6V18z M16,6v12h2V6H16z" />
+            </Grid>
+
+            <!-- repeat -->
+            <Grid Style="{StaticResource IconTapTarget}">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ChangeRepeat}" />
+                </Grid.GestureRecognizers>
+                <Path Style="{StaticResource Icon}"
+                      Data="M7,7h10v3l4-4l-4-4v3H5v6h2V7z M17,17H7v-3l-4,4l4,4v-3h12v-6h-2V17z">
+                    <Path.Triggers>
+                        <DataTrigger TargetType="Path" Binding="{Binding IsRepeatOn}" Value="True">
+                            <Setter Property="Fill" Value="{StaticResource Primary}" />
+                        </DataTrigger>
+                    </Path.Triggers>
+                </Path>
+            </Grid>
+
+        </HorizontalStackLayout>
+
+        <!-- currently playing -->
+        <Label Grid.Row="1"
+               Text="{Binding SongName}"
+               FontSize="16"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center"
+               LineBreakMode="TailTruncation" />
     </Grid>
 </ContentView>

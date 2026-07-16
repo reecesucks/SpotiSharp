@@ -25,8 +25,17 @@ public class RecentEpisodesFlatViewModel : BaseViewModel
         if (_hasLoaded) return;
         _hasLoaded = true;
 
-        IsLoading = true;
-        Episodes = await Task.Run(RecentEpisodesModel.GetRecentEpisodesAcrossAllShows);
+        var cached = await Task.Run(RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows);
+        if (cached != null && cached.Count > 0)
+            Episodes = cached;
+        else
+            IsLoading = true;
+
+        var fresh = await Task.Run(RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows);
+        if (fresh != null && !RecentEpisodesModel.AreEpisodesEqual(Episodes, fresh))
+            Episodes = fresh;
         IsLoading = false;
+
+        if (fresh == null) _hasLoaded = false;
     }
 }
