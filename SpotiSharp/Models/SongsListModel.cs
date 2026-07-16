@@ -15,7 +15,7 @@ public class SongsListModel
             List<FullTrack> likedTracks = APICaller.Instance?.GetUserLikedSongs().Select(st => st.Track).ToList() ?? new List<FullTrack>();
             foreach (var likedTrack in likedTracks)
             {
-                Songs.Add(new Song(likedTrack.Id, likedTrack.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, likedTrack.Name, string.Join(", ", likedTrack.Artists.Select(x => x.Name)), playlistId));
+                Songs.Add(new Song(likedTrack.Id, likedTrack.Uri, likedTrack.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, likedTrack.Name, string.Join(", ", likedTrack.Artists.Select(x => x.Name)), playlistId));
             }
             return;
         }
@@ -26,12 +26,12 @@ public class SongsListModel
             if (playableObject.Track.Type == ItemType.Track)
             {
                 if (playableObject.Track is not FullTrack song) continue;
-                Songs.Add(new Song(song.Id, song.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, song.Name, string.Join(", ", song.Artists.Select(x => x.Name)), playlistId));
+                Songs.Add(new Song(song.Id, song.Uri, song.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, song.Name, string.Join(", ", song.Artists.Select(x => x.Name)), playlistId));
             }
             else if (playableObject.Track.Type == ItemType.Episode)
             {
                 if (playableObject.Track is not FullEpisode episode) continue;
-                Songs.Add(new Song(episode.Id, episode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, episode.Name, "", playlistId));
+                Songs.Add(new Song(episode.Id, episode.Uri, episode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, episode.Name, "", playlistId));
             }
         }
     }
