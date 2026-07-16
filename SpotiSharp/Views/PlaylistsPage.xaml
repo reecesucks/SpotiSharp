@@ -3,10 +3,16 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
+             xmlns:spotiSharp="clr-namespace:SpotiSharp"
              x:Class="SpotiSharp.Views.PlaylistsPage">
     <views:BasePage.Content>
         <Grid>
-            <Label Text="Playlists" FontSize="35" Margin="10" />
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Text="Playlists" Margin="8,6" FontSize="16" />
+            <spotiSharp:PlaylistListView Grid.Row="1" />
         </Grid>
     </views:BasePage.Content>
 </views:BasePage>
