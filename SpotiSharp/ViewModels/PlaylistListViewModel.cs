@@ -34,8 +34,15 @@ public class PlaylistListViewModel : BaseViewModel
 
     private async Task LoadPlayListsAsync()
     {
-        IsLoading = true;
-        PlayLists = await Task.Run(() => PlaylistListModel.PlayLists);
+        var cached = await Task.Run(() => PlaylistListModel.CachedPlayLists);
+        if (cached.Count > 0)
+            PlayLists = cached;
+        else
+            IsLoading = true;
+
+        bool changed = await Task.Run(PlaylistListModel.RefreshPlayLists);
+        if (changed || PlayLists.Count == 0)
+            PlayLists = PlaylistListModel.CachedPlayLists;
         IsLoading = false;
     }
 

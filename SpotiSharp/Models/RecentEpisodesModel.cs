@@ -8,32 +8,65 @@ namespace SpotiSharp.Models;
 public class RecentEpisodesModel
 {
     private const int EPISODES_PER_SHOW = 3;
+    private const string ALL_EPISODES_CACHE_KEY = "recentepisodes";
 
     private static readonly string[] ReleaseDateFormats = { "yyyy-MM-dd", "yyyy-MM", "yyyy" };
 
     private static readonly ConcurrentDictionary<string, List<RecentEpisode>> _episodesByShowId = new();
 
-    internal static List<RecentEpisode> GetRecentEpisodesAcrossAllShows()
+    internal static List<RecentEpisode> GetSessionEpisodesForShow(string showId)
+    {
+        return _episodesByShowId.TryGetValue(showId, out var episodes) ? episodes : null;
+    }
+
+    internal static List<RecentEpisode> GetDiskCachedEpisodesForShow(string showId)
+    {
+        return DiskCacheHelper.Load<List<RecentEpisode>>(EpisodeCacheKey(showId));
+    }
+
+    internal static List<RecentEpisode> GetDiskCachedEpisodesAcrossAllShows()
+    {
+        return DiskCacheHelper.Load<List<RecentEpisode>>(ALL_EPISODES_CACHE_KEY);
+    }
+
+    internal static List<RecentEpisode> RefreshEpisodesForShow(string showId, string showName, string showImageUrl)
+    {
+        var fetched = FetchRecentEpisodesForShow(showId, showName, showImageUrl);
+        if (fetched == null) return null;
+
+        _episodesByShowId[showId] = fetched;
+        DiskCacheHelper.Save(EpisodeCacheKey(showId), fetched);
+        return fetched;
+    }
+
+    internal static List<RecentEpisode> RefreshRecentEpisodesAcrossAllShows()
     {
         var result = new List<RecentEpisode>();
 
         foreach (var show in PlaylistListModel.SavedShows)
         {
-            result.AddRange(GetRecentEpisodesForShow(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty));
+            var episodes = GetSessionEpisodesForShow(show.Id)
+                ?? RefreshEpisodesForShow(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty);
+            if (episodes == null) return null;
+            result.AddRange(episodes);
         }
 
-        return result.OrderByDescending(episode => episode.ReleaseDate).ToList();
+        var ordered = result.OrderByDescending(episode => episode.ReleaseDate).ToList();
+        DiskCacheHelper.Save(ALL_EPISODES_CACHE_KEY, ordered);
+        return ordered;
     }
 
-    internal static List<RecentEpisode> GetRecentEpisodesForShow(string showId, string showName, string showImageUrl)
+    internal static bool AreEpisodesEqual(List<RecentEpisode> current, List<RecentEpisode> fetched)
     {
-        return _episodesByShowId.GetOrAdd(showId, id => FetchRecentEpisodesForShow(id, showName, showImageUrl));
+        return current.Count == fetched.Count && current.Zip(fetched, (a, b) =>
+            a.EpisodeId == b.EpisodeId &&
+            a.EpisodeName == b.EpisodeName).All(equal => equal);
     }
 
     private static List<RecentEpisode> FetchRecentEpisodesForShow(string showId, string showName, string showImageUrl)
     {
         var episodes = APICaller.Instance?.GetPodcastEpisodesByPodcastId(showId)?.Where(episode => episode != null);
-        if (episodes == null) return new List<RecentEpisode>();
+        if (episodes == null) return null;
 
         return episodes
             .Where(episode => !EpisodeHelper.IsListened(episode))
@@ -46,6 +79,11 @@ public class RecentEpisodesModel
             .OrderByDescending(episode => episode.ReleaseDate)
             .Take(EPISODES_PER_SHOW)
             .ToList();
+    }
+
+    private static string EpisodeCacheKey(string showId)
+    {
+        return "episodes_" + showId;
     }
 
     private static DateTime ParseReleaseDate(string releaseDate)

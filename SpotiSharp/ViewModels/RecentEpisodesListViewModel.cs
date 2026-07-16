@@ -1,3 +1,4 @@
+using SpotifyAPI.Web;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
@@ -25,10 +26,22 @@ public class RecentEpisodesListViewModel : BaseViewModel
 
     private async Task LoadShowGroupsAsync()
     {
-        IsLoading = true;
-        ShowGroups = await Task.Run(() => PlaylistListModel.SavedShows
-            .Select(show => new ShowGroupViewModel(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty))
-            .ToList());
+        var cached = await Task.Run(() => PlaylistListModel.CachedSavedShows);
+        if (cached.Count > 0)
+            ShowGroups = ToShowGroups(cached);
+        else
+            IsLoading = true;
+
+        bool changed = await Task.Run(PlaylistListModel.RefreshSavedShows);
+        if (changed || ShowGroups.Count == 0)
+            ShowGroups = ToShowGroups(PlaylistListModel.CachedSavedShows);
         IsLoading = false;
+    }
+
+    private static List<ShowGroupViewModel> ToShowGroups(List<FullShow> shows)
+    {
+        return shows
+            .Select(show => new ShowGroupViewModel(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty))
+            .ToList();
     }
 }
