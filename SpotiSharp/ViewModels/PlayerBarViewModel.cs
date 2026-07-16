@@ -1,5 +1,4 @@
-﻿using System.Windows.Input;
-using SpotiSharpBackend;
+using System.Windows.Input;
 using SpotifyAPI.Web;
 using SpotiSharpBackend;
 
@@ -25,27 +24,29 @@ public class PlayerBarViewModel : BaseViewModel
         get { return _songImageURL; }
         set { SetProperty(ref _songImageURL, value); }
     }
-    
-    private bool _shuffleSwitch = APICaller.Instance?.GetCurrentPlaybackShuffleState() ?? false;
-    
-    public bool ShuffleSwitch
+
+    private bool _isPlaying;
+
+    public bool IsPlaying
     {
-        get { return _shuffleSwitch; }
-        set
-        {
-            APICaller.Instance?.SetPlaybackShuffle(value);
-            SetProperty(ref _shuffleSwitch, value);
-        }
+        get { return _isPlaying; }
+        private set { SetProperty(ref _isPlaying, value); }
     }
 
-    private int _lastVolume;
-    
-    private int _selectedVolume;
+    private bool _isShuffleOn;
 
-    public int SelectedVolume
+    public bool IsShuffleOn
     {
-        get { return _selectedVolume; }
-        set { SetProperty(ref _selectedVolume, value); }
+        get { return _isShuffleOn; }
+        private set { SetProperty(ref _isShuffleOn, value); }
+    }
+
+    private bool _isRepeatOn;
+
+    public bool IsRepeatOn
+    {
+        get { return _isRepeatOn; }
+        private set { SetProperty(ref _isRepeatOn, value); }
     }
 
     private PlayerBarViewModel()
@@ -67,6 +68,8 @@ public class PlayerBarViewModel : BaseViewModel
         Models.PlaybackStateStore.Instance.Update(
             currentlyPlayingContext?.IsPlaying ?? false,
             currentlyPlayingContext?.Device?.Id);
+
+        IsPlaying = currentlyPlayingContext?.IsPlaying ?? false;
 
         if (currentlyPlayingContext?.Item == null)
         {
@@ -90,45 +93,41 @@ public class PlayerBarViewModel : BaseViewModel
             }
         }
 
-        // Shuffle
-        if (currentlyPlayingContext.ShuffleState != ShuffleSwitch) ShuffleSwitch = currentlyPlayingContext.ShuffleState;
-
-        // Volume
-        // load volume if it hasn't been edited
-        if (_lastVolume != SelectedVolume)
-        {
-            APICaller.Instance?.SetVolume(SelectedVolume);
-            _lastVolume = SelectedVolume;
-        }
-        else
-        {
-            _lastVolume = SelectedVolume = currentlyPlayingContext.Device?.VolumePercent ?? _lastVolume;
-        }
+        IsShuffleOn = currentlyPlayingContext.ShuffleState;
+        IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
     }
 
     private void TogglePlayingFunc()
     {
-        APICaller.Instance?.TogglePlaybackStatus();
+        IsPlaying = !IsPlaying;
+        Task.Run(() => APICaller.Instance?.TogglePlaybackStatus());
     }
 
     private void SongBackFunc()
     {
-        if (APICaller.Instance?.SkipToPreviousSong() ?? false) RefreshPlayerValues();
+        Task.Run(() =>
+        {
+            if (APICaller.Instance?.SkipToPreviousSong() ?? false) RefreshPlayerValues();
+        });
     }
 
     private void SongSkipFunc()
     {
-        if (APICaller.Instance?.SkipToNextSong() ?? false) RefreshPlayerValues();
+        Task.Run(() =>
+        {
+            if (APICaller.Instance?.SkipToNextSong() ?? false) RefreshPlayerValues();
+        });
     }
 
     private void ChangeRepeatFunc()
     {
-        APICaller.Instance?.ChangePlaybackRepeatType();
+        Task.Run(() => APICaller.Instance?.ChangePlaybackRepeatType());
     }
 
     private void ChangeShuffleFunc()
     {
-        APICaller.Instance?.TogglePlaybackShuffle();
+        IsShuffleOn = !IsShuffleOn;
+        Task.Run(() => APICaller.Instance?.TogglePlaybackShuffle());
     }
 
     public ICommand TogglePlaying { private set; get; }
