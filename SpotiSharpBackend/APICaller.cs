@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using SpotifyAPI.Web;
 
 namespace SpotiSharpBackend;
@@ -63,7 +64,10 @@ public class APICaller
             {
                 if (Ratelimiter.RequestCall()) return call();
             }
-            catch (AggregateException) { }
+            catch (AggregateException ex)
+            {
+                Debug.WriteLine($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+            }
             currentRetries++;
             Thread.Sleep(TIME_OUT_IN_MILLI);
         }
@@ -209,29 +213,25 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest()).Result);
     }
 
-    public bool SetCurrentPlayingSong(string songId, string playlistId)
+    public bool SetCurrentPlayingSong(string songUri, string playlistId)
     {
-        if (songId == null) return false;
-        var playlist = GetPlaylistById(playlistId);
-        var songToPlay = GetTrackById(songId);
+        if (songUri == null) return false;
 
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
-            ContextUri = playlist.Uri,
+            ContextUri = $"spotify:playlist:{playlistId}",
             OffsetParam = new PlayerResumePlaybackRequest.Offset
             {
-                Uri = songToPlay.Uri
+                Uri = songUri
             }
         }).Result);
     }
 
     public bool SetCurrentPlayingToPlaylist(string playlistId)
     {
-        var playlist = GetPlaylistById(playlistId);
-
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
-            ContextUri = playlist.Uri
+            ContextUri = $"spotify:playlist:{playlistId}"
         }).Result);
     }
 

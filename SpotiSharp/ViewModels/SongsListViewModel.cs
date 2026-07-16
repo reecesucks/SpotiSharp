@@ -34,16 +34,36 @@ public class SongsListViewModel : BaseViewModel
         Songs = songsListModel.Songs;
     }
 
-    public void ClickSong(object sourceItem)
+    public async void ClickSong(object sourceItem)
     {
         if (sourceItem is not Song song) return;
-        if (song.PartOfPlayListWithId == Constants.LIKED_PLALIST_ID)
+
+
+        if (PlaybackStateStore.Instance.HasActiveDevice)
         {
-            APICaller.Instance?.SetCurrentPlayingToSongInLikedPlaylist(song.SongId);
+            bool started = await Task.Run(() => song.PartOfPlayListWithId == Constants.LIKED_PLALIST_ID
+                ? APICaller.Instance?.SetCurrentPlayingToSongInLikedPlaylist(song.SongId) ?? false
+                : APICaller.Instance?.SetCurrentPlayingSong(song.SongUri, song.PartOfPlayListWithId) ?? false);
+
+            if (started) return;
         }
-        else
+
+        if (!await LaunchInSpotify(song.SongUri))
         {
-            APICaller.Instance?.SetCurrentPlayingSong(song.SongId, song.PartOfPlayListWithId);
+            await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
+        }
+    }
+
+    private static async Task<bool> LaunchInSpotify(string songUri)
+    {
+        if (string.IsNullOrEmpty(songUri)) return false;
+        try
+        {
+            return await Launcher.Default.TryOpenAsync(songUri);
+        }
+        catch
+        {
+            return false;
         }
     }
 }
