@@ -63,6 +63,11 @@ public class PlayerBarViewModel : BaseViewModel
     {
         // Song
         var currentlyPlayingContext = APICaller.Instance?.GetCurrentPlaybackContext();
+
+        Models.PlaybackStateStore.Instance.Update(
+            currentlyPlayingContext?.IsPlaying ?? false,
+            currentlyPlayingContext?.Device?.Id);
+
         if (currentlyPlayingContext?.Item == null)
         {
             SongName = "Unauthorized";
