@@ -25,6 +25,11 @@
         ContentTemplate="{DataTemplate views:PlaylistsPage}"
         Route="PlaylistsPage" />
     <ShellContent
+        x:Name="ArtistsContent"
+        Title="Artists"
+        ContentTemplate="{DataTemplate views:ArtistsPage}"
+        Route="ArtistsPage" />
+    <ShellContent
         x:Name="PodcastsContent"
         Title="Podcasts"
         ContentTemplate="{DataTemplate views:PodcastsPage}"
