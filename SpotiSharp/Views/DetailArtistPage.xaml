@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             xmlns:controls="clr-namespace:SpotiSharp.Controls"
+             Shell.NavBarIsVisible="False"
+             x:Class="SpotiSharp.Views.DetailArtistPage">
+    <views:BasePage.Content>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="10">
+                <controls:PlayerBarButton Grid.Column="0"
+                                          WidthRequest="44"
+                                          HeightRequest="44"
+                                          VerticalOptions="Center"
+                                          Margin="0,0,5,0"
+                                          Command="{Binding GoBack}">
+                    <Path Fill="{StaticResource Gray300}"
+                          Aspect="Uniform"
+                          WidthRequest="20"
+                          HeightRequest="20"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Center"
+                          InputTransparent="True"
+                          Data="M15.41,7.41L14,6l-6,6l6,6l1.41-1.41L10.83,12L15.41,7.41z" />
+                </controls:PlayerBarButton>
+                <Label Grid.Column="1"
+                       Text="{Binding ArtistName}"
+                       FontSize="28"
+                       VerticalOptions="Center"
+                       LineBreakMode="TailTruncation" />
+            </Grid>
+            <ActivityIndicator Grid.Row="1"
+                               IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               HeightRequest="32"
+                               VerticalOptions="Start" />
+            <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+            <CollectionView x:Name="MainListView"
+                      ItemsSource="{Binding Albums}"
+                      SelectionMode="Single"
+                      SelectedItem="{Binding SelectedAlbum}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2,0,0" ColumnDefinitions="Auto,*" AutomationId="{Binding AlbumId}">
+                            <Image Grid.Column="0"
+                                   Source="{Binding AlbumImageUrl}"
+                                   Aspect="AspectFill"
+                                   HeightRequest="60"
+                                   WidthRequest="60" />
+                            <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
+                                <Label FontSize="18"
+                                       LineBreakMode="TailTruncation"
+                                       Text="{Binding AlbumName}" />
+                                <Label FontSize="14"
+                                       TextColor="Gray"
+                                       Text="{Binding ReleaseDate}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            </RefreshView>
+        </Grid>
+    </views:BasePage.Content>
+</views:BasePage>

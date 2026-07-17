@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             x:Class="SpotiSharp.Views.ArtistsPage">
+    <views:BasePage.Content>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Text="Artists" Margin="8,6" FontSize="16" />
+            <views:ArtistListView Grid.Row="1" />
+        </Grid>
+    </views:BasePage.Content>
+</views:BasePage>

@@ -10,9 +10,12 @@ public partial class AppShell : Shell
 		InitializeComponent();
 
 		Routing.RegisterRoute("DetailPlaylistPage", typeof(DetailPlaylistPage));
+		Routing.RegisterRoute("DetailArtistPage", typeof(Views.DetailArtistPage));
+		Routing.RegisterRoute("DetailAlbumPage", typeof(Views.DetailAlbumPage));
 
 		var isMobile = AppState.Instance.IsMobile;
 		PlaylistsContent.FlyoutItemIsVisible = isMobile;
+		ArtistsContent.FlyoutItemIsVisible = isMobile;
 		PodcastsContent.FlyoutItemIsVisible = isMobile;
 
 		_ = BackendConnector.Instance;
