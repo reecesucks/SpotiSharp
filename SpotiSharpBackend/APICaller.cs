@@ -220,6 +220,61 @@ public class APICaller
         return GetArtistById(id).Genres;
     }
 
+    public List<FullArtist>? GetFollowedArtists()
+    {
+        return HandleExceptions(() =>
+        {
+            var result = new List<FullArtist>();
+            string? after = null;
+            do
+            {
+                var request = new FollowOfCurrentUserRequest(FollowOfCurrentUserRequest.Type.Artist) { Limit = 50, After = after };
+                var response = Authentication.SpotifyClient.Follow.OfCurrentUser(request).Result;
+                if (response?.Artists?.Items == null) break;
+                result.AddRange(response.Artists.Items);
+                after = response.Artists.Cursors?.After;
+            } while (!string.IsNullOrEmpty(after));
+            return result;
+        });
+    }
+
+    public List<SimpleAlbum>? GetArtistAlbums(string artistId)
+    {
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Artists.GetAlbums(artistId, new ArtistsAlbumsRequest
+        {
+            Limit = 50,
+            IncludeGroupsParam = ArtistsAlbumsRequest.IncludeGroups.Album | ArtistsAlbumsRequest.IncludeGroups.Single
+        }).Result);
+        if (response == null) return null;
+
+        return HandleExceptions(() => Authentication.SpotifyClient.PaginateAll(response).Result)?.ToList();
+    }
+
+    public List<SimpleTrack>? GetAlbumTracks(string albumId)
+    {
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Albums.GetTracks(albumId, new AlbumTracksRequest { Limit = 50 }).Result);
+        if (response == null) return null;
+
+        return HandleExceptions(() => Authentication.SpotifyClient.PaginateAll(response).Result)?.ToList();
+    }
+
+    public bool? IsAlbumSaved(string albumId)
+    {
+        var result = HandleExceptions(() => Authentication.SpotifyClient.Library.CheckAlbums(new LibraryCheckAlbumsRequest(new List<string> { albumId })).Result);
+        if (result == null || result.Count == 0) return null;
+        return result[0];
+    }
+
+    public bool SaveAlbum(string albumId)
+    {
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.SaveAlbums(new LibrarySaveAlbumsRequest(new List<string> { albumId })).Result);
+    }
+
+    public bool RemoveSavedAlbum(string albumId)
+    {
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.RemoveAlbums(new LibraryRemoveAlbumsRequest(new List<string> { albumId })).Result);
+    }
+
     #endregion
 
     #region Player
@@ -241,6 +296,20 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
             ContextUri = $"spotify:playlist:{playlistId}",
+            OffsetParam = new PlayerResumePlaybackRequest.Offset
+            {
+                Uri = songUri
+            }
+        }).Result);
+    }
+
+    public bool SetCurrentPlayingSongInAlbum(string songUri, string albumId)
+    {
+        if (songUri == null) return false;
+
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+        {
+            ContextUri = $"spotify:album:{albumId}",
             OffsetParam = new PlayerResumePlaybackRequest.Offset
             {
                 Uri = songUri
