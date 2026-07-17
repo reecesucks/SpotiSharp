@@ -12,10 +12,12 @@
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
     <ShellContent
+        x:Name="PlaylistCreatorContent"
         Title="Create Playlists"
         ContentTemplate="{DataTemplate views:PlaylistCreatorPage}"
         Route="PlaylistCreatorPage" />
     <ShellContent
+        x:Name="ManagePlaylistsContent"
         Title="Manage Playlists"
         ContentTemplate="{DataTemplate local:ManagePlaylistsPage}"
         Route="ManagePlayListsPage" />
@@ -29,6 +31,11 @@
         Title="Artists"
         ContentTemplate="{DataTemplate views:ArtistsPage}"
         Route="ArtistsPage" />
+    <ShellContent
+        x:Name="AlbumsContent"
+        Title="Albums"
+        ContentTemplate="{DataTemplate views:AlbumsPage}"
+        Route="AlbumsPage" />
     <ShellContent
         x:Name="PodcastsContent"
         Title="Podcasts"

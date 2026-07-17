@@ -16,7 +16,10 @@ public partial class AppShell : Shell
 		var isMobile = AppState.Instance.IsMobile;
 		PlaylistsContent.FlyoutItemIsVisible = isMobile;
 		ArtistsContent.FlyoutItemIsVisible = isMobile;
+		AlbumsContent.FlyoutItemIsVisible = isMobile;
 		PodcastsContent.FlyoutItemIsVisible = isMobile;
+		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
+		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
 
 		_ = BackendConnector.Instance;
 	}

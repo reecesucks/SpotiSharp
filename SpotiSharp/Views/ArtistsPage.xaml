@@ -5,13 +5,6 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              x:Class="SpotiSharp.Views.ArtistsPage">
     <views:BasePage.Content>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Label Grid.Row="0" Text="Artists" Margin="8,6" FontSize="16" />
-            <views:ArtistListView Grid.Row="1" />
-        </Grid>
+        <views:ArtistListView />
     </views:BasePage.Content>
 </views:BasePage>
