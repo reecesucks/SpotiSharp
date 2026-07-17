@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 
 namespace SpotiSharp.ViewModels;
 
@@ -9,8 +10,38 @@ public class BaseViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler PropertyChanged;
 
     internal event VisibilityChange OnVisibilityChange;
-    
+
     internal bool isVisible = false;
+
+    private bool _isRefreshing;
+
+    public bool IsRefreshing
+    {
+        get { return _isRefreshing; }
+        set { SetProperty(ref _isRefreshing, value); }
+    }
+
+    public ICommand RefreshCommand { get; }
+
+    protected BaseViewModel()
+    {
+        RefreshCommand = new Command(async () =>
+        {
+            try
+            {
+                await RefreshDataAsync();
+            }
+            finally
+            {
+                IsRefreshing = false;
+            }
+        });
+    }
+
+    protected virtual Task RefreshDataAsync()
+    {
+        return Task.CompletedTask;
+    }
 
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
