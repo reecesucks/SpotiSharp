@@ -8,6 +8,7 @@
                         IsVisible="{Binding IsLoading}"
                         HeightRequest="32"
                         VerticalOptions="Start" />
+    <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
     <CollectionView ItemsSource="{Binding ShowGroups}">
         <CollectionView.ItemTemplate>
             <DataTemplate>
@@ -62,5 +63,6 @@
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
+    </RefreshView>
     </Grid>
 </ContentView>

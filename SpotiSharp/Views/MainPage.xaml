@@ -15,6 +15,5 @@
         <VerticalStackLayout Grid.Row="0" Grid.Column="0" Margin="50,20,20,20">
             <Label FontSize="20" Margin="20,0,20,20" IsVisible="{Binding IsUserIsNotAuthenticated}" Text="You are not authenticated. To authenticate go to the ''Authentication'' page"/>
         </VerticalStackLayout>
-        <views:PlayerBarView Grid.Row="1" Grid.Column="0" />
     </Grid>
 </views:BasePage>

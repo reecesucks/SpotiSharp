@@ -142,9 +142,30 @@ public class APICaller
             return trackUris.ConvertAll(tu => (string)tu);
         });
 
-        return trackUris.Count < 100 ? 
-            apiCallFunc(trackUris.ConvertAll(tu => (object)tu)) : 
+        return trackUris.Count < 100 ?
+            apiCallFunc(trackUris.ConvertAll(tu => (object)tu)) :
             ChunkRequest(trackUris.ConvertAll(tu => (object)tu), 100, apiCallFunc);
+    }
+
+    public FullPlaylist? CreatePlaylist(string playlistName)
+    {
+        string? userId = HandleExceptions(() => Authentication.SpotifyClient.UserProfile.Current().Result.Id);
+        if (userId == null) return null;
+        return HandleExceptions(() => Authentication.SpotifyClient.Playlists.Create(userId, new PlaylistCreateRequest(playlistName)).Result);
+    }
+
+    public bool AddTrackToPlaylist(string playlistId, string trackUri)
+    {
+        return HandleExceptions(() => Authentication.SpotifyClient.Playlists.AddItems(playlistId, new PlaylistAddItemsRequest(new List<string> { trackUri })).Result) != null;
+    }
+
+    public bool RemoveTrackFromPlaylist(string playlistId, string trackUri)
+    {
+        var request = new PlaylistRemoveItemsRequest
+        {
+            Tracks = new List<PlaylistRemoveItemsRequest.Item> { new PlaylistRemoveItemsRequest.Item { Uri = trackUri } }
+        };
+        return HandleExceptions(() => Authentication.SpotifyClient.Playlists.RemoveItems(playlistId, request).Result) != null;
     }
 
     #endregion

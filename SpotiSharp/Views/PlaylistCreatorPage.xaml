@@ -129,6 +129,5 @@
                         Command="{Binding CreatePlaylist}" />
             </Grid>
         </Border>
-        <views:PlayerBarView Grid.Row="6" />
     </Grid>
 </views:BasePage>
