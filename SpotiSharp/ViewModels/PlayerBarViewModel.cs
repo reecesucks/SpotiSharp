@@ -57,6 +57,22 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _hasCurrentSong, value); }
     }
 
+    private bool _isSongLiked;
+
+    public bool IsSongLiked
+    {
+        get { return _isSongLiked; }
+        private set { SetProperty(ref _isSongLiked, value); }
+    }
+
+    private bool _isSongLikable;
+
+    public bool IsSongLikable
+    {
+        get { return _isSongLikable; }
+        private set { SetProperty(ref _isSongLikable, value); }
+    }
+
     private PlayerBarViewModel()
     {
         _playerBarViewModel = this;
@@ -67,6 +83,7 @@ public class PlayerBarViewModel : BaseViewModel
         ChangeShuffle = new Command(ChangeShuffleFunc);
         RotationUp = new Command(() => ChangeRotationFunc(increase: true));
         RotationDown = new Command(() => ChangeRotationFunc(increase: false));
+        ToggleSongLiked = new Command(ToggleSongLikedFunc);
         UiLoop.Instance.OnRefreshUi += RefreshPlayerValues;
     }
 
@@ -95,6 +112,13 @@ public class PlayerBarViewModel : BaseViewModel
                 SongName = fullTrack.Name;
                 SongImageURL = fullTrack.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = fullTrack.Uri;
+                if (_currentTrackId != fullTrack.Id)
+                {
+                    _currentTrackId = fullTrack.Id;
+                    IsSongLikable = true;
+                    var liked = APICaller.Instance?.IsTrackLiked(fullTrack.Id);
+                    if (liked.HasValue && _currentTrackId == fullTrack.Id) IsSongLiked = liked.Value;
+                }
                 break;
             }
             case FullEpisode fullEpisode:
@@ -102,6 +126,9 @@ public class PlayerBarViewModel : BaseViewModel
                 SongName = fullEpisode.Name;
                 SongImageURL = fullEpisode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = null;
+                _currentTrackId = null;
+                IsSongLikable = false;
+                IsSongLiked = false;
                 break;
             }
         }
@@ -144,6 +171,24 @@ public class PlayerBarViewModel : BaseViewModel
     }
 
     private string _currentTrackUri;
+    private string _currentTrackId;
+
+    private void ToggleSongLikedFunc()
+    {
+        var trackId = _currentTrackId;
+        if (trackId == null) return;
+
+        bool newState = !IsSongLiked;
+        IsSongLiked = newState;
+
+        Task.Run(() =>
+        {
+            bool success = newState
+                ? APICaller.Instance?.LikeTrack(trackId) ?? false
+                : APICaller.Instance?.UnlikeTrack(trackId) ?? false;
+            if (!success && trackId == _currentTrackId) IsSongLiked = !newState;
+        });
+    }
 
     private bool _isRotationUpBusy;
 
@@ -192,4 +237,5 @@ public class PlayerBarViewModel : BaseViewModel
     public ICommand ChangeShuffle { private set; get; }
     public ICommand RotationUp { private set; get; }
     public ICommand RotationDown { private set; get; }
+    public ICommand ToggleSongLiked { private set; get; }
 }
