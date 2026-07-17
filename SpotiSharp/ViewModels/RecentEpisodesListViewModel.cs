@@ -32,10 +32,15 @@ public class RecentEpisodesListViewModel : BaseViewModel
         else
             IsLoading = true;
 
+        await RefreshDataAsync();
+        IsLoading = false;
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
         bool changed = await Task.Run(PlaylistListModel.RefreshSavedShows);
         if (changed || ShowGroups.Count == 0)
             ShowGroups = ToShowGroups(PlaylistListModel.CachedSavedShows);
-        IsLoading = false;
     }
 
     private static List<ShowGroupViewModel> ToShowGroups(List<FullShow> shows)
