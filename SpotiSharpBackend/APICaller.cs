@@ -67,6 +67,13 @@ public class APICaller
             catch (AggregateException ex)
             {
                 Debug.WriteLine($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+
+                var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
+                if (tooManyRequests != null)
+                {
+                    var retryAfter = tooManyRequests.RetryAfter > TimeSpan.Zero ? tooManyRequests.RetryAfter : TimeSpan.FromSeconds(1);
+                    Thread.Sleep(retryAfter);
+                }
             }
             currentRetries++;
             Thread.Sleep(TIME_OUT_IN_MILLI);
@@ -188,6 +195,23 @@ public class APICaller
         return ChunkRequest(trackIds.ConvertAll(ti => (object)ti), 50, apiCallFunc);
     }
 
+    public bool? IsTrackLiked(string trackId)
+    {
+        var result = HandleExceptions(() => Authentication.SpotifyClient.Library.CheckTracks(new LibraryCheckTracksRequest(new List<string> { trackId })).Result);
+        if (result == null || result.Count == 0) return null;
+        return result[0];
+    }
+
+    public bool LikeTrack(string trackId)
+    {
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.SaveTracks(new LibrarySaveTracksRequest(new List<string> { trackId })).Result);
+    }
+
+    public bool UnlikeTrack(string trackId)
+    {
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Library.RemoveTracks(new LibraryRemoveTracksRequest(new List<string> { trackId })).Result);
+    }
+
     public TrackAudioFeatures GetAudioFeaturesByTrackId(string trackId)
     {
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Tracks.GetAudioFeatures(trackId).Result);
@@ -253,6 +277,14 @@ public class APICaller
     public List<SimpleTrack>? GetAlbumTracks(string albumId)
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Albums.GetTracks(albumId, new AlbumTracksRequest { Limit = 50 }).Result);
+        if (response == null) return null;
+
+        return HandleExceptions(() => Authentication.SpotifyClient.PaginateAll(response).Result)?.ToList();
+    }
+
+    public List<SavedAlbum>? GetSavedAlbums()
+    {
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Library.GetAlbums(new LibraryAlbumsRequest { Limit = 50 }).Result);
         if (response == null) return null;
 
         return HandleExceptions(() => Authentication.SpotifyClient.PaginateAll(response).Result)?.ToList();

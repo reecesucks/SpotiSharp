@@ -24,7 +24,12 @@ public class ArtistAlbumsModel
         if (albums == null) return null;
 
         var fetched = albums
-            .Select(album => new Album(album.Id, album.Name, album.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty, album.ReleaseDate ?? string.Empty))
+            .Select(album => new Album(
+                album.Id,
+                album.Name,
+                album.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty,
+                album.ReleaseDate ?? string.Empty,
+                string.Join(", ", album.Artists?.Select(artist => artist.Name) ?? Enumerable.Empty<string>())))
             .OrderByDescending(album => album.ReleaseDate)
             .ToList();
 

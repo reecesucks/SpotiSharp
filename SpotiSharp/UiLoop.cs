@@ -7,7 +7,7 @@ public class UiLoop
     private static UiLoop _uiLoop;
     public static UiLoop Instance => _uiLoop ??= new UiLoop();
     
-    private const int UI_REFRESH_INTERVAL_IN_MILLI = 500;
+    private const int UI_REFRESH_INTERVAL_IN_MILLI = 2000;
     
     public event RefreshUi OnRefreshUi;
     
