@@ -21,7 +21,6 @@
                 <spotiSharp:SongsListView Grid.Row="2" Grid.Column="0"
                                           x:Name="SongsListView"
                                           PlayListId="{Binding PlaylistId}" />
-                <views:PlayerBarView Grid.Row="3" Grid.Column="0"/>
             </Grid>
         </FlexLayout>
 </views:BasePage>

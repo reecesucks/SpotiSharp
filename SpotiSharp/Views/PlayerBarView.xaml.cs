@@ -1,4 +1,4 @@
-﻿using SpotiSharp.ViewModels;
+using SpotiSharp.ViewModels;
 
 namespace SpotiSharp.Views;
 

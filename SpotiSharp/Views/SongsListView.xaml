@@ -8,6 +8,7 @@
                         IsVisible="{Binding IsLoading}"
                         HeightRequest="32"
                         VerticalOptions="Start" />
+    <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
     <CollectionView x:Name="MainListView"
         ItemsSource="{Binding Songs}"
         SelectionMode="Single">
@@ -30,5 +31,6 @@
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
+    </RefreshView>
     </Grid>
 </ContentView>
