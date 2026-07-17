@@ -34,6 +34,18 @@ public static class DiskCacheHelper
         }
     }
 
+    public static void Delete(string key)
+    {
+        try
+        {
+            File.Delete(GetPath(key));
+        }
+        catch
+        {
+            // a cache file that cannot be deleted is refreshed on next fetch anyway
+        }
+    }
+
     private static string GetPath(string key)
     {
         return Path.Combine(CacheDirectory, key + ".json");

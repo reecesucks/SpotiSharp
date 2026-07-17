@@ -25,15 +25,17 @@ public class SongRotationModel
             var created = api.CreatePlaylist($"#R-{targetLevel}");
             if (created == null) return false;
             if (!api.AddTrackToPlaylist(created.Id, trackUri)) return false;
+            RotationTracksModel.Invalidate(created.Id);
         }
         else if (!targetPlaylist.ContainsTrack)
         {
             if (!api.AddTrackToPlaylist(targetPlaylist.PlaylistId, trackUri)) return false;
+            RotationTracksModel.Invalidate(targetPlaylist.PlaylistId);
         }
 
         foreach (var entry in rotationPlaylists.Where(entry => entry.Level < targetLevel && !entry.ContainsTrack))
         {
-            api.AddTrackToPlaylist(entry.PlaylistId, trackUri);
+            if (api.AddTrackToPlaylist(entry.PlaylistId, trackUri)) RotationTracksModel.Invalidate(entry.PlaylistId);
         }
 
         return true;
@@ -54,6 +56,7 @@ public class SongRotationModel
         foreach (var entry in containing.Where(entry => entry.Level == highestLevel))
         {
             if (!api.RemoveTrackFromPlaylist(entry.PlaylistId, trackUri)) return false;
+            RotationTracksModel.Invalidate(entry.PlaylistId);
         }
 
         return true;

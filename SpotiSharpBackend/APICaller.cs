@@ -335,6 +335,17 @@ public class APICaller
         }).Result);
     }
 
+    public bool PlayUriAtPosition(string uri, int positionMs)
+    {
+        if (uri == null) return false;
+
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+        {
+            Uris = new List<string> { uri },
+            PositionMs = positionMs
+        }).Result);
+    }
+
     public bool SetCurrentPlayingSongInAlbum(string songUri, string albumId)
     {
         if (songUri == null) return false;

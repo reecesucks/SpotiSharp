@@ -12,8 +12,10 @@ public partial class AppShell : Shell
 		Routing.RegisterRoute("DetailPlaylistPage", typeof(DetailPlaylistPage));
 		Routing.RegisterRoute("DetailArtistPage", typeof(Views.DetailArtistPage));
 		Routing.RegisterRoute("DetailAlbumPage", typeof(Views.DetailAlbumPage));
+		Routing.RegisterRoute("RadioSettingsPage", typeof(Views.RadioSettingsPage));
 
 		var isMobile = AppState.Instance.IsMobile;
+		RadioContent.FlyoutItemIsVisible = isMobile;
 		PlaylistsContent.FlyoutItemIsVisible = isMobile;
 		ArtistsContent.FlyoutItemIsVisible = isMobile;
 		AlbumsContent.FlyoutItemIsVisible = isMobile;
