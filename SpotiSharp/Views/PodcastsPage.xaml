@@ -17,16 +17,8 @@
                                                 FlatTemplate="{StaticResource FlatTemplate}" />
     </views:BasePage.Resources>
     <views:BasePage.Content>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Label Grid.Row="0" Text="Recent Episodes" Margin="8,6" FontSize="16" />
-            <CarouselView Grid.Row="1"
-                          ItemsSource="{Binding Pages}"
-                          ItemTemplate="{StaticResource PageTemplateSelector}"
-                          Position="{Binding CurrentPageIndex, Mode=TwoWay}" />
-        </Grid>
+        <CarouselView ItemsSource="{Binding Pages}"
+                      ItemTemplate="{StaticResource PageTemplateSelector}"
+                      Position="{Binding CurrentPageIndex, Mode=TwoWay}" />
     </views:BasePage.Content>
 </views:BasePage>

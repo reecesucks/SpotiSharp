@@ -6,13 +6,6 @@
              xmlns:spotiSharp="clr-namespace:SpotiSharp"
              x:Class="SpotiSharp.Views.PlaylistsPage">
     <views:BasePage.Content>
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <Label Grid.Row="0" Text="Playlists" Margin="8,6" FontSize="16" />
-            <spotiSharp:PlaylistListView Grid.Row="1" />
-        </Grid>
+        <spotiSharp:PlaylistListView />
     </views:BasePage.Content>
 </views:BasePage>
