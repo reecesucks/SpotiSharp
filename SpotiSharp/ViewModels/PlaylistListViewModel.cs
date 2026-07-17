@@ -40,10 +40,15 @@ public class PlaylistListViewModel : BaseViewModel
         else
             IsLoading = true;
 
+        await RefreshDataAsync();
+        IsLoading = false;
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
         bool changed = await Task.Run(PlaylistListModel.RefreshPlayLists);
         if (changed || PlayLists.Count == 0)
             PlayLists = PlaylistListModel.CachedPlayLists;
-        IsLoading = false;
     }
 
     public async void GoToPlaylistDetail()

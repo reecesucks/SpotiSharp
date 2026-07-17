@@ -24,6 +24,11 @@ public class SongsListViewModel : BaseViewModel
 
     public async void OnPlayListIdRefresh(string playlistId)
     {
+        await LoadSongsAsync(playlistId);
+    }
+
+    private async Task LoadSongsAsync(string playlistId)
+    {
         _latestRequestedPlaylistId = playlistId;
 
         IsLoading = true;
@@ -32,6 +37,12 @@ public class SongsListViewModel : BaseViewModel
 
         if (playlistId != _latestRequestedPlaylistId) return;
         Songs = songsListModel.Songs;
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        if (string.IsNullOrEmpty(_latestRequestedPlaylistId)) return;
+        await LoadSongsAsync(_latestRequestedPlaylistId);
     }
 
     public async void ClickSong(object sourceItem)
