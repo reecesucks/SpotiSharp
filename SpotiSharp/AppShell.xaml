@@ -12,6 +12,11 @@
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
     <ShellContent
+        x:Name="RadioContent"
+        Title="Radio"
+        ContentTemplate="{DataTemplate views:RadioPage}"
+        Route="RadioPage" />
+    <ShellContent
         x:Name="PlaylistCreatorContent"
         Title="Create Playlists"
         ContentTemplate="{DataTemplate views:PlaylistCreatorPage}"
