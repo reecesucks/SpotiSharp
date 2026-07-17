@@ -31,11 +31,18 @@ public class RecentEpisodesFlatViewModel : BaseViewModel
         else
             IsLoading = true;
 
-        var fresh = await Task.Run(RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows);
+        var fresh = await Task.Run(() => RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows());
         if (fresh != null && !RecentEpisodesModel.AreEpisodesEqual(Episodes, fresh))
             Episodes = fresh;
         IsLoading = false;
 
         if (fresh == null) _hasLoaded = false;
+    }
+
+    protected override async Task RefreshDataAsync()
+    {
+        var fresh = await Task.Run(() => RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows(forceRefresh: true));
+        if (fresh != null && !RecentEpisodesModel.AreEpisodesEqual(Episodes, fresh))
+            Episodes = fresh;
     }
 }

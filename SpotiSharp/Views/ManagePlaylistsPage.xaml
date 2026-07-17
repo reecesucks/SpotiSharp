@@ -19,7 +19,6 @@
             <Label Text="Playlists" Margin="10" FontSize="35" Grid.Column="0" Grid.Row="0" />
             <spotiSharp:PlaylistListView Grid.Column="0" Grid.Row="1" />
         </Grid>
-        <views:PlayerBarView Grid.Row="2" />
     </Grid>
 
 </views:BasePage>

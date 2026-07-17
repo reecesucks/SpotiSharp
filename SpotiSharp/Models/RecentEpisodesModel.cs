@@ -39,13 +39,13 @@ public class RecentEpisodesModel
         return fetched;
     }
 
-    internal static List<RecentEpisode> RefreshRecentEpisodesAcrossAllShows()
+    internal static List<RecentEpisode> RefreshRecentEpisodesAcrossAllShows(bool forceRefresh = false)
     {
         var result = new List<RecentEpisode>();
 
         foreach (var show in PlaylistListModel.SavedShows)
         {
-            var episodes = GetSessionEpisodesForShow(show.Id)
+            var episodes = (forceRefresh ? null : GetSessionEpisodesForShow(show.Id))
                 ?? RefreshEpisodesForShow(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty);
             if (episodes == null) return null;
             result.AddRange(episodes);

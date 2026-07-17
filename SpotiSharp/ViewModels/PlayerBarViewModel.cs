@@ -49,6 +49,14 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _isRepeatOn, value); }
     }
 
+    private bool _hasCurrentSong;
+
+    public bool HasCurrentSong
+    {
+        get { return _hasCurrentSong; }
+        private set { SetProperty(ref _hasCurrentSong, value); }
+    }
+
     private PlayerBarViewModel()
     {
         _playerBarViewModel = this;
@@ -57,6 +65,8 @@ public class PlayerBarViewModel : BaseViewModel
         SongSkip = new Command(SongSkipFunc);
         ChangeRepeat = new Command(ChangeRepeatFunc);
         ChangeShuffle = new Command(ChangeShuffleFunc);
+        RotationUp = new Command(() => ChangeRotationFunc(increase: true));
+        RotationDown = new Command(() => ChangeRotationFunc(increase: false));
         UiLoop.Instance.OnRefreshUi += RefreshPlayerValues;
     }
 
@@ -70,6 +80,7 @@ public class PlayerBarViewModel : BaseViewModel
             currentlyPlayingContext?.Device?.Id);
 
         IsPlaying = currentlyPlayingContext?.IsPlaying ?? false;
+        HasCurrentSong = currentlyPlayingContext?.Item != null;
 
         if (currentlyPlayingContext?.Item == null)
         {
@@ -83,12 +94,14 @@ public class PlayerBarViewModel : BaseViewModel
             {
                 SongName = fullTrack.Name;
                 SongImageURL = fullTrack.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
+                _currentTrackUri = fullTrack.Uri;
                 break;
             }
             case FullEpisode fullEpisode:
             {
                 SongName = fullEpisode.Name;
                 SongImageURL = fullEpisode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
+                _currentTrackUri = null;
                 break;
             }
         }
@@ -130,9 +143,53 @@ public class PlayerBarViewModel : BaseViewModel
         Task.Run(() => APICaller.Instance?.TogglePlaybackShuffle());
     }
 
+    private string _currentTrackUri;
+
+    private bool _isRotationUpBusy;
+
+    public bool IsRotationUpBusy
+    {
+        get { return _isRotationUpBusy; }
+        private set { SetProperty(ref _isRotationUpBusy, value); }
+    }
+
+    private bool _isRotationDownBusy;
+
+    public bool IsRotationDownBusy
+    {
+        get { return _isRotationDownBusy; }
+        private set { SetProperty(ref _isRotationDownBusy, value); }
+    }
+
+    private void ChangeRotationFunc(bool increase)
+    {
+        var trackUri = _currentTrackUri;
+        if (trackUri == null || IsRotationUpBusy || IsRotationDownBusy) return;
+        if (increase) IsRotationUpBusy = true;
+        else IsRotationDownBusy = true;
+
+        Task.Run(() =>
+        {
+            try
+            {
+                bool changed = increase
+                    ? Models.SongRotationModel.IncreaseRotation(trackUri)
+                    : Models.SongRotationModel.DecreaseRotation(trackUri);
+                if (changed) Models.PlaylistListModel.RefreshPlayLists();
+            }
+            finally
+            {
+                if (increase) IsRotationUpBusy = false;
+                else IsRotationDownBusy = false;
+            }
+        });
+    }
+
     public ICommand TogglePlaying { private set; get; }
     public ICommand SongBack { private set; get; }
     public ICommand SongSkip { private set; get; }
     public ICommand ChangeRepeat { private set; get; }
     public ICommand ChangeShuffle { private set; get; }
+    public ICommand RotationUp { private set; get; }
+    public ICommand RotationDown { private set; get; }
 }
