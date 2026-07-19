@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
@@ -8,11 +9,29 @@ public class RadioPageViewModel : BaseViewModel
 {
     public ICommand GenerateRadio { get; }
     public ICommand OpenSettings { get; }
+    public ICommand RemoveItem { get; }
 
     public RadioPageViewModel()
     {
         GenerateRadio = new Command(async () => await GenerateAsync());
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
+        RemoveItem = new Command<RadioItem>(RemoveItemFunc);
+        _ = LoadCachedRadioAsync();
+    }
+
+    private void RemoveItemFunc(RadioItem item)
+    {
+        if (item == null || !Items.Remove(item)) return;
+
+        var snapshot = Items.ToList();
+        Task.Run(() => RadioModel.SaveRadio(snapshot));
+    }
+
+    private async Task LoadCachedRadioAsync()
+    {
+        var cached = await Task.Run(() => RadioModel.CachedRadio);
+        if (IsGenerating || Items.Count > 0) return;
+        if (cached != null && cached.Count > 0) Items = new ObservableCollection<RadioItem>(cached);
     }
 
     private bool _isGenerating;
@@ -23,9 +42,9 @@ public class RadioPageViewModel : BaseViewModel
         private set { SetProperty(ref _isGenerating, value); }
     }
 
-    private List<RadioItem> _items = new List<RadioItem>();
+    private ObservableCollection<RadioItem> _items = new ObservableCollection<RadioItem>();
 
-    public List<RadioItem> Items
+    public ObservableCollection<RadioItem> Items
     {
         get { return _items; }
         private set { SetProperty(ref _items, value); }
@@ -35,9 +54,10 @@ public class RadioPageViewModel : BaseViewModel
     {
         if (IsGenerating) return;
         IsGenerating = true;
+        RadioConductor.Instance.Stop();
 
         var items = await Task.Run(RadioModel.Generate);
-        if (items != null) Items = items;
+        if (items != null) Items = new ObservableCollection<RadioItem>(items);
 
         IsGenerating = false;
     }
@@ -48,8 +68,30 @@ public class RadioPageViewModel : BaseViewModel
 
         if (PlaybackStateStore.Instance.HasActiveDevice)
         {
-            bool started = await Task.Run(() => APICaller.Instance?.PlayUriAtPosition(radioItem.PlayUri, radioItem.PositionMs) ?? false);
-            if (started) return;
+            var songRun = radioItem.IsPodcastSegment
+                ? null
+                : Items
+                    .SkipWhile(item => item != radioItem)
+                    .TakeWhile(item => !item.IsPodcastSegment)
+                    .Select(item => item.PlayUri)
+                    .ToList();
+
+            bool started = await Task.Run(() =>
+            {
+                var api = APICaller.Instance;
+                if (api == null) return false;
+
+                api.SetPlaybackShuffle(false);
+
+                return radioItem.IsPodcastSegment
+                    ? api.PlayUriAtPosition(radioItem.PlayUri, radioItem.PositionMs)
+                    : api.PlayUris(songRun);
+            });
+            if (started)
+            {
+                RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+                return;
+            }
         }
 
         if (!await LaunchInSpotify(radioItem.PlayUri))

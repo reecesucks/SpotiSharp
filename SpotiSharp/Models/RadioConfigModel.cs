@@ -43,8 +43,34 @@ public static class RadioConfigModel
 
     private static void SetWeight(Dictionary<string, int> weights, string id, int weight)
     {
-        if (weight <= 0) weights.Remove(id);
-        else weights[id] = weight;
+        weights[id] = Math.Max(0, weight);
+        Save();
+    }
+
+    internal static bool IsExplicitlyOff(Dictionary<string, int> weights, string id)
+    {
+        return weights.TryGetValue(id, out var weight) && weight <= 0;
+    }
+
+    internal static BingeProgress GetBinge(string showId)
+    {
+        return Config.BingeShows.GetValueOrDefault(showId);
+    }
+
+    internal static void SetBinge(string showId, BingeProgress binge)
+    {
+        Config.BingeShows[showId] = binge;
+        Save();
+    }
+
+    internal static void ClearBinge(string showId)
+    {
+        Config.BingeShows.Remove(showId);
+        Save();
+    }
+
+    internal static void SaveConfig()
+    {
         Save();
     }
 

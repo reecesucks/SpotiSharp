@@ -5,6 +5,7 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:converters="clr-namespace:SpotiSharp.Converters"
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
+             x:Name="RadioPageRoot"
              x:Class="SpotiSharp.Views.RadioPage">
     <views:BasePage.Content>
         <Grid>
@@ -49,6 +50,15 @@
                             SelectionMode="Single">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems Mode="Execute">
+                                    <SwipeItem Text="Remove"
+                                               BackgroundColor="#B33A3A"
+                                               Command="{Binding BindingContext.RemoveItem, Source={x:Reference RadioPageRoot}}"
+                                               CommandParameter="{Binding .}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
                         <Grid ColumnDefinitions="Auto,*" Padding="8,6">
                             <Image Grid.Column="0"
                                    Source="{Binding ImageUrl}"
@@ -83,6 +93,7 @@
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
+                        </SwipeView>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
