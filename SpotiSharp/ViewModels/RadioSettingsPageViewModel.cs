@@ -39,7 +39,38 @@ public class RadioSettingsPageViewModel : BaseViewModel
                 show.Name,
                 show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty,
                 RadioConfigModel.GetShowWeight(show.Id),
-                RadioConfigModel.SetShowWeight))
+                RadioConfigModel.SetShowWeight,
+                BingeStatusFor(show.Id),
+                ToggleBingeAsync))
             .ToList();
+    }
+
+    private static string BingeStatusFor(string showId)
+    {
+        var binge = RadioConfigModel.GetBinge(showId);
+        return binge == null ? null : $"Binge · next: {binge.NextEpisodeName}";
+    }
+
+    private static async Task ToggleBingeAsync(RadioSourceWeightViewModel item)
+    {
+        if (RadioConfigModel.GetBinge(item.Id) != null)
+        {
+            RadioConfigModel.ClearBinge(item.Id);
+            item.SetBingeStatus(null);
+            return;
+        }
+
+        var binge = await Task.Run(() => BingeProgressModel.CreateFromCurrentPlayback(item.Id));
+        if (binge == null)
+        {
+            await Shell.Current.DisplayAlert(
+                "Set binge point",
+                "Start playing the episode you are up to in this show, then tap the pin again.",
+                "OK");
+            return;
+        }
+
+        RadioConfigModel.SetBinge(item.Id, binge);
+        item.SetBingeStatus(BingeStatusFor(item.Id));
     }
 }
