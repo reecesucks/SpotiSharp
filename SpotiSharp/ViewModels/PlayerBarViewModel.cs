@@ -89,12 +89,27 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void RefreshPlayerValues()
     {
-        // Song
         var currentlyPlayingContext = APICaller.Instance?.GetCurrentPlaybackContext();
+
+        string currentItemUri = null;
+        int currentItemDurationMs = 0;
+        if (currentlyPlayingContext?.Item is FullTrack playingTrack)
+        {
+            currentItemUri = playingTrack.Uri;
+            currentItemDurationMs = playingTrack.DurationMs;
+        }
+        else if (currentlyPlayingContext?.Item is FullEpisode playingEpisode)
+        {
+            currentItemUri = playingEpisode.Uri;
+            currentItemDurationMs = playingEpisode.DurationMs;
+        }
 
         Models.PlaybackStateStore.Instance.Update(
             currentlyPlayingContext?.IsPlaying ?? false,
-            currentlyPlayingContext?.Device?.Id);
+            currentlyPlayingContext?.Device?.Id,
+            currentItemUri,
+            currentlyPlayingContext?.ProgressMs ?? 0,
+            currentItemDurationMs);
 
         IsPlaying = currentlyPlayingContext?.IsPlaying ?? false;
         HasCurrentSong = currentlyPlayingContext?.Item != null;
