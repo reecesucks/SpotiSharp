@@ -88,7 +88,7 @@ public class RecentEpisodesModel
         return "episodes_" + showId;
     }
 
-    private static DateTime ParseReleaseDate(string releaseDate)
+    internal static DateTime ParseReleaseDate(string releaseDate)
     {
         return DateTime.TryParseExact(releaseDate, ReleaseDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
             ? date

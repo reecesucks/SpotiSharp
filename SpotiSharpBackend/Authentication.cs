@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using SpotifyAPI.Web;
 
 namespace SpotiSharpBackend;
@@ -111,6 +112,20 @@ public static class Authentication
         MauiConnector.TriggerBrowerOpen(uri);
     }
 
+    private static void CreateAuthenticatedClient(PKCETokenResponse tokenResponse)
+    {
+        var authenticator = new PKCEAuthenticator(_clientId, tokenResponse);
+        authenticator.TokenRefreshed += (_, token) =>
+        {
+            if (!string.IsNullOrEmpty(token.RefreshToken)) StorageHandler.RefreshToken = token.RefreshToken;
+        };
+
+        var config = SpotifyClientConfig
+            .CreateDefault()
+            .WithAuthenticator(authenticator);
+        SpotifyClient = new SpotifyClient(config);
+    }
+
     private static async Task RefreshAuthenticationAsync(string refreshToken = null)
     {
         try
@@ -119,14 +134,28 @@ public static class Authentication
             var newResponse = await new OAuthClient().RequestToken(
                 new PKCETokenRefreshRequest(_clientId, refreshToken)
             );
-            
-            SpotifyClient = new SpotifyClient(newResponse.AccessToken);
+
+            if (string.IsNullOrEmpty(newResponse.RefreshToken)) newResponse.RefreshToken = refreshToken;
+
+            CreateAuthenticatedClient(newResponse);
             StorageHandler.RefreshToken = newResponse.RefreshToken;
             OnAuthenticate?.Invoke();
         }
-        catch (APIException)
+        catch (APIException ex)
         {
-            StorageHandler.RefreshToken = string.Empty;
+            var statusCode = ex.Response?.StatusCode;
+            if (statusCode == HttpStatusCode.BadRequest || statusCode == HttpStatusCode.Unauthorized || statusCode == HttpStatusCode.Forbidden)
+            {
+                StorageHandler.RefreshToken = string.Empty;
+            }
+            else
+            {
+                Debug.WriteLine($"Spotify token refresh failed transiently, keeping session: {ex.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Spotify token refresh failed transiently, keeping session: {ex.Message}");
         }
     }
 
@@ -138,7 +167,7 @@ public static class Authentication
                 new PKCETokenRequest(_clientId, code, new Uri("http://127.0.0.1:5000/callback"), _verifier)
             );
 
-            SpotifyClient = new SpotifyClient(_initialResponse.AccessToken);
+            CreateAuthenticatedClient(_initialResponse);
             StorageHandler.ClientId = _clientId;
             StorageHandler.RefreshToken = _initialResponse.RefreshToken;
             OnAuthenticate?.Invoke();

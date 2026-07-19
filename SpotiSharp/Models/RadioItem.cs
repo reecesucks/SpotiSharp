@@ -12,7 +12,7 @@ public class RadioItem
 
     public List<bool> SegmentPips { get; }
 
-    private RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
+    public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
     {
         IsPodcastSegment = isPodcastSegment;
         Title = title;

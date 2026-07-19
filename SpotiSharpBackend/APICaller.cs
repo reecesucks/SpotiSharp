@@ -335,6 +335,16 @@ public class APICaller
         }).Result);
     }
 
+    public bool PlayUris(List<string> uris)
+    {
+        if (uris == null || uris.Count == 0) return false;
+
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+        {
+            Uris = uris
+        }).Result);
+    }
+
     public bool PlayUriAtPosition(string uri, int positionMs)
     {
         if (uri == null) return false;
@@ -481,6 +491,11 @@ public class APICaller
         }
 
         return result;
+    }
+
+    public Paging<SimpleEpisode>? GetPodcastEpisodesPage(string showId, int offset, int limit)
+    {
+        return HandleExceptions(() => Authentication.SpotifyClient.Shows.GetEpisodes(showId, new ShowEpisodesRequest { Offset = offset, Limit = limit }).Result);
     }
 
     public List<SimpleEpisode> GetPodcastEpisodesByPodcastId(string showId)
