@@ -14,8 +14,8 @@ public class RadioSettingsPageViewModel : BaseViewModel
         GoBack = new Command(async () => await Shell.Current.GoToAsync(".."));
         Pages = new List<object>
         {
-            new RadioSourceListViewModel("Playlists", LoadPlaylistToggles),
-            new RadioSourceListViewModel("Podcasts", LoadPodcastToggles),
+            new RadioSourceListViewModel("Playlists", LoadPlaylistToggles, () => PlaylistListModel.RefreshPlayLists()),
+            new RadioSourceListViewModel("Podcasts", LoadPodcastToggles, () => PlaylistListModel.RefreshSavedShows()),
             new RadioAlbumListViewModel()
         };
     }

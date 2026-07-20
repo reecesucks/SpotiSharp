@@ -96,6 +96,16 @@ public static class RadioConfigModel
         Save();
     }
 
+    // drops radio config entries for albums no longer saved in the library
+    internal static void PruneAlbums(ISet<string> liveAlbumIds)
+    {
+        var removed = Config.AlbumModes.Keys.Where(id => !liveAlbumIds.Contains(id)).ToList();
+        if (removed.Count == 0) return;
+
+        foreach (var id in removed) Config.AlbumModes.Remove(id);
+        Save();
+    }
+
     private static void MigrateLegacyToggles()
     {
         if (_config.EnabledPlaylistIds.Count == 0 && _config.EnabledShowIds.Count == 0) return;

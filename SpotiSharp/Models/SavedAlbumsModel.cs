@@ -26,6 +26,15 @@ public class SavedAlbumsModel
         bool changed = _albums == null || !ArtistAlbumsModel.AreAlbumsEqual(_albums, fetched);
         _albums = fetched;
         if (changed) DiskCacheHelper.Save(SAVED_ALBUM_CACHE_KEY, fetched);
+
+        // the live list is authoritative, so drop radio config for albums
+        // that have since been removed from the library
+        if (changed)
+        {
+            var liveIds = fetched.Select(album => album.AlbumId).ToHashSet();
+            RadioConfigModel.PruneAlbums(liveIds);
+        }
+
         return changed;
     }
 
