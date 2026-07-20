@@ -12,6 +12,11 @@ public class RotationTracksModel
 
     private static readonly ConcurrentDictionary<string, List<RadioSong>> _tracksByPlaylistId = new();
 
+    internal static void ClearMemory()
+    {
+        _tracksByPlaylistId.Clear();
+    }
+
     internal static List<RadioSong> GetTracks(string playlistId)
     {
         if (_tracksByPlaylistId.TryGetValue(playlistId, out var session)) return session;

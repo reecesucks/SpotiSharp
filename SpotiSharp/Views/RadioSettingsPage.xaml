@@ -5,10 +5,12 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
              xmlns:selectors="clr-namespace:SpotiSharp.Selectors"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             x:DataType="viewmodels:RadioSettingsPageViewModel"
              Shell.NavBarIsVisible="False"
              x:Class="SpotiSharp.Views.RadioSettingsPage">
     <views:BasePage.Resources>
-        <DataTemplate x:Key="SourceTemplate">
+        <DataTemplate x:Key="SourceTemplate" x:DataType="viewmodels:RadioSourceListViewModel">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -27,7 +29,7 @@
                 <CollectionView ItemsSource="{Binding Items}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="viewmodels:RadioSourceWeightViewModel">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Padding="10,4">
                                 <Image Grid.Column="0"
                                        Source="{Binding ImageUrl}"
@@ -92,7 +94,7 @@
             </Grid>
         </DataTemplate>
 
-        <DataTemplate x:Key="AlbumTemplate">
+        <DataTemplate x:Key="AlbumTemplate" x:DataType="viewmodels:RadioAlbumListViewModel">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -111,7 +113,7 @@
                 <CollectionView ItemsSource="{Binding Items}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="viewmodels:RadioAlbumToggleViewModel">
                             <Grid ColumnDefinitions="Auto,*,Auto" Padding="10,4">
                                 <Image Grid.Column="0"
                                        Source="{Binding ImageUrl}"
@@ -164,6 +166,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="10">
@@ -200,6 +203,14 @@
                            SelectedIndicatorColor="{StaticResource Primary}"
                            HorizontalOptions="Center"
                            Margin="0,4,0,4" />
+
+            <Button Grid.Row="3"
+                    Text="Clear cached data"
+                    Command="{Binding ClearCache}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray500}"
+                    FontSize="13"
+                    Margin="10,0,10,8" />
         </Grid>
     </views:BasePage.Content>
 </views:BasePage>

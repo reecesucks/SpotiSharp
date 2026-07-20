@@ -14,6 +14,11 @@ public class RecentEpisodesModel
 
     private static readonly ConcurrentDictionary<string, List<RecentEpisode>> _episodesByShowId = new();
 
+    internal static void ClearMemory()
+    {
+        _episodesByShowId.Clear();
+    }
+
     internal static List<RecentEpisode> GetSessionEpisodesForShow(string showId)
     {
         return _episodesByShowId.TryGetValue(showId, out var episodes) ? episodes : null;

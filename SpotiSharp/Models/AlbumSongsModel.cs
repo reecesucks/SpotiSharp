@@ -8,6 +8,11 @@ public class AlbumSongsModel
 {
     private static readonly ConcurrentDictionary<string, List<AlbumSong>> _songsByAlbumId = new();
 
+    internal static void ClearMemory()
+    {
+        _songsByAlbumId.Clear();
+    }
+
     internal static List<AlbumSong> GetSessionSongs(string albumId)
     {
         return _songsByAlbumId.TryGetValue(albumId, out var songs) ? songs : null;
