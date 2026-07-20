@@ -35,7 +35,7 @@ public class ArtistListModel
         if (followedArtists == null) return null;
 
         return followedArtists
-            .Select(artist => new Artist(artist.Id, artist.Name, artist.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty))
+            .Select(artist => new Artist(artist.Id, artist.Name, ImageHelper.Thumbnail(artist.Images)))
             .OrderBy(artist => artist.ArtistName)
             .ToList();
     }

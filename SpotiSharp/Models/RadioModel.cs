@@ -48,9 +48,6 @@ public class RadioModel
         return radio;
     }
 
-    // configured saved albums contribute a handful of songs each, either sprinkled
-    // through the radio or spliced in as one consecutive block; duplicates with
-    // playlist songs are deliberately allowed
     private static void InsertAlbumSongs(List<RadioItem> radio)
     {
         var albumModes = RadioConfigModel.Config.AlbumModes
@@ -123,7 +120,7 @@ public class RadioModel
                     : RadioConfigModel.IsExplicitlyOff(configuredShowWeights, showId);
                 if (excluded) continue;
                 var show = savedShows.FirstOrDefault(savedShow => savedShow.Id == showId);
-                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, show?.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty);
+                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images));
                 if (next != null) bingeEpisodes.Add(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
@@ -168,7 +165,6 @@ public class RadioModel
         }
         else
         {
-            // never pull songs from a playlist that no longer exists in spotify
             playlistWeights = playlistWeights
                 .Where(entry => livePlaylistIds.Contains(entry.Key))
                 .ToDictionary(entry => entry.Key, entry => entry.Value);
