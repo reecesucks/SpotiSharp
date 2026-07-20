@@ -4,8 +4,158 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
+             xmlns:selectors="clr-namespace:SpotiSharp.Selectors"
              Shell.NavBarIsVisible="False"
              x:Class="SpotiSharp.Views.RadioSettingsPage">
+    <views:BasePage.Resources>
+        <DataTemplate x:Key="SourceTemplate">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <VerticalStackLayout Grid.Row="0" Margin="10,0,10,6" Spacing="0">
+                    <Label Text="{Binding Title}" FontSize="16" />
+                    <Label Text="0 = off · higher weight plays more often" FontSize="12" TextColor="Gray" />
+                </VerticalStackLayout>
+                <ActivityIndicator Grid.Row="1"
+                                   IsRunning="{Binding IsLoading}"
+                                   IsVisible="{Binding IsLoading}"
+                                   HeightRequest="32"
+                                   VerticalOptions="Start" />
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding Items}"
+                                SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Padding="10,4">
+                                <Image Grid.Column="0"
+                                       Source="{Binding ImageUrl}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="44"
+                                       WidthRequest="44" />
+                                <VerticalStackLayout Grid.Column="1" Margin="10,0,10,0" Spacing="0" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="16"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding BingeStatus}"
+                                           FontSize="11"
+                                           TextColor="{StaticResource Primary}"
+                                           LineBreakMode="TailTruncation"
+                                           IsVisible="{Binding HasBinge}" />
+                                </VerticalStackLayout>
+                                <controls:PlayerBarButton Grid.Column="2"
+                                                          WidthRequest="36"
+                                                          HeightRequest="36"
+                                                          VerticalOptions="Center"
+                                                          IsVisible="{Binding SupportsBinge}"
+                                                          Command="{Binding ToggleBinge}">
+                                    <Path Fill="{StaticResource Gray500}"
+                                          Aspect="Uniform"
+                                          WidthRequest="16"
+                                          HeightRequest="16"
+                                          HorizontalOptions="Center"
+                                          VerticalOptions="Center"
+                                          InputTransparent="True"
+                                          Data="M14,4v5c0,1.12,0.37,2.16,1,3H9c0.65-0.86,1-1.9,1-3V4H14 M17,2H7C6.45,2,6,2.45,6,3s0.45,1,1,1h1v5c0,1.66-1.34,3-3,3v2h5.97v7l1,1l1-1v-7H19v-2c-1.66,0-3-1.34-3-3V4h1c0.55,0,1-0.45,1-1S17.55,2,17,2L17,2z">
+                                        <Path.Triggers>
+                                            <DataTrigger TargetType="Path" Binding="{Binding HasBinge}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource Primary}" />
+                                            </DataTrigger>
+                                        </Path.Triggers>
+                                    </Path>
+                                </controls:PlayerBarButton>
+                                <Label Grid.Column="3"
+                                       Text="{Binding Weight}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource Primary}"
+                                       VerticalOptions="Center"
+                                       Margin="0,0,10,0">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding Weight}" Value="0">
+                                            <Setter Property="TextColor" Value="{StaticResource Gray500}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                                <Stepper Grid.Column="4"
+                                         Minimum="0"
+                                         Maximum="3"
+                                         Increment="1"
+                                         Value="{Binding Weight}"
+                                         VerticalOptions="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="AlbumTemplate">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <VerticalStackLayout Grid.Row="0" Margin="10,0,10,6" Spacing="0">
+                    <Label Text="{Binding Title}" FontSize="16" />
+                    <Label Text="tap to cycle: off · scattered · consecutive" FontSize="12" TextColor="Gray" />
+                </VerticalStackLayout>
+                <ActivityIndicator Grid.Row="1"
+                                   IsRunning="{Binding IsLoading}"
+                                   IsVisible="{Binding IsLoading}"
+                                   HeightRequest="32"
+                                   VerticalOptions="Start" />
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding Items}"
+                                SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="Auto,*,Auto" Padding="10,4">
+                                <Image Grid.Column="0"
+                                       Source="{Binding ImageUrl}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="44"
+                                       WidthRequest="44" />
+                                <VerticalStackLayout Grid.Column="1" Margin="10,0,10,0" Spacing="0" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="16"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding ArtistNames}"
+                                           FontSize="12"
+                                           TextColor="Gray"
+                                           LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                                <controls:PlayerBarButton Grid.Column="2"
+                                                          WidthRequest="104"
+                                                          HeightRequest="36"
+                                                          VerticalOptions="Center"
+                                                          Command="{Binding CycleMode}">
+                                    <Label Text="{Binding ModeLabel}"
+                                           FontSize="13"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource Gray500}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           InputTransparent="True">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsIncluded}" Value="True">
+                                                <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </controls:PlayerBarButton>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </DataTemplate>
+
+        <selectors:RadioSettingsTemplateSelector x:Key="SettingsTemplateSelector"
+                                                 SourceTemplate="{StaticResource SourceTemplate}"
+                                                 AlbumTemplate="{StaticResource AlbumTemplate}" />
+    </views:BasePage.Resources>
     <views:BasePage.Content>
         <Grid>
             <Grid.RowDefinitions>
@@ -39,92 +189,8 @@
             <CarouselView Grid.Row="1"
                           ItemsSource="{Binding Pages}"
                           IndicatorView="PageIndicator"
-                          Loop="False">
-                <CarouselView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <VerticalStackLayout Grid.Row="0" Margin="10,0,10,6" Spacing="0">
-                                <Label Text="{Binding Title}" FontSize="16" />
-                                <Label Text="0 = off · higher weight plays more often" FontSize="12" TextColor="Gray" />
-                            </VerticalStackLayout>
-                            <ActivityIndicator Grid.Row="1"
-                                               IsRunning="{Binding IsLoading}"
-                                               IsVisible="{Binding IsLoading}"
-                                               HeightRequest="32"
-                                               VerticalOptions="Start" />
-                            <CollectionView Grid.Row="1"
-                                            ItemsSource="{Binding Items}"
-                                            SelectionMode="None">
-                                <CollectionView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Padding="10,4">
-                                            <Image Grid.Column="0"
-                                                   Source="{Binding ImageUrl}"
-                                                   Aspect="AspectFill"
-                                                   HeightRequest="44"
-                                                   WidthRequest="44" />
-                                            <VerticalStackLayout Grid.Column="1" Margin="10,0,10,0" Spacing="0" VerticalOptions="Center">
-                                                <Label Text="{Binding Name}"
-                                                       FontSize="16"
-                                                       LineBreakMode="TailTruncation" />
-                                                <Label Text="{Binding BingeStatus}"
-                                                       FontSize="11"
-                                                       TextColor="{StaticResource Primary}"
-                                                       LineBreakMode="TailTruncation"
-                                                       IsVisible="{Binding HasBinge}" />
-                                            </VerticalStackLayout>
-                                            <controls:PlayerBarButton Grid.Column="2"
-                                                                      WidthRequest="36"
-                                                                      HeightRequest="36"
-                                                                      VerticalOptions="Center"
-                                                                      IsVisible="{Binding SupportsBinge}"
-                                                                      Command="{Binding ToggleBinge}">
-                                                <Path Fill="{StaticResource Gray500}"
-                                                      Aspect="Uniform"
-                                                      WidthRequest="16"
-                                                      HeightRequest="16"
-                                                      HorizontalOptions="Center"
-                                                      VerticalOptions="Center"
-                                                      InputTransparent="True"
-                                                      Data="M14,4v5c0,1.12,0.37,2.16,1,3H9c0.65-0.86,1-1.9,1-3V4H14 M17,2H7C6.45,2,6,2.45,6,3s0.45,1,1,1h1v5c0,1.66-1.34,3-3,3v2h5.97v7l1,1l1-1v-7H19v-2c-1.66,0-3-1.34-3-3V4h1c0.55,0,1-0.45,1-1S17.55,2,17,2L17,2z">
-                                                    <Path.Triggers>
-                                                        <DataTrigger TargetType="Path" Binding="{Binding HasBinge}" Value="True">
-                                                            <Setter Property="Fill" Value="{StaticResource Primary}" />
-                                                        </DataTrigger>
-                                                    </Path.Triggers>
-                                                </Path>
-                                            </controls:PlayerBarButton>
-                                            <Label Grid.Column="3"
-                                                   Text="{Binding Weight}"
-                                                   FontSize="16"
-                                                   FontAttributes="Bold"
-                                                   TextColor="{StaticResource Primary}"
-                                                   VerticalOptions="Center"
-                                                   Margin="0,0,10,0">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding Weight}" Value="0">
-                                                        <Setter Property="TextColor" Value="{StaticResource Gray500}" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
-                                            <Stepper Grid.Column="4"
-                                                     Minimum="0"
-                                                     Maximum="3"
-                                                     Increment="1"
-                                                     Value="{Binding Weight}"
-                                                     VerticalOptions="Center" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </CollectionView.ItemTemplate>
-                            </CollectionView>
-                        </Grid>
-                    </DataTemplate>
-                </CarouselView.ItemTemplate>
-            </CarouselView>
+                          ItemTemplate="{StaticResource SettingsTemplateSelector}"
+                          Loop="False" />
 
             <IndicatorView Grid.Row="2"
                            x:Name="PageIndicator"

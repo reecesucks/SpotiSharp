@@ -39,6 +39,16 @@ public class PlaylistListModel
         bool changed = _playLists == null || !ArePlayListsEqual(_playLists, fetched);
         _playLists = fetched;
         if (changed) DiskCacheHelper.Save(PLAYLIST_CACHE_KEY, fetched);
+
+        // the live list is authoritative, so drop caches/config for playlists
+        // that have since been deleted in spotify
+        if (changed)
+        {
+            var liveIds = fetched.Select(playlist => playlist.PlayListId).ToHashSet();
+            RotationTracksModel.PruneExcept(liveIds);
+            RadioConfigModel.PrunePlaylists(liveIds);
+        }
+
         return changed;
     }
 

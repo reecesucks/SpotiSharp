@@ -18,6 +18,11 @@ public class AlbumSongsModel
         return DiskCacheHelper.Load<List<AlbumSong>>(SongCacheKey(albumId));
     }
 
+    internal static List<AlbumSong> GetSongsCachedFirst(string albumId)
+    {
+        return GetSessionSongs(albumId) ?? GetDiskCachedSongs(albumId) ?? RefreshSongs(albumId);
+    }
+
     internal static List<AlbumSong> RefreshSongs(string albumId)
     {
         var tracks = APICaller.Instance?.GetAlbumTracks(albumId);
