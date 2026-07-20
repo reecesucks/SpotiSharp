@@ -7,18 +7,37 @@ namespace SpotiSharp.ViewModels;
 public class RadioSettingsPageViewModel : BaseViewModel
 {
     public ICommand GoBack { get; }
+    public ICommand ClearCache { get; }
 
     public List<object> Pages { get; }
 
     public RadioSettingsPageViewModel()
     {
         GoBack = new Command(async () => await Shell.Current.GoToAsync(".."));
+        ClearCache = new Command(async () => await ClearCacheAsync());
         Pages = new List<object>
         {
             new RadioSourceListViewModel("Playlists", LoadPlaylistToggles, () => PlaylistListModel.RefreshPlayLists()),
             new RadioSourceListViewModel("Podcasts", LoadPodcastToggles, () => PlaylistListModel.RefreshSavedShows()),
             new RadioAlbumListViewModel()
         };
+    }
+
+    private static async Task ClearCacheAsync()
+    {
+        bool confirm = await Shell.Current.DisplayAlert(
+            "Clear cache",
+            "Delete all cached data (playlists, albums, podcasts, radio)? Your radio settings are kept. Reopen pages to reload.",
+            "Clear",
+            "Cancel");
+        if (!confirm) return;
+
+        await Task.Run(CacheManager.ClearContentCaches);
+
+        await Shell.Current.DisplayAlert(
+            "Cache cleared",
+            "Cached data was deleted. Regenerate the radio and reopen lists to reload fresh data.",
+            "OK");
     }
 
     private static List<RadioSourceWeightViewModel> LoadPlaylistToggles()

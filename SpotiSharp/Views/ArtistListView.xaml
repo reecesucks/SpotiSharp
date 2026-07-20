@@ -2,6 +2,9 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:SpotiSharp.Models"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             x:DataType="viewmodels:ArtistListViewModel"
              x:Class="SpotiSharp.Views.ArtistListView">
     <Grid>
     <ActivityIndicator IsRunning="{Binding IsLoading}"
@@ -14,7 +17,7 @@
               SelectionMode="Single"
               SelectedItem="{Binding SelectedArtist}">
         <CollectionView.ItemTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="models:Artist">
                 <Grid Margin="0,2,0,0" ColumnDefinitions="Auto,*" AutomationId="{Binding ArtistId}">
                     <Border Grid.Column="0"
                             StrokeShape="Ellipse"
