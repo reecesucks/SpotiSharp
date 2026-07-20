@@ -3,6 +3,10 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
+             xmlns:models="clr-namespace:SpotiSharp.Models"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
              x:Class="SpotiSharp.Views.RadioPage">
     <views:BasePage.ToolbarItems>
@@ -20,7 +24,7 @@
                             ItemsSource="{Binding Items}"
                             SelectionMode="Single">
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="models:RadioItem">
                         <SwipeView>
                             <SwipeView.RightItems>
                                 <SwipeItems Mode="Execute">
@@ -48,7 +52,7 @@
                                                        IsVisible="{Binding IsPodcastSegment}"
                                                        BindableLayout.ItemsSource="{Binding SegmentPips}">
                                     <BindableLayout.ItemTemplate>
-                                        <DataTemplate>
+                                        <DataTemplate x:DataType="sys:Boolean">
                                             <BoxView HeightRequest="4"
                                                      WidthRequest="26"
                                                      CornerRadius="2"

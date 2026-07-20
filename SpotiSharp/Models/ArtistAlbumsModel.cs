@@ -27,7 +27,7 @@ public class ArtistAlbumsModel
             .Select(album => new Album(
                 album.Id,
                 album.Name,
-                album.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty,
+                ImageHelper.Thumbnail(album.Images),
                 album.ReleaseDate ?? string.Empty,
                 string.Join(", ", album.Artists?.Select(artist => artist.Name) ?? Enumerable.Empty<string>())))
             .OrderByDescending(album => album.ReleaseDate)

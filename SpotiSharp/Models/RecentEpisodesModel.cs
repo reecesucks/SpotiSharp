@@ -46,7 +46,7 @@ public class RecentEpisodesModel
         foreach (var show in PlaylistListModel.SavedShows)
         {
             var episodes = (forceRefresh ? null : GetSessionEpisodesForShow(show.Id))
-                ?? RefreshEpisodesForShow(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty);
+                ?? RefreshEpisodesForShow(show.Id, show.Name, ImageHelper.Thumbnail(show.Images));
             if (episodes == null) return null;
             result.AddRange(episodes);
         }
