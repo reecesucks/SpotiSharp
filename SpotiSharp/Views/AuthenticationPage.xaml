@@ -3,8 +3,17 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                 xmlns:views="clr-namespace:SpotiSharp.Views"
+                xmlns:converters="clr-namespace:SpotiSharp.Converters"
                 x:Class="SpotiSharp.AuthenticationPage">
-        <VerticalStackLayout>
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsChecking}"
+                           IsVisible="{Binding IsChecking}"
+                           Color="{StaticResource Primary}"
+                           HeightRequest="48"
+                           WidthRequest="48"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+        <VerticalStackLayout IsVisible="{Binding IsChecking, Converter={converters:BooleanConverter}}">
             <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -81,5 +90,5 @@
                 <Label Text="On the main page of the spotify app you have a field called '^Client ID'' copy the id to the right of that and enter it in the input field in the SpotiSharp application. Finally click the ''Connect'' button above." Margin="10,3,3,3"/>
             </VerticalStackLayout>
         </VerticalStackLayout>
-        
+    </Grid>
 </views:BasePage>
