@@ -7,6 +7,8 @@ public class RadioConfig
 
     public Dictionary<string, BingeProgress> BingeShows { get; set; } = new Dictionary<string, BingeProgress>();
 
+    public Dictionary<string, RadioAlbumMode> AlbumModes { get; set; } = new Dictionary<string, RadioAlbumMode>();
+
     public List<string> EnabledPlaylistIds { get; set; } = new List<string>();
     public List<string> EnabledShowIds { get; set; } = new List<string>();
 }
