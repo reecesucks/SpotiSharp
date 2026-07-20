@@ -12,6 +12,14 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
+        <ActivityIndicator Grid.Row="0" Grid.Column="0"
+                           IsRunning="{Binding IsChecking}"
+                           IsVisible="{Binding IsChecking}"
+                           Color="{StaticResource Primary}"
+                           HeightRequest="48"
+                           WidthRequest="48"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
         <VerticalStackLayout Grid.Row="0" Grid.Column="0" Margin="50,20,20,20">
             <Label FontSize="20" Margin="20,0,20,20" IsVisible="{Binding IsUserIsNotAuthenticated}" Text="You are not authenticated. To authenticate go to the ''Authentication'' page"/>
         </VerticalStackLayout>

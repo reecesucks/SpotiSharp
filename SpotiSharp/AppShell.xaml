@@ -8,6 +8,7 @@
     xmlns:views="using:SpotiSharp.Views"
     Shell.FlyoutBehavior="Flyout">
     <ShellContent
+        x:Name="HomeContent"
         Title="Home"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
@@ -47,15 +48,18 @@
         ContentTemplate="{DataTemplate views:PodcastsPage}"
         Route="PodcastsPage" />
     <ShellContent
+        x:Name="AuthenticationContent"
         Title="Authentication"
         ContentTemplate="{DataTemplate local:AuthenticationPage}"
         Route="AuthenticationPage" />
     <ShellContent
+        x:Name="SettingsContent"
         Title="Settings"
         ContentTemplate="{DataTemplate views:SettingsPage}"
         Route="SettingsPage" />
     <Shell.ToolbarItems>
-        <ToolbarItem IconImageSource="settingsicon.png"
+        <ToolbarItem x:Name="SettingsToolbarItem"
+                     IconImageSource="settingsicon.png"
                      Order="Primary"
                      Priority="0"
                      Clicked="OnSettingsClicked" >
