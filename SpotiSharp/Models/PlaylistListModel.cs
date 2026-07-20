@@ -12,6 +12,12 @@ public class PlaylistListModel
 
     private static List<Playlist> _playLists;
 
+    internal static void ClearMemory()
+    {
+        _playLists = null;
+        _savedShows = null;
+    }
+
     public static List<Playlist> PlayLists
     {
         get

@@ -46,6 +46,23 @@ public static class DiskCacheHelper
         }
     }
 
+    public static void ClearAllExcept(params string[] keysToKeep)
+    {
+        try
+        {
+            if (!Directory.Exists(CacheDirectory)) return;
+            var keep = new HashSet<string>(keysToKeep);
+            foreach (var path in Directory.GetFiles(CacheDirectory, "*.json"))
+            {
+                if (!keep.Contains(Path.GetFileNameWithoutExtension(path))) File.Delete(path);
+            }
+        }
+        catch
+        {
+            // a file that cannot be deleted is refreshed on next fetch anyway
+        }
+    }
+
     // all cache keys beginning with prefix, e.g. every per-playlist track cache
     public static IReadOnlyList<string> ListKeys(string prefix)
     {

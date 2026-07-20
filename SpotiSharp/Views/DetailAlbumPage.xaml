@@ -4,6 +4,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
+             xmlns:models="clr-namespace:SpotiSharp.Models"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             x:DataType="viewmodels:DetailAlbumPageViewModel"
              Shell.NavBarIsVisible="False"
              x:Class="SpotiSharp.Views.DetailAlbumPage">
     <views:BasePage.Content>
@@ -81,7 +84,7 @@
                       ItemsSource="{Binding Songs}"
                       SelectionMode="Single">
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="models:AlbumSong">
                         <Grid ColumnDefinitions="30,*" Padding="10,8" AutomationId="{Binding SongId}">
                             <Label Grid.Column="0"
                                    Text="{Binding TrackNumber}"

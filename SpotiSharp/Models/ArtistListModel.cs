@@ -9,6 +9,11 @@ public class ArtistListModel
 
     private static List<Artist> _artists;
 
+    internal static void ClearMemory()
+    {
+        _artists = null;
+    }
+
     internal static List<Artist> CachedArtists
     {
         get
