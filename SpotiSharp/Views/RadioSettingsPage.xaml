@@ -23,8 +23,8 @@
                                    IsVisible="{Binding IsLoading}"
                                    HeightRequest="32"
                                    VerticalOptions="Start" />
-                <CollectionView Grid.Row="1"
-                                ItemsSource="{Binding Items}"
+                <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+                <CollectionView ItemsSource="{Binding Items}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -88,6 +88,7 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
+                </RefreshView>
             </Grid>
         </DataTemplate>
 
@@ -106,8 +107,8 @@
                                    IsVisible="{Binding IsLoading}"
                                    HeightRequest="32"
                                    VerticalOptions="Start" />
-                <CollectionView Grid.Row="1"
-                                ItemsSource="{Binding Items}"
+                <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+                <CollectionView ItemsSource="{Binding Items}"
                                 SelectionMode="None">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
@@ -149,6 +150,7 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
+                </RefreshView>
             </Grid>
         </DataTemplate>
 
