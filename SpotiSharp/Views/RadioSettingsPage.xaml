@@ -150,6 +150,7 @@
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
+                </RefreshView>
             </Grid>
         </DataTemplate>
 
