@@ -15,6 +15,7 @@ public partial class AppShell : Shell
 		Routing.RegisterRoute("RadioSettingsPage", typeof(Views.RadioSettingsPage));
 
 		var isMobile = AppState.Instance.IsMobile;
+		HomeContent.FlyoutItemIsVisible = !isMobile;
 		RadioContent.FlyoutItemIsVisible = isMobile;
 		PlaylistsContent.FlyoutItemIsVisible = isMobile;
 		ArtistsContent.FlyoutItemIsVisible = isMobile;
@@ -23,7 +24,20 @@ public partial class AppShell : Shell
 		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
 		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
 
+		// settings only holds desktop/collaboration config, hide it and its toolbar gear on mobile
+		SettingsContent.FlyoutItemIsVisible = !isMobile;
+		if (isMobile) ToolbarItems.Remove(SettingsToolbarItem);
+
+		// the authentication page is only needed while logged out
+		UpdateAuthenticationVisibility();
+		Authentication.OnAuthenticate += () => MainThread.BeginInvokeOnMainThread(UpdateAuthenticationVisibility);
+
 		_ = BackendConnector.Instance;
+	}
+
+	private void UpdateAuthenticationVisibility()
+	{
+		AuthenticationContent.FlyoutItemIsVisible = Authentication.SpotifyClient == null;
 	}
 
 	protected override async void OnAppearing()
@@ -32,10 +46,12 @@ public partial class AppShell : Shell
 
 		await BackendConnector.Instance.StorageLoadTask;
 
-		if (!await Authentication.TryRestoreSessionAsync())
+		if (!await Authentication.RestoreSessionAsync())
 		{
 			await Shell.Current.GoToAsync("//AuthenticationPage");
 		}
+
+		UpdateAuthenticationVisibility();
 	}
 
     private async void OnSettingsClicked(object sender, EventArgs e)

@@ -41,6 +41,16 @@ public static class Authentication
         }
     }
 
+    public static bool HasStoredSession =>
+        !string.IsNullOrEmpty(StorageHandler.ClientId) && !string.IsNullOrEmpty(StorageHandler.RefreshToken);
+
+    private static Task<bool> _restoreTask;
+
+    public static Task<bool> RestoreSessionAsync()
+    {
+        return _restoreTask ??= TryRestoreSessionAsync();
+    }
+
     public static async Task<bool> TryRestoreSessionAsync()
     {
         if (SpotifyClient != null) return true;
