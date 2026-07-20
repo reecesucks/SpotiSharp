@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using SpotiSharp.Helpers;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
@@ -38,7 +39,7 @@ public class RadioSettingsPageViewModel : BaseViewModel
             .Select(show => new RadioSourceWeightViewModel(
                 show.Id,
                 show.Name,
-                show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty,
+                ImageHelper.Thumbnail(show.Images),
                 RadioConfigModel.GetShowWeight(show.Id),
                 RadioConfigModel.SetShowWeight,
                 BingeStatusFor(show.Id),

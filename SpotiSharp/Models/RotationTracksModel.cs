@@ -36,7 +36,7 @@ public class RotationTracksModel
                 track.Uri,
                 track.Name,
                 string.Join(", ", track.Artists.Select(artist => artist.Name)),
-                track.Album?.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty))
+                ImageHelper.Thumbnail(track.Album?.Images)))
             .ToList();
 
         _tracksByPlaylistId[playlistId] = fetched;
@@ -59,8 +59,6 @@ public class RotationTracksModel
         DiskCacheHelper.Delete(CacheKey(playlistId));
     }
 
-    // drops cached tracks for any playlist that no longer exists in spotify, so a
-    // deleted playlist stops feeding the radio from its stale cache
     internal static void PruneExcept(ISet<string> livePlaylistIds)
     {
         foreach (var key in DiskCacheHelper.ListKeys(CACHE_KEY_PREFIX))
