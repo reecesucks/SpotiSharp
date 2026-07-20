@@ -46,6 +46,22 @@ public static class DiskCacheHelper
         }
     }
 
+    // all cache keys beginning with prefix, e.g. every per-playlist track cache
+    public static IReadOnlyList<string> ListKeys(string prefix)
+    {
+        try
+        {
+            if (!Directory.Exists(CacheDirectory)) return Array.Empty<string>();
+            return Directory.GetFiles(CacheDirectory, prefix + "*.json")
+                .Select(Path.GetFileNameWithoutExtension)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
     private static string GetPath(string key)
     {
         return Path.Combine(CacheDirectory, key + ".json");

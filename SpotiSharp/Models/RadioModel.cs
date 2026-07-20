@@ -8,6 +8,7 @@ public class RadioModel
     internal const int SEGMENT_LENGTH_MS = 15 * 60 * 1000;
     private const int SONGS_BETWEEN_SEGMENTS = 3;
     private const int EPISODE_COUNT = 3;
+    private const int ALBUM_SONG_COUNT = 4;
 
     private const string RADIO_CACHE_KEY = "radio";
 
@@ -41,8 +42,53 @@ public class RadioModel
             }
         }
 
+        InsertAlbumSongs(radio);
+
         SaveRadio(radio);
         return radio;
+    }
+
+    // configured saved albums contribute a handful of songs each, either sprinkled
+    // through the radio or spliced in as one consecutive block; duplicates with
+    // playlist songs are deliberately allowed
+    private static void InsertAlbumSongs(List<RadioItem> radio)
+    {
+        var albumModes = RadioConfigModel.Config.AlbumModes
+            .Where(entry => entry.Value != RadioAlbumMode.Off)
+            .ToList();
+        if (albumModes.Count == 0) return;
+
+        var savedAlbums = SavedAlbumsModel.CachedAlbums;
+        var random = new Random();
+
+        foreach (var (albumId, mode) in albumModes)
+        {
+            var album = savedAlbums.FirstOrDefault(savedAlbum => savedAlbum.AlbumId == albumId);
+            if (album == null) continue;
+
+            var songs = AlbumSongsModel.GetSongsCachedFirst(albumId);
+            if (songs == null || songs.Count == 0) continue;
+
+            // a random handful, kept in album track order
+            var picked = songs
+                .OrderBy(_ => random.Next())
+                .Take(ALBUM_SONG_COUNT)
+                .OrderBy(song => songs.IndexOf(song))
+                .Select(song => RadioItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri))
+                .ToList();
+
+            if (mode == RadioAlbumMode.Consecutive)
+            {
+                radio.InsertRange(random.Next(radio.Count + 1), picked);
+            }
+            else
+            {
+                foreach (var item in picked)
+                {
+                    radio.Insert(random.Next(radio.Count + 1), item);
+                }
+            }
+        }
     }
 
     private static void AddSongs(List<RadioItem> radio, List<RadioItem> songPool, ref int songIndex, int amount)
@@ -109,6 +155,8 @@ public class RadioModel
 
     private static List<RadioItem> BuildSongPool()
     {
+        var livePlaylistIds = PlaylistListModel.PlayLists.Select(playlist => playlist.PlayListId).ToHashSet();
+
         var configuredPlaylistWeights = RadioConfigModel.Config.PlaylistWeights;
         var playlistWeights = ActiveWeights(configuredPlaylistWeights);
         if (playlistWeights.Count == 0)
@@ -117,6 +165,13 @@ public class RadioModel
                 .Where(playlist => RotationTag.IsMatch(playlist.PlayListTitle ?? string.Empty))
                 .Where(playlist => !RadioConfigModel.IsExplicitlyOff(configuredPlaylistWeights, playlist.PlayListId))
                 .ToDictionary(playlist => playlist.PlayListId, _ => 1);
+        }
+        else
+        {
+            // never pull songs from a playlist that no longer exists in spotify
+            playlistWeights = playlistWeights
+                .Where(entry => livePlaylistIds.Contains(entry.Key))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
         }
 
         var songWeights = new Dictionary<string, (RadioItem Item, int Weight)>();
