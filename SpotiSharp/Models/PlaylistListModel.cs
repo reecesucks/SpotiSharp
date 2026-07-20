@@ -40,8 +40,6 @@ public class PlaylistListModel
         _playLists = fetched;
         if (changed) DiskCacheHelper.Save(PLAYLIST_CACHE_KEY, fetched);
 
-        // the live list is authoritative, so drop caches/config for playlists
-        // that have since been deleted in spotify
         if (changed)
         {
             var liveIds = fetched.Select(playlist => playlist.PlayListId).ToHashSet();
@@ -66,7 +64,7 @@ public class PlaylistListModel
         // followed playlists
         foreach (var playlist in userPlaylists)
         {
-            tmpPlaylist.Add(new Playlist(playlist.Id, playlist.Images.ElementAtOrDefault(0)?.Url ?? string.Empty, playlist.Name, playlist.Tracks.Total ?? 0));
+            tmpPlaylist.Add(new Playlist(playlist.Id, ImageHelper.Thumbnail(playlist.Images), playlist.Name, playlist.Tracks.Total ?? 0));
         }
         return tmpPlaylist;
     }

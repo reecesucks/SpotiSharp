@@ -1,4 +1,5 @@
 using SpotifyAPI.Web;
+using SpotiSharp.Helpers;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
@@ -46,7 +47,7 @@ public class RecentEpisodesListViewModel : BaseViewModel
     private static List<ShowGroupViewModel> ToShowGroups(List<FullShow> shows)
     {
         return shows
-            .Select(show => new ShowGroupViewModel(show.Id, show.Name, show.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty))
+            .Select(show => new ShowGroupViewModel(show.Id, show.Name, ImageHelper.Thumbnail(show.Images)))
             .ToList();
     }
 }
