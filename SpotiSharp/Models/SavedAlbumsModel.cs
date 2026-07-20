@@ -9,6 +9,11 @@ public class SavedAlbumsModel
 
     private static List<Album> _albums;
 
+    internal static void ClearMemory()
+    {
+        _albums = null;
+    }
+
     internal static List<Album> CachedAlbums
     {
         get
