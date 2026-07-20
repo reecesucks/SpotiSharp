@@ -15,7 +15,8 @@ public class RadioSettingsPageViewModel : BaseViewModel
         Pages = new List<object>
         {
             new RadioSourceListViewModel("Playlists", LoadPlaylistToggles),
-            new RadioSourceListViewModel("Podcasts", LoadPodcastToggles)
+            new RadioSourceListViewModel("Podcasts", LoadPodcastToggles),
+            new RadioAlbumListViewModel()
         };
     }
 

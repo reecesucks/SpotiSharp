@@ -8,6 +8,8 @@ namespace SpotiSharp.Models;
 
 public class RotationTracksModel
 {
+    private const string CACHE_KEY_PREFIX = "playlisttracks_";
+
     private static readonly ConcurrentDictionary<string, List<RadioSong>> _tracksByPlaylistId = new();
 
     internal static List<RadioSong> GetTracks(string playlistId)
@@ -57,8 +59,28 @@ public class RotationTracksModel
         DiskCacheHelper.Delete(CacheKey(playlistId));
     }
 
+    // drops cached tracks for any playlist that no longer exists in spotify, so a
+    // deleted playlist stops feeding the radio from its stale cache
+    internal static void PruneExcept(ISet<string> livePlaylistIds)
+    {
+        foreach (var key in DiskCacheHelper.ListKeys(CACHE_KEY_PREFIX))
+        {
+            var playlistId = key.Substring(CACHE_KEY_PREFIX.Length);
+            if (!livePlaylistIds.Contains(playlistId))
+            {
+                _tracksByPlaylistId.TryRemove(playlistId, out _);
+                DiskCacheHelper.Delete(key);
+            }
+        }
+
+        foreach (var playlistId in _tracksByPlaylistId.Keys.ToList())
+        {
+            if (!livePlaylistIds.Contains(playlistId)) _tracksByPlaylistId.TryRemove(playlistId, out _);
+        }
+    }
+
     private static string CacheKey(string playlistId)
     {
-        return "playlisttracks_" + playlistId;
+        return CACHE_KEY_PREFIX + playlistId;
     }
 }

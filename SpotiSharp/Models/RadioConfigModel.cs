@@ -52,6 +52,18 @@ public static class RadioConfigModel
         return weights.TryGetValue(id, out var weight) && weight <= 0;
     }
 
+    internal static RadioAlbumMode GetAlbumMode(string albumId)
+    {
+        return Config.AlbumModes.GetValueOrDefault(albumId);
+    }
+
+    internal static void SetAlbumMode(string albumId, RadioAlbumMode mode)
+    {
+        if (mode == RadioAlbumMode.Off) Config.AlbumModes.Remove(albumId);
+        else Config.AlbumModes[albumId] = mode;
+        Save();
+    }
+
     internal static BingeProgress GetBinge(string showId)
     {
         return Config.BingeShows.GetValueOrDefault(showId);
@@ -71,6 +83,16 @@ public static class RadioConfigModel
 
     internal static void SaveConfig()
     {
+        Save();
+    }
+
+    // drops radio config entries for playlists that no longer exist in spotify
+    internal static void PrunePlaylists(ISet<string> livePlaylistIds)
+    {
+        var removed = Config.PlaylistWeights.Keys.Where(id => !livePlaylistIds.Contains(id)).ToList();
+        if (removed.Count == 0) return;
+
+        foreach (var id in removed) Config.PlaylistWeights.Remove(id);
         Save();
     }
 
