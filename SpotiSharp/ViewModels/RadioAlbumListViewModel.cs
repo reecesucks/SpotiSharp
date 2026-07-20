@@ -33,17 +33,26 @@ public class RadioAlbumListViewModel : BaseViewModel
         IsLoading = false;
     }
 
+    protected override async Task RefreshDataAsync()
+    {
+        // pull-to-refresh forces the api, then rebuilds the rows from fresh data
+        Items = await Task.Run(() =>
+        {
+            SavedAlbumsModel.RefreshAlbums();
+            return BuildToggles();
+        });
+    }
+
     private static List<RadioAlbumToggleViewModel> LoadAlbumToggles()
     {
         // cache first, the api is only asked when nothing is cached yet
-        var albums = SavedAlbumsModel.CachedAlbums;
-        if (albums.Count == 0)
-        {
-            SavedAlbumsModel.RefreshAlbums();
-            albums = SavedAlbumsModel.CachedAlbums;
-        }
+        if (SavedAlbumsModel.CachedAlbums.Count == 0) SavedAlbumsModel.RefreshAlbums();
+        return BuildToggles();
+    }
 
-        return albums
+    private static List<RadioAlbumToggleViewModel> BuildToggles()
+    {
+        return SavedAlbumsModel.CachedAlbums
             .Select(album => new RadioAlbumToggleViewModel(
                 album.AlbumId,
                 album.AlbumName,
