@@ -5,6 +5,7 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:converters="clr-namespace:SpotiSharp.Converters"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
@@ -40,8 +41,10 @@
                                    Source="{Binding ImageUrl}"
                                    Aspect="AspectFill"
                                    HeightRequest="52"
-                                   WidthRequest="52" />
-                            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="10,0,0,0" VerticalOptions="Center">
+                                   WidthRequest="52"
+                                   IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="10,0,0,0" VerticalOptions="Center"
+                                                 IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}">
                                 <Label Text="{Binding Title}"
                                        FontSize="17"
                                        LineBreakMode="TailTruncation">
@@ -75,6 +78,37 @@
                                     </BindableLayout.ItemTemplate>
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
+
+                            <!-- revealed by a long press, replaces the row content -->
+                            <Grid Grid.Column="0" Grid.ColumnSpan="2"
+                                  ColumnDefinitions="*,*"
+                                  ColumnSpacing="6"
+                                  IsVisible="{Binding IsConfirmingRemove}">
+                                <Button Grid.Column="0" Grid.ColumnSpan="2"
+                                        Text="Remove"
+                                        FontSize="14"
+                                        BackgroundColor="#B33A3A"
+                                        TextColor="White"
+                                        IsVisible="{Binding IsPodcastSegment, Converter={converters:BooleanConverter}}"
+                                        Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                        CommandParameter="{Binding .}" />
+                                <Button Grid.Column="0"
+                                        Text="Remove section"
+                                        FontSize="12"
+                                        BackgroundColor="#B33A3A"
+                                        TextColor="White"
+                                        IsVisible="{Binding IsPodcastSegment}"
+                                        Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                        CommandParameter="{Binding .}" />
+                                <Button Grid.Column="1"
+                                        Text="Remove all sections"
+                                        FontSize="12"
+                                        BackgroundColor="#B33A3A"
+                                        TextColor="White"
+                                        IsVisible="{Binding IsPodcastSegment}"
+                                        Command="{Binding BindingContext.RemoveAllSections, Source={x:Reference RadioPageRoot}}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
                         </Grid>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>

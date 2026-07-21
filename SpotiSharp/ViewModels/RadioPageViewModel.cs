@@ -10,10 +10,16 @@ public class RadioPageViewModel : BaseViewModel
     public ICommand GenerateRadio { get; }
     public ICommand OpenSettings { get; }
 
+    // bound by the inline remove buttons a long press reveals on a row
+    public ICommand RemoveSingle { get; }
+    public ICommand RemoveAllSections { get; }
+
     public RadioPageViewModel()
     {
         GenerateRadio = new Command(async () => await GenerateAsync());
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
+        RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
+        RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
         RadioConductor.Instance.ActiveItemChanged += SetCurrentItem;
         _ = LoadCachedRadioAsync();
     }
@@ -89,21 +95,40 @@ public class RadioPageViewModel : BaseViewModel
         Task.Run(() => RadioModel.SaveRadio(snapshot));
     }
 
-    public void RemoveRadioItem(RadioItem item)
+    // long press turns a row into remove buttons; only one row at a time
+    public void ShowRemoveOptions(RadioItem item)
     {
-        if (item == null) return;
+        foreach (var current in Items) current.IsConfirmingRemove = ReferenceEquals(current, item);
+    }
 
-        if (item.IsPodcastSegment)
-        {
-            var segments = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
-            foreach (var segment in segments) Items.Remove(segment);
-            RebalancePodcasts();
-        }
-        else if (!Items.Remove(item))
-        {
-            return;
-        }
+    public void ClearRemoveOptions()
+    {
+        foreach (var current in Items) current.IsConfirmingRemove = false;
+    }
 
+    // just this row, whether it is a song or a single podcast section
+    public void RemoveSingleItem(RadioItem item)
+    {
+        if (item == null || !Items.Remove(item)) return;
+        FinishRemoval();
+    }
+
+    // every section of the episode, then spread the remaining podcasts back out
+    public void RemoveEpisode(RadioItem item)
+    {
+        if (item == null || !item.IsPodcastSegment) return;
+
+        var segments = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
+        if (segments.Count == 0) return;
+
+        foreach (var segment in segments) Items.Remove(segment);
+        RebalancePodcasts();
+        FinishRemoval();
+    }
+
+    private void FinishRemoval()
+    {
+        ClearRemoveOptions();
         ResyncConductor();
 
         var snapshot = Items.ToList();
@@ -148,6 +173,8 @@ public class RadioPageViewModel : BaseViewModel
     public async void ClickItem(object sourceItem)
     {
         if (sourceItem is not RadioItem radioItem) return;
+
+        ClearRemoveOptions();
 
         // highlight straight away so the tap feels responsive, the conductor
         // confirms (or corrects) it once playback actually starts

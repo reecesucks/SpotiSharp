@@ -29,6 +29,20 @@ public class RadioItem : INotifyPropertyChanged
         }
     }
 
+    private bool _isConfirmingRemove;
+
+    [JsonIgnore]
+    public bool IsConfirmingRemove
+    {
+        get { return _isConfirmingRemove; }
+        set
+        {
+            if (_isConfirmingRemove == value) return;
+            _isConfirmingRemove = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConfirmingRemove)));
+        }
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
 
     public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
