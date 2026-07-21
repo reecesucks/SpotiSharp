@@ -17,7 +17,7 @@
             HeightRequest="60"
             Margin="10"
             HorizontalOptions="Start"
-            BackgroundColor="{StaticResource Black}"
+            BackgroundColor="{DynamicResource PageBackground}"
             Command="{Binding ItemClicked}"
             CommandParameter="MainPage">
         </ImageButton>
@@ -29,7 +29,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Create Playlist"
                 FontSize="22"
-                BackgroundColor="White"
+                BackgroundColor="{DynamicResource SurfaceAlt}"
                 Command="{Binding ItemClicked}"
                 CommandParameter="PlaylistCreatorPage"
                 BorderColor="Transparent" />
@@ -38,7 +38,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Saved Playlists"
                 FontSize="22"
-                BackgroundColor="White"
+                BackgroundColor="{DynamicResource SurfaceAlt}"
                 Command="{Binding ItemClicked}" 
                 CommandParameter="ManagePlayListsPage"
                 BorderColor="Transparent"/>
@@ -47,7 +47,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Authentication"
                 FontSize="22"
-                BackgroundColor="White"
+                BackgroundColor="{DynamicResource SurfaceAlt}"
                 Command="{Binding ItemClicked}"
                 CommandParameter="AuthenticationPage"
                 BorderColor="Transparent"/>
@@ -56,7 +56,7 @@
                 Padding="0, 0, 40, 0"
                 Text="Settings"
                 FontSize="22"
-                BackgroundColor="White"
+                BackgroundColor="{DynamicResource SurfaceAlt}"
                 Command="{Binding ItemClicked}"
                 CommandParameter="SettingsPage"
                 BorderColor="Transparent"/>

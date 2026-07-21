@@ -15,7 +15,7 @@
         <ActivityIndicator Grid.Row="0" Grid.Column="0"
                            IsRunning="{Binding IsChecking}"
                            IsVisible="{Binding IsChecking}"
-                           Color="{StaticResource Primary}"
+                           Color="{DynamicResource Primary}"
                            HeightRequest="48"
                            WidthRequest="48"
                            HorizontalOptions="Center"

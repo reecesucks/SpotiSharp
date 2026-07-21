@@ -57,6 +57,44 @@
         Title="Settings"
         ContentTemplate="{DataTemplate views:SettingsPage}"
         Route="SettingsPage" />
+    <Shell.FlyoutFooter>
+        <Grid BackgroundColor="{DynamicResource FlyoutBackground}"
+              ColumnDefinitions="Auto,*,Auto"
+              Padding="16,12"
+              ColumnSpacing="8">
+            <Label Grid.Column="0"
+                   Text="iPod"
+                   VerticalOptions="Center"
+                   TextColor="{DynamicResource TextSecondary}">
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label"
+                                 Binding="{Binding Source={x:Reference ThemeSwitch}, Path=IsToggled}"
+                                 Value="False">
+                        <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+            <Switch x:Name="ThemeSwitch"
+                    Grid.Column="1"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Toggled="OnThemeSwitchToggled" />
+            <Label Grid.Column="2"
+                   Text="Spotify"
+                   VerticalOptions="Center"
+                   TextColor="{DynamicResource TextSecondary}">
+                <Label.Triggers>
+                    <DataTrigger TargetType="Label"
+                                 Binding="{Binding Source={x:Reference ThemeSwitch}, Path=IsToggled}"
+                                 Value="True">
+                        <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                        <Setter Property="FontAttributes" Value="Bold" />
+                    </DataTrigger>
+                </Label.Triggers>
+            </Label>
+        </Grid>
+    </Shell.FlyoutFooter>
     <Shell.ToolbarItems>
         <ToolbarItem x:Name="SettingsToolbarItem"
                      IconImageSource="settingsicon.png"
