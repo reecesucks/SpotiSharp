@@ -41,7 +41,9 @@
         <HorizontalStackLayout Grid.Row="0" Spacing="8" HorizontalOptions="Center" VerticalOptions="Center">
 
             <!-- rotation down -->
-            <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Margin="0,0,10,0" Command="{Binding RotationDown}">
+            <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Margin="0,0,10,0"
+                                      IsVisible="{Binding IsTrackPlaying}"
+                                      Command="{Binding RotationDown}">
                 <Label Text="R-" Style="{StaticResource RotationLabel}">
                     <Label.Triggers>
                         <DataTrigger TargetType="Label" Binding="{Binding IsRotationDownBusy}" Value="True">
@@ -108,7 +110,9 @@
             </controls:PlayerBarButton>
 
             <!-- rotation up -->
-            <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Margin="10,0,0,0" Command="{Binding RotationUp}">
+            <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Margin="10,0,0,0"
+                                      IsVisible="{Binding IsTrackPlaying}"
+                                      Command="{Binding RotationUp}">
                 <Label Text="R+" Style="{StaticResource RotationLabel}">
                     <Label.Triggers>
                         <DataTrigger TargetType="Label" Binding="{Binding IsRotationUpBusy}" Value="True">
@@ -125,7 +129,7 @@
             <controls:PlayerBarButton WidthRequest="36"
                                       HeightRequest="36"
                                       VerticalOptions="Center"
-                                      IsVisible="{Binding IsSongLikable}"
+                                      IsVisible="{Binding IsTrackPlaying}"
                                       Command="{Binding ToggleSongLiked}">
                 <Grid>
                     <Path Style="{StaticResource Icon}"

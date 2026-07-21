@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using SpotifyAPI.Web;
 using SpotiSharpBackend;
+using Constants = SpotiSharp.Consts.Constants;
 
 namespace SpotiSharp.Models;
 
@@ -50,7 +51,8 @@ public class SongRotationModel
         if (rotationPlaylists == null) return false;
 
         var containing = rotationPlaylists.Where(entry => entry.ContainsTrack).ToList();
-        if (containing.Count == 0) return false;
+
+        if (containing.Count == 0) return RemoveFromSourcePlaylists(api, trackUri);
 
         int highestLevel = containing.Max(entry => entry.Level);
         foreach (var entry in containing.Where(entry => entry.Level == highestLevel))
@@ -60,6 +62,34 @@ public class SongRotationModel
         }
 
         return true;
+    }
+
+    private static bool RemoveFromSourcePlaylists(APICaller api, string trackUri)
+    {
+        bool removedAny = false;
+
+        foreach (var playlistId in RadioModel.SourcePlaylistIds())
+        {
+            var tracks = RotationTracksModel.GetTracks(playlistId);
+            if (tracks == null || tracks.All(track => track.SongUri != trackUri)) continue;
+
+            bool removed = playlistId == Constants.LIKED_PLALIST_ID
+                ? api.UnlikeTrack(TrackIdFromUri(trackUri))
+                : api.RemoveTrackFromPlaylist(playlistId, trackUri);
+
+            if (!removed) continue;
+
+            RotationTracksModel.Invalidate(playlistId);
+            removedAny = true;
+        }
+
+        return removedAny;
+    }
+
+    private static string TrackIdFromUri(string trackUri)
+    {
+        int lastSeparator = trackUri.LastIndexOf(':');
+        return lastSeparator >= 0 ? trackUri.Substring(lastSeparator + 1) : trackUri;
     }
 
     private static List<RotationPlaylist> GetRotationPlaylistsWithMembership(APICaller api, string trackUri)

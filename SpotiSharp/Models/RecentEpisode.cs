@@ -10,7 +10,9 @@ public class RecentEpisode
     public DateTime ReleaseDate { get; private set; }
     public int DurationMs { get; private set; }
 
-    public RecentEpisode(string episodeId, string episodeName, string showId, string showName, string showImageUrl, DateTime releaseDate, int durationMs)
+    public int ResumePositionMs { get; private set; }
+
+    public RecentEpisode(string episodeId, string episodeName, string showId, string showName, string showImageUrl, DateTime releaseDate, int durationMs, int resumePositionMs = 0)
     {
         EpisodeId = episodeId;
         EpisodeName = episodeName;
@@ -19,5 +21,6 @@ public class RecentEpisode
         ShowImageUrl = showImageUrl;
         ReleaseDate = releaseDate;
         DurationMs = durationMs;
+        ResumePositionMs = resumePositionMs;
     }
 }

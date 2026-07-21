@@ -82,7 +82,8 @@ public class RecentEpisodesModel
                 showName,
                 showImageUrl,
                 ParseReleaseDate(episode.ReleaseDate),
-                episode.DurationMs))
+                episode.DurationMs,
+                episode.ResumePoint?.ResumePositionMs ?? 0))
             .OrderByDescending(episode => episode.ReleaseDate)
             .Take(EPISODES_PER_SHOW)
             .ToList();
