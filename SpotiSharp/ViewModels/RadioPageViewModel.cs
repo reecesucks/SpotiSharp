@@ -33,6 +33,49 @@ public class RadioPageViewModel : BaseViewModel
         TrimPlayed(_currentItem);
     }
 
+    // dropping a whole podcast leaves a long run of music, so spread the remaining
+    // episodes back through the songs and keep roughly the original music/podcast mix
+    private void RebalancePodcasts()
+    {
+        // the playing row stays put, only what is still upcoming gets reshuffled
+        int keep = _currentItem != null && Items.Count > 0 && ReferenceEquals(Items[0], _currentItem) ? 1 : 0;
+
+        var upcoming = Items.Skip(keep).ToList();
+        var segments = upcoming.Where(radioItem => radioItem.IsPodcastSegment).ToList();
+        if (segments.Count == 0) return;
+
+        var songs = upcoming.Where(radioItem => !radioItem.IsPodcastSegment).ToList();
+
+        var rebuilt = new List<RadioItem>();
+        int songIndex = 0;
+        foreach (var segment in segments)
+        {
+            for (int i = 0; i < RadioModel.SONGS_BETWEEN_SEGMENTS && songIndex < songs.Count; i++)
+            {
+                rebuilt.Add(songs[songIndex]);
+                songIndex++;
+            }
+            rebuilt.Add(segment);
+        }
+        while (songIndex < songs.Count)
+        {
+            rebuilt.Add(songs[songIndex]);
+            songIndex++;
+        }
+
+        Items = new ObservableCollection<RadioItem>(Items.Take(keep).Concat(rebuilt));
+    }
+
+    // the conductor works from a snapshot taken when playback started, so hand it the
+    // edited list (this only re-points its tracking, it does not restart playback)
+    private void ResyncConductor()
+    {
+        if (_currentItem == null || !RadioConductor.Instance.IsActive) return;
+
+        int index = Items.IndexOf(_currentItem);
+        if (index >= 0) RadioConductor.Instance.Start(Items.ToList(), index);
+    }
+
     // the radio is consumed as it plays: whatever sits above the playing row has
     // been heard or skipped, so drop it
     private void TrimPlayed(RadioItem current)
@@ -54,11 +97,14 @@ public class RadioPageViewModel : BaseViewModel
         {
             var segments = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
             foreach (var segment in segments) Items.Remove(segment);
+            RebalancePodcasts();
         }
         else if (!Items.Remove(item))
         {
             return;
         }
+
+        ResyncConductor();
 
         var snapshot = Items.ToList();
         Task.Run(() => RadioModel.SaveRadio(snapshot));
@@ -107,16 +153,17 @@ public class RadioPageViewModel : BaseViewModel
         // confirms (or corrects) it once playback actually starts
         SetCurrentItem(radioItem);
 
+        // songs play as a run up to the next podcast segment
+        var songRun = radioItem.IsPodcastSegment
+            ? null
+            : Items
+                .SkipWhile(item => item != radioItem)
+                .TakeWhile(item => !item.IsPodcastSegment)
+                .Select(item => item.PlayUri)
+                .ToList();
+
         if (PlaybackStateStore.Instance.HasActiveDevice)
         {
-            var songRun = radioItem.IsPodcastSegment
-                ? null
-                : Items
-                    .SkipWhile(item => item != radioItem)
-                    .TakeWhile(item => !item.IsPodcastSegment)
-                    .Select(item => item.PlayUri)
-                    .ToList();
-
             bool started = await Task.Run(() =>
             {
                 var api = APICaller.Instance;
@@ -135,12 +182,64 @@ public class RadioPageViewModel : BaseViewModel
             }
         }
 
+        await LaunchAndRestoreContextAsync(radioItem, songRun);
+    }
+
+    // a spotify uri can only carry a single item, so launching the app loses the queue.
+    // once spotify comes up as a device the rest of the run (or the segment offset) is
+    // applied on top of what it already started playing
+    private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
+    {
+        // spotify takes the foreground, keep our process alive to finish setting up
+        RadioBackgroundService.Start();
+
         if (!await LaunchInSpotify(radioItem.PlayUri))
         {
             // nothing is playing after all, drop the optimistic highlight
             SetCurrentItem(null);
+            RadioBackgroundService.Stop();
             await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
+            return;
         }
+
+        if (!await WaitForActiveDeviceAsync())
+        {
+            RadioBackgroundService.Stop();
+            return;
+        }
+
+        await Task.Run(() =>
+        {
+            var api = APICaller.Instance;
+            if (api == null) return;
+
+            api.SetPlaybackShuffle(false);
+
+            if (radioItem.IsPodcastSegment)
+            {
+                // the launch starts the episode at 0, jump to this segment
+                if (radioItem.PositionMs > 0) api.SeekTo(radioItem.PositionMs);
+                return;
+            }
+
+            // the first track is already playing, queue the rest behind it so nothing restarts
+            foreach (var uri in songRun.Skip(1)) api.AddToQueue(uri);
+        });
+
+        RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+    }
+
+    private static async Task<bool> WaitForActiveDeviceAsync()
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (DateTime.UtcNow < deadline)
+        {
+            var context = await Task.Run(() => APICaller.Instance?.GetCurrentPlaybackContext());
+            if (!string.IsNullOrEmpty(context?.Device?.Id)) return true;
+
+            await Task.Delay(1000);
+        }
+        return false;
     }
 
     private static async Task<bool> LaunchInSpotify(string uri)

@@ -5,7 +5,6 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
-             xmlns:behaviors="clr-namespace:SpotiSharp.Behaviors"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
@@ -28,18 +27,15 @@
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:RadioItem">
                         <!-- fixed height so every row is uniform and the list only measures once -->
-                        <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64">
+                        <!-- tap and long press are wired natively in code behind: a maui
+                             TapGestureRecognizer swallows the touch and blocks long press -->
+                        <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64"
+                              HandlerChanged="OnRowHandlerChanged">
                             <Grid.Triggers>
                                 <DataTrigger TargetType="Grid" Binding="{Binding IsCurrent}" Value="True">
                                     <Setter Property="BackgroundColor" Value="{StaticResource Gray900}" />
                                 </DataTrigger>
                             </Grid.Triggers>
-                            <Grid.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnItemTapped" />
-                            </Grid.GestureRecognizers>
-                            <Grid.Behaviors>
-                                <behaviors:LongPressBehavior Command="{Binding ItemLongPressed, Source={x:Reference RadioPageRoot}}" />
-                            </Grid.Behaviors>
                             <Image Grid.Column="0"
                                    Source="{Binding ImageUrl}"
                                    Aspect="AspectFill"

@@ -21,12 +21,16 @@ public class RadioConductor
 
     internal event Action<RadioItem> ActiveItemChanged;
 
+    internal bool IsActive
+    {
+        get { lock (_lock) { return _radio != null; } }
+    }
+
     private RadioConductor()
     {
         UiLoop.Instance.OnRefreshUi += Tick;
     }
 
-    // marshalled to the ui thread and raised outside any lock the caller holds
     private void RaiseActiveItem(RadioItem item)
     {
         var handler = ActiveItemChanged;

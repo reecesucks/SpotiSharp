@@ -59,7 +59,8 @@ public class BingeProgressModel
                     showName,
                     showImageUrl,
                     RecentEpisodesModel.ParseReleaseDate(episode.ReleaseDate),
-                    episode.DurationMs);
+                    episode.DurationMs,
+                    episode.ResumePoint?.ResumePositionMs ?? 0);
             }
 
             if (searchIndex == searchIndexBeforePage) return null;

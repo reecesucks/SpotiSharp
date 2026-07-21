@@ -65,12 +65,12 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _isSongLiked, value); }
     }
 
-    private bool _isSongLikable;
+    private bool _isTrackPlaying;
 
-    public bool IsSongLikable
+    public bool IsTrackPlaying
     {
-        get { return _isSongLikable; }
-        private set { SetProperty(ref _isSongLikable, value); }
+        get { return _isTrackPlaying; }
+        private set { SetProperty(ref _isTrackPlaying, value); }
     }
 
     private PlayerBarViewModel()
@@ -130,7 +130,7 @@ public class PlayerBarViewModel : BaseViewModel
                 if (_currentTrackId != fullTrack.Id)
                 {
                     _currentTrackId = fullTrack.Id;
-                    IsSongLikable = true;
+                    IsTrackPlaying = true;
                     var liked = APICaller.Instance?.IsTrackLiked(fullTrack.Id);
                     if (liked.HasValue && _currentTrackId == fullTrack.Id) IsSongLiked = liked.Value;
                 }
@@ -142,7 +142,7 @@ public class PlayerBarViewModel : BaseViewModel
                 SongImageURL = fullEpisode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = null;
                 _currentTrackId = null;
-                IsSongLikable = false;
+                IsTrackPlaying = false;
                 IsSongLiked = false;
                 break;
             }

@@ -47,7 +47,7 @@ public class RadioItem : INotifyPropertyChanged
         return new RadioItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>());
     }
 
-    internal static RadioItem ForPodcastSegment(RecentEpisode episode, int segmentIndex, int segmentCount, int segmentLengthMs)
+    internal static RadioItem ForPodcastSegment(RecentEpisode episode, int segmentIndex, int segmentCount, int segmentLengthMs, int startOffsetMs)
     {
         var pips = Enumerable.Range(0, segmentCount).Select(index => index == segmentIndex).ToList();
         var subtitle = segmentCount > 1
@@ -60,7 +60,7 @@ public class RadioItem : INotifyPropertyChanged
             subtitle,
             episode.ShowImageUrl,
             $"spotify:episode:{episode.EpisodeId}",
-            segmentIndex * segmentLengthMs,
+            startOffsetMs + segmentIndex * segmentLengthMs,
             pips);
     }
 }

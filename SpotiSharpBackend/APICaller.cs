@@ -356,6 +356,18 @@ public class APICaller
         }).Result);
     }
 
+    public bool AddToQueue(string uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return false;
+
+        return HandleExceptions(() => Authentication.SpotifyClient.Player.AddToQueue(new PlayerAddToQueueRequest(uri)).Result);
+    }
+
+    public bool SeekTo(int positionMs)
+    {
+        return HandleExceptions(() => Authentication.SpotifyClient.Player.SeekTo(new PlayerSeekToRequest(positionMs)).Result);
+    }
+
     public bool SetCurrentPlayingSongInAlbum(string songUri, string albumId)
     {
         if (songUri == null) return false;
@@ -491,6 +503,22 @@ public class APICaller
         }
 
         return result;
+    }
+
+    public Dictionary<string, int>? GetEpisodeResumePositions(List<string> episodeIds)
+    {
+        if (episodeIds == null || episodeIds.Count == 0) return new Dictionary<string, int>();
+
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Episodes.GetSeveral(new EpisodesRequest(episodeIds)).Result);
+        if (response?.Episodes == null) return null;
+
+        var positions = new Dictionary<string, int>();
+        foreach (var episode in response.Episodes)
+        {
+            if (episode?.Id == null) continue;
+            positions[episode.Id] = episode.ResumePoint?.ResumePositionMs ?? 0;
+        }
+        return positions;
     }
 
     public Paging<SimpleEpisode>? GetPodcastEpisodesPage(string showId, int offset, int limit)

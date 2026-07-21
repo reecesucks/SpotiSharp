@@ -1,14 +1,17 @@
 using System.Text.RegularExpressions;
 using SpotiSharp.Helpers;
+using SpotiSharpBackend;
 
 namespace SpotiSharp.Models;
 
 public class RadioModel
 {
     internal const int SEGMENT_LENGTH_MS = 15 * 60 * 1000;
-    private const int SONGS_BETWEEN_SEGMENTS = 3;
+    internal const int SONGS_BETWEEN_SEGMENTS = 3;
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
+
+    private const int RESUME_IGNORE_THRESHOLD_MS = 30 * 1000;
 
     private const string RADIO_CACHE_KEY = "radio";
 
@@ -29,16 +32,22 @@ public class RadioModel
         var songPool = BuildSongPool();
         if (songPool == null) return null;
 
+        var resumePositions = APICaller.Instance?.GetEpisodeResumePositions(
+            episodes.Select(episode => episode.EpisodeId).Where(id => !string.IsNullOrEmpty(id)).ToList());
+
         var radio = new List<RadioItem>();
         int songIndex = 0;
 
         foreach (var episode in episodes)
         {
-            int segmentCount = Math.Max(1, (int)Math.Ceiling(episode.DurationMs / (double)SEGMENT_LENGTH_MS));
+            int startMs = ResumeStartFor(episode, resumePositions);
+            int remainingMs = Math.Max(0, episode.DurationMs - startMs);
+            int segmentCount = Math.Max(1, (int)Math.Ceiling(remainingMs / (double)SEGMENT_LENGTH_MS));
+
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 if (radio.Count > 0) AddSongs(radio, songPool, ref songIndex, SONGS_BETWEEN_SEGMENTS);
-                radio.Add(RadioItem.ForPodcastSegment(episode, segmentIndex, segmentCount, SEGMENT_LENGTH_MS));
+                radio.Add(RadioItem.ForPodcastSegment(episode, segmentIndex, segmentCount, SEGMENT_LENGTH_MS, startMs));
             }
         }
 
@@ -86,6 +95,16 @@ public class RadioModel
                 }
             }
         }
+    }
+
+    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, int> livePositions)
+    {
+        int resume = livePositions != null && livePositions.TryGetValue(episode.EpisodeId, out var live)
+            ? live
+            : episode.ResumePositionMs;
+
+        if (resume < RESUME_IGNORE_THRESHOLD_MS || resume >= episode.DurationMs) return 0;
+        return resume;
     }
 
     private static void AddSongs(List<RadioItem> radio, List<RadioItem> songPool, ref int songIndex, int amount)
@@ -150,7 +169,13 @@ public class RadioModel
             .ToList();
     }
 
-    private static List<RadioItem> BuildSongPool()
+    // the playlists currently feeding the radio's song pool
+    internal static List<string> SourcePlaylistIds()
+    {
+        return SourcePlaylistWeights().Keys.ToList();
+    }
+
+    private static Dictionary<string, int> SourcePlaylistWeights()
     {
         var livePlaylistIds = PlaylistListModel.PlayLists.Select(playlist => playlist.PlayListId).ToHashSet();
 
@@ -158,17 +183,20 @@ public class RadioModel
         var playlistWeights = ActiveWeights(configuredPlaylistWeights);
         if (playlistWeights.Count == 0)
         {
-            playlistWeights = PlaylistListModel.PlayLists
+            return PlaylistListModel.PlayLists
                 .Where(playlist => RotationTag.IsMatch(playlist.PlayListTitle ?? string.Empty))
                 .Where(playlist => !RadioConfigModel.IsExplicitlyOff(configuredPlaylistWeights, playlist.PlayListId))
                 .ToDictionary(playlist => playlist.PlayListId, _ => 1);
         }
-        else
-        {
-            playlistWeights = playlistWeights
-                .Where(entry => livePlaylistIds.Contains(entry.Key))
-                .ToDictionary(entry => entry.Key, entry => entry.Value);
-        }
+
+        return playlistWeights
+            .Where(entry => livePlaylistIds.Contains(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+    }
+
+    private static List<RadioItem> BuildSongPool()
+    {
+        var playlistWeights = SourcePlaylistWeights();
 
         var songWeights = new Dictionary<string, (RadioItem Item, int Weight)>();
         foreach (var (playlistId, weight) in playlistWeights)
