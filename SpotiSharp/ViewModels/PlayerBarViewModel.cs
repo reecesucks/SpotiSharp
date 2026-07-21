@@ -73,6 +73,36 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _isTrackPlaying, value); }
     }
 
+    private static readonly TimeSpan PendingStateWindow = TimeSpan.FromSeconds(5);
+
+    private DateTime _playStatePendingUntil;
+    private bool _expectedIsPlaying;
+
+    private DateTime _shufflePendingUntil;
+    private bool _expectedShuffle;
+
+    private void ApplyIsPlaying(bool reported)
+    {
+        if (DateTime.UtcNow < _playStatePendingUntil)
+        {
+            if (reported != _expectedIsPlaying) return;
+            _playStatePendingUntil = DateTime.MinValue;
+        }
+
+        IsPlaying = reported;
+    }
+
+    private void ApplyShuffle(bool reported)
+    {
+        if (DateTime.UtcNow < _shufflePendingUntil)
+        {
+            if (reported != _expectedShuffle) return;
+            _shufflePendingUntil = DateTime.MinValue;
+        }
+
+        IsShuffleOn = reported;
+    }
+
     private PlayerBarViewModel()
     {
         _playerBarViewModel = this;
@@ -111,7 +141,7 @@ public class PlayerBarViewModel : BaseViewModel
             currentlyPlayingContext?.ProgressMs ?? 0,
             currentItemDurationMs);
 
-        IsPlaying = currentlyPlayingContext?.IsPlaying ?? false;
+        ApplyIsPlaying(currentlyPlayingContext?.IsPlaying ?? false);
         HasCurrentSong = currentlyPlayingContext?.Item != null;
 
         if (currentlyPlayingContext?.Item == null)
@@ -148,13 +178,17 @@ public class PlayerBarViewModel : BaseViewModel
             }
         }
 
-        IsShuffleOn = currentlyPlayingContext.ShuffleState;
+        ApplyShuffle(currentlyPlayingContext.ShuffleState);
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
     }
 
     private void TogglePlayingFunc()
     {
-        IsPlaying = !IsPlaying;
+        bool target = !IsPlaying;
+        IsPlaying = target;
+        _expectedIsPlaying = target;
+        _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
         Task.Run(() => APICaller.Instance?.TogglePlaybackStatus());
     }
 
@@ -187,7 +221,11 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void ChangeShuffleFunc()
     {
-        IsShuffleOn = !IsShuffleOn;
+        bool target = !IsShuffleOn;
+        IsShuffleOn = target;
+        _expectedShuffle = target;
+        _shufflePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
         Task.Run(() => APICaller.Instance?.TogglePlaybackShuffle());
     }
 
