@@ -17,11 +17,11 @@
         <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding FilterName}" Margin="5" />
         <Slider Grid.Row="1" Grid.Column="0" Minimum="0" Maximum="100" Value="{Binding SliderValue}" WidthRequest="200"
                 Margin="5" />
-        <inputs:SfComboBox Grid.Row="1" Grid.Column="1" BackgroundColor="{StaticResource Gray900}"
-                           TextColor="{StaticResource Primary}" WidthRequest="200" IsEditable="False"
+        <inputs:SfComboBox Grid.Row="1" Grid.Column="1" BackgroundColor="{DynamicResource Gray900}"
+                           TextColor="{DynamicResource Primary}" WidthRequest="200" IsEditable="False"
                            ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilterOption}"
                            Margin="5" />
         <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Text="Remove" Command="{Binding RemoveFilterCommand}"
-                BackgroundColor="Red" TextColor="Black" Margin="5" />
+                BackgroundColor="{DynamicResource Danger}" TextColor="{DynamicResource OnDanger}" Margin="5" />
     </Grid>
 </ContentView>

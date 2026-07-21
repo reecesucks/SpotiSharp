@@ -1,4 +1,5 @@
 ﻿using SpotiSharp.Models;
+using SpotiSharp.Themes;
 using SpotiSharpBackend;
 
 namespace SpotiSharp;
@@ -8,6 +9,8 @@ public partial class AppShell : Shell
 	public AppShell()
 	{
 		InitializeComponent();
+
+		ThemeSwitch.IsToggled = ThemeService.Current == AppThemeVariant.Spotify;
 
 		Routing.RegisterRoute("DetailPlaylistPage", typeof(DetailPlaylistPage));
 		Routing.RegisterRoute("DetailArtistPage", typeof(Views.DetailArtistPage));
@@ -53,6 +56,11 @@ public partial class AppShell : Shell
 
 		UpdateAuthenticationVisibility();
 	}
+
+    private void OnThemeSwitchToggled(object sender, ToggledEventArgs e)
+    {
+        ThemeService.Apply(e.Value ? AppThemeVariant.Spotify : AppThemeVariant.Ipod);
+    }
 
     private async void OnSettingsClicked(object sender, EventArgs e)
     {

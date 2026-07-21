@@ -29,7 +29,7 @@
                                LineBreakMode="TailTruncation"
                                Text="{Binding AlbumName}" />
                         <Label FontSize="14"
-                               TextColor="Gray"
+                               TextColor="{DynamicResource TextSecondary}"
                                LineBreakMode="TailTruncation"
                                Text="{Binding ArtistNames}" />
                     </VerticalStackLayout>

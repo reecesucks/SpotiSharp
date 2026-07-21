@@ -22,7 +22,7 @@
                                           VerticalOptions="Center"
                                           Margin="0,0,5,0"
                                           Command="{Binding GoBack}">
-                    <Path Fill="{StaticResource Gray300}"
+                    <Path Fill="{DynamicResource Gray300}"
                           Aspect="Uniform"
                           WidthRequest="20"
                           HeightRequest="20"
@@ -43,25 +43,25 @@
                                               Command="{Binding ToggleAlbumSaved}">
                         <Border StrokeShape="Ellipse"
                                 StrokeThickness="0"
-                                BackgroundColor="{StaticResource Gray600}"
+                                BackgroundColor="{DynamicResource Gray600}"
                                 WidthRequest="22"
                                 HeightRequest="22">
                             <Label Text="+"
                                    FontAttributes="Bold"
                                    FontSize="15"
-                                   TextColor="{StaticResource Gray100}"
+                                   TextColor="{DynamicResource Gray100}"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center"
                                    InputTransparent="True">
                                 <Label.Triggers>
                                     <DataTrigger TargetType="Label" Binding="{Binding IsAlbumSaved}" Value="True">
-                                        <Setter Property="TextColor" Value="{StaticResource Black}" />
+                                        <Setter Property="TextColor" Value="{DynamicResource OnPrimary}" />
                                     </DataTrigger>
                                 </Label.Triggers>
                             </Label>
                             <Border.Triggers>
                                 <DataTrigger TargetType="Border" Binding="{Binding IsAlbumSaved}" Value="True">
-                                    <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource Primary}" />
                                 </DataTrigger>
                             </Border.Triggers>
                         </Border>
@@ -88,11 +88,11 @@
                         <Grid ColumnDefinitions="30,*" Padding="10,8" AutomationId="{Binding SongId}">
                             <Label Grid.Column="0"
                                    Text="{Binding TrackNumber}"
-                                   TextColor="Gray"
+                                   TextColor="{DynamicResource TextSecondary}"
                                    VerticalOptions="Center" />
                             <VerticalStackLayout Grid.Column="1" Spacing="0" Margin="10,0,0,0" VerticalOptions="Center">
                                 <Label Text="{Binding SongTitle}" LineBreakMode="TailTruncation" />
-                                <Label Text="{Binding SongArtists}" FontSize="13" TextColor="Gray" LineBreakMode="TailTruncation" />
+                                <Label Text="{Binding SongArtists}" FontSize="13" TextColor="{DynamicResource TextSecondary}" LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </Grid>
                     </DataTemplate>

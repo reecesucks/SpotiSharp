@@ -10,7 +10,7 @@
         <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*"
               Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsMusic}"
               x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
-    <Border Stroke="{Binding Background}" StrokeThickness="4" StrokeShape="RoundRectangle 40,0,0,40" >
+    <Border Stroke="{DynamicResource Primary}" StrokeThickness="4" StrokeShape="RoundRectangle 40,0,0,40" >
             <Picker Grid.Row="0" Grid.Column="0" 
                     ItemsSource="{Binding Playlists}"
                     SelectedItem="{Binding SelectedPlaylist, Mode=TwoWay}"
@@ -43,7 +43,7 @@
         <Grid ColumnDefinitions="*,*,*,*"
               Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsPodcast}"
               x:DataType="viewmodel:PlaylistSectionSectionCreatorViewModel">
-            <Border Stroke="{Binding Background}" StrokeThickness="2" StrokeShape="RoundRectangle 40,0,0,40" >
+            <Border Stroke="{DynamicResource Accent}" StrokeThickness="2" StrokeShape="RoundRectangle 40,0,0,40" >
                 <Picker Grid.Row="0" Grid.Column="0" 
                     ItemsSource="{Binding SavedShows}"
                     SelectedItem="{Binding SelectedSavedShow, Mode=TwoWay}"

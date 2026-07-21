@@ -25,7 +25,7 @@
                             <Label Text="{Binding EpisodeName}"
                                    FontSize="19"
                                    LineBreakMode="TailTruncation" />
-                            <Label FontSize="16" TextColor="Gray">
+                            <Label FontSize="16" TextColor="{DynamicResource TextSecondary}">
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="{Binding ShowName}" />

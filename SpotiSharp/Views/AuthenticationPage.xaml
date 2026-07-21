@@ -8,7 +8,7 @@
     <Grid>
         <ActivityIndicator IsRunning="{Binding IsChecking}"
                            IsVisible="{Binding IsChecking}"
-                           Color="{StaticResource Primary}"
+                           Color="{DynamicResource Primary}"
                            HeightRequest="48"
                            WidthRequest="48"
                            HorizontalOptions="Center"
@@ -66,7 +66,7 @@
                 Command="{Binding ConnectToSpotifyAPI}"
                 Margin="10,5,5,5"
                 WidthRequest="150"
-                BackgroundColor="{StaticResource Gray900}"
+                BackgroundColor="{DynamicResource Gray900}"
                 HorizontalOptions="Start" />
             <VerticalStackLayout Margin="10">
                 <Label Text="How To Authenticate" FontSize="20"/>
