@@ -62,6 +62,17 @@ public class RadioConductor
         }
     }
 
+    internal bool AdvanceManually()
+    {
+        lock (_lock)
+        {
+            if (_radio == null || _activeIndex < 0) return false;
+
+            AdvanceLocked();
+            return true;
+        }
+    }
+
     private void StopLocked()
     {
         _radio = null;
