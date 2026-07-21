@@ -32,15 +32,20 @@ public partial class RadioPage : BasePage
 
     private void OnRowClick(object sender, EventArgs e)
     {
-        if (ResolveItem(sender) is RadioItem item && BindingContext is RadioPageViewModel vm)
-            vm.ClickItem(item);
+        if (ResolveItem(sender) is not RadioItem item || BindingContext is not RadioPageViewModel vm) return;
+
+        if (item.IsConfirmingRemove) vm.ClearRemoveOptions();
+        else vm.ClickItem(item);
     }
 
     private void OnRowLongClick(object sender, global::Android.Views.View.LongClickEventArgs e)
     {
         e.Handled = true;
 
-        if (ResolveItem(sender) is RadioItem item) OnItemLongPressed(item);
+        if (ResolveItem(sender) is not RadioItem item || BindingContext is not RadioPageViewModel vm) return;
+
+        if (item.IsConfirmingRemove) vm.ClearRemoveOptions();
+        else vm.ShowRemoveOptions(item);
     }
 
     private RadioItem ResolveItem(object platformSender)
@@ -63,12 +68,4 @@ public partial class RadioPage : BasePage
     }
 #endif
 
-    private async void OnItemLongPressed(RadioItem item)
-    {
-        if (item == null || BindingContext is not RadioPageViewModel vm) return;
-
-        string what = item.IsPodcastSegment ? "podcast" : "song";
-        bool remove = await DisplayAlert("Remove", $"Remove this {what} from the radio?", "Remove", "Cancel");
-        if (remove) vm.RemoveRadioItem(item);
-    }
 }
