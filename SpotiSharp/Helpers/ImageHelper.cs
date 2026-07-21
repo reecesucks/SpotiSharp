@@ -4,7 +4,10 @@ namespace SpotiSharp.Helpers;
 
 public static class ImageHelper
 {
-    private const int TARGET_THUMBNAIL_SIZE = 160;
+    // list thumbnails are tiny (under a cm), so take spotify's smallest variant
+    // (~64px). decoding and holding these costs a fraction of the 300/640px ones,
+    // which matters most on low end devices
+    private const int TARGET_THUMBNAIL_SIZE = 48;
 
     public static string Thumbnail(IEnumerable<Image> images, int targetSize = TARGET_THUMBNAIL_SIZE)
     {
