@@ -5,6 +5,7 @@
              xmlns:views="clr-namespace:SpotiSharp.Views"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:behaviors="clr-namespace:SpotiSharp.Behaviors"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
@@ -22,19 +23,18 @@
 
             <CollectionView x:Name="MainListView"
                             ItemsSource="{Binding Items}"
-                            SelectionMode="Single">
+                            SelectionMode="None"
+                            ItemSizingStrategy="MeasureFirstItem">
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:RadioItem">
-                        <SwipeView>
-                            <SwipeView.RightItems>
-                                <SwipeItems Mode="Execute">
-                                    <SwipeItem Text="Remove"
-                                               BackgroundColor="#B33A3A"
-                                               Command="{Binding BindingContext.RemoveItem, Source={x:Reference RadioPageRoot}}"
-                                               CommandParameter="{Binding .}" />
-                                </SwipeItems>
-                            </SwipeView.RightItems>
-                        <Grid ColumnDefinitions="Auto,*" Padding="8,6">
+                        <!-- fixed height so every row is uniform and the list only measures once -->
+                        <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64">
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnItemTapped" />
+                            </Grid.GestureRecognizers>
+                            <Grid.Behaviors>
+                                <behaviors:LongPressBehavior Command="{Binding ItemLongPressed, Source={x:Reference RadioPageRoot}}" />
+                            </Grid.Behaviors>
                             <Image Grid.Column="0"
                                    Source="{Binding ImageUrl}"
                                    Aspect="AspectFill"
@@ -68,7 +68,6 @@
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
-                        </SwipeView>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
