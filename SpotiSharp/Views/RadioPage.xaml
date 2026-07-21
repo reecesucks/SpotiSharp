@@ -29,6 +29,11 @@
                     <DataTemplate x:DataType="models:RadioItem">
                         <!-- fixed height so every row is uniform and the list only measures once -->
                         <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64">
+                            <Grid.Triggers>
+                                <DataTrigger TargetType="Grid" Binding="{Binding IsCurrent}" Value="True">
+                                    <Setter Property="BackgroundColor" Value="{StaticResource Gray900}" />
+                                </DataTrigger>
+                            </Grid.Triggers>
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnItemTapped" />
                             </Grid.GestureRecognizers>
@@ -43,7 +48,14 @@
                             <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="10,0,0,0" VerticalOptions="Center">
                                 <Label Text="{Binding Title}"
                                        FontSize="17"
-                                       LineBreakMode="TailTruncation" />
+                                       LineBreakMode="TailTruncation">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsCurrent}" Value="True">
+                                            <Setter Property="TextColor" Value="{StaticResource Primary}" />
+                                            <Setter Property="FontAttributes" Value="Bold" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
                                 <Label Text="{Binding Subtitle}"
                                        FontSize="13"
                                        TextColor="Gray"
