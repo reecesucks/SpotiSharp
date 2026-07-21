@@ -1,6 +1,9 @@
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+
 namespace SpotiSharp.Models;
 
-public class RadioItem
+public class RadioItem : INotifyPropertyChanged
 {
     public bool IsPodcastSegment { get; }
     public string Title { get; }
@@ -11,6 +14,36 @@ public class RadioItem
     public int PositionMs { get; }
 
     public List<bool> SegmentPips { get; }
+
+    private bool _isCurrent;
+
+    [JsonIgnore]
+    public bool IsCurrent
+    {
+        get { return _isCurrent; }
+        set
+        {
+            if (_isCurrent == value) return;
+            _isCurrent = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCurrent)));
+        }
+    }
+
+    private bool _isConfirmingRemove;
+
+    [JsonIgnore]
+    public bool IsConfirmingRemove
+    {
+        get { return _isConfirmingRemove; }
+        set
+        {
+            if (_isConfirmingRemove == value) return;
+            _isConfirmingRemove = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConfirmingRemove)));
+        }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
 
     public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
     {
@@ -28,7 +61,7 @@ public class RadioItem
         return new RadioItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>());
     }
 
-    internal static RadioItem ForPodcastSegment(RecentEpisode episode, int segmentIndex, int segmentCount, int segmentLengthMs)
+    internal static RadioItem ForPodcastSegment(RecentEpisode episode, int segmentIndex, int segmentCount, int segmentLengthMs, int startOffsetMs)
     {
         var pips = Enumerable.Range(0, segmentCount).Select(index => index == segmentIndex).ToList();
         var subtitle = segmentCount > 1
@@ -41,7 +74,7 @@ public class RadioItem
             subtitle,
             episode.ShowImageUrl,
             $"spotify:episode:{episode.EpisodeId}",
-            segmentIndex * segmentLengthMs,
+            startOffsetMs + segmentIndex * segmentLengthMs,
             pips);
     }
 }
