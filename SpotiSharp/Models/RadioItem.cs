@@ -1,6 +1,9 @@
+using System.ComponentModel;
+using System.Text.Json.Serialization;
+
 namespace SpotiSharp.Models;
 
-public class RadioItem
+public class RadioItem : INotifyPropertyChanged
 {
     public bool IsPodcastSegment { get; }
     public string Title { get; }
@@ -11,6 +14,22 @@ public class RadioItem
     public int PositionMs { get; }
 
     public List<bool> SegmentPips { get; }
+
+    private bool _isCurrent;
+
+    [JsonIgnore]
+    public bool IsCurrent
+    {
+        get { return _isCurrent; }
+        set
+        {
+            if (_isCurrent == value) return;
+            _isCurrent = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsCurrent)));
+        }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
 
     public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
     {
