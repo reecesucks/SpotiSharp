@@ -9,19 +9,27 @@ public class RadioPageViewModel : BaseViewModel
 {
     public ICommand GenerateRadio { get; }
     public ICommand OpenSettings { get; }
-    public ICommand RemoveItem { get; }
 
     public RadioPageViewModel()
     {
         GenerateRadio = new Command(async () => await GenerateAsync());
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
-        RemoveItem = new Command<RadioItem>(RemoveItemFunc);
         _ = LoadCachedRadioAsync();
     }
 
-    private void RemoveItemFunc(RadioItem item)
+    public void RemoveRadioItem(RadioItem item)
     {
-        if (item == null || !Items.Remove(item)) return;
+        if (item == null) return;
+
+        if (item.IsPodcastSegment)
+        {
+            var segments = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
+            foreach (var segment in segments) Items.Remove(segment);
+        }
+        else if (!Items.Remove(item))
+        {
+            return;
+        }
 
         var snapshot = Items.ToList();
         Task.Run(() => RadioModel.SaveRadio(snapshot));
