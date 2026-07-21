@@ -65,12 +65,42 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _isSongLiked, value); }
     }
 
-    private bool _isSongLikable;
+    private bool _isTrackPlaying;
 
-    public bool IsSongLikable
+    public bool IsTrackPlaying
     {
-        get { return _isSongLikable; }
-        private set { SetProperty(ref _isSongLikable, value); }
+        get { return _isTrackPlaying; }
+        private set { SetProperty(ref _isTrackPlaying, value); }
+    }
+
+    private static readonly TimeSpan PendingStateWindow = TimeSpan.FromSeconds(5);
+
+    private DateTime _playStatePendingUntil;
+    private bool _expectedIsPlaying;
+
+    private DateTime _shufflePendingUntil;
+    private bool _expectedShuffle;
+
+    private void ApplyIsPlaying(bool reported)
+    {
+        if (DateTime.UtcNow < _playStatePendingUntil)
+        {
+            if (reported != _expectedIsPlaying) return;
+            _playStatePendingUntil = DateTime.MinValue;
+        }
+
+        IsPlaying = reported;
+    }
+
+    private void ApplyShuffle(bool reported)
+    {
+        if (DateTime.UtcNow < _shufflePendingUntil)
+        {
+            if (reported != _expectedShuffle) return;
+            _shufflePendingUntil = DateTime.MinValue;
+        }
+
+        IsShuffleOn = reported;
     }
 
     private PlayerBarViewModel()
@@ -111,7 +141,7 @@ public class PlayerBarViewModel : BaseViewModel
             currentlyPlayingContext?.ProgressMs ?? 0,
             currentItemDurationMs);
 
-        IsPlaying = currentlyPlayingContext?.IsPlaying ?? false;
+        ApplyIsPlaying(currentlyPlayingContext?.IsPlaying ?? false);
         HasCurrentSong = currentlyPlayingContext?.Item != null;
 
         if (currentlyPlayingContext?.Item == null)
@@ -130,7 +160,7 @@ public class PlayerBarViewModel : BaseViewModel
                 if (_currentTrackId != fullTrack.Id)
                 {
                     _currentTrackId = fullTrack.Id;
-                    IsSongLikable = true;
+                    IsTrackPlaying = true;
                     var liked = APICaller.Instance?.IsTrackLiked(fullTrack.Id);
                     if (liked.HasValue && _currentTrackId == fullTrack.Id) IsSongLiked = liked.Value;
                 }
@@ -142,19 +172,23 @@ public class PlayerBarViewModel : BaseViewModel
                 SongImageURL = fullEpisode.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = null;
                 _currentTrackId = null;
-                IsSongLikable = false;
+                IsTrackPlaying = false;
                 IsSongLiked = false;
                 break;
             }
         }
 
-        IsShuffleOn = currentlyPlayingContext.ShuffleState;
+        ApplyShuffle(currentlyPlayingContext.ShuffleState);
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
     }
 
     private void TogglePlayingFunc()
     {
-        IsPlaying = !IsPlaying;
+        bool target = !IsPlaying;
+        IsPlaying = target;
+        _expectedIsPlaying = target;
+        _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
         Task.Run(() => APICaller.Instance?.TogglePlaybackStatus());
     }
 
@@ -170,6 +204,12 @@ public class PlayerBarViewModel : BaseViewModel
     {
         Task.Run(() =>
         {
+            if (Models.RadioConductor.Instance.AdvanceManually())
+            {
+                RefreshPlayerValues();
+                return;
+            }
+
             if (APICaller.Instance?.SkipToNextSong() ?? false) RefreshPlayerValues();
         });
     }
@@ -181,7 +221,11 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void ChangeShuffleFunc()
     {
-        IsShuffleOn = !IsShuffleOn;
+        bool target = !IsShuffleOn;
+        IsShuffleOn = target;
+        _expectedShuffle = target;
+        _shufflePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
         Task.Run(() => APICaller.Instance?.TogglePlaybackShuffle());
     }
 

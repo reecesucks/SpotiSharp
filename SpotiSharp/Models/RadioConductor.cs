@@ -19,9 +19,23 @@ public class RadioConductor
     private int _lastObservedProgressMs;
     private int _lastObservedDurationMs;
 
+    internal event Action<RadioItem> ActiveItemChanged;
+
+    internal bool IsActive
+    {
+        get { lock (_lock) { return _radio != null; } }
+    }
+
     private RadioConductor()
     {
         UiLoop.Instance.OnRefreshUi += Tick;
+    }
+
+    private void RaiseActiveItem(RadioItem item)
+    {
+        var handler = ActiveItemChanged;
+        if (handler == null) return;
+        MainThread.BeginInvokeOnMainThread(() => handler(item));
     }
 
     internal void Start(List<RadioItem> radio, int startIndex)
@@ -37,6 +51,7 @@ public class RadioConductor
         }
 
         RadioBackgroundService.Start();
+        RaiseActiveItem(radio[startIndex]);
     }
 
     internal void Stop()
@@ -47,12 +62,24 @@ public class RadioConductor
         }
     }
 
+    internal bool AdvanceManually()
+    {
+        lock (_lock)
+        {
+            if (_radio == null || _activeIndex < 0) return false;
+
+            AdvanceLocked();
+            return true;
+        }
+    }
+
     private void StopLocked()
     {
         _radio = null;
         _activeIndex = -1;
 
         RadioBackgroundService.Stop();
+        RaiseActiveItem(null);
     }
 
     private void Tick()
@@ -74,10 +101,12 @@ public class RadioConductor
             int runIndex = IndexInActiveSongRun(state.CurrentItemUri);
             if (runIndex >= 0)
             {
+                bool moved = runIndex != _activeIndex;
                 _activeIndex = runIndex;
                 _graceRemaining = 0;
                 _lastObservedProgressMs = state.ProgressMs;
                 _lastObservedDurationMs = state.DurationMs;
+                if (moved) RaiseActiveItem(_radio[runIndex]);
                 return;
             }
 
@@ -154,6 +183,7 @@ public class RadioConductor
         _lastObservedDurationMs = 0;
 
         var next = _radio[nextIndex];
+        RaiseActiveItem(next);
 
         var api = APICaller.Instance;
         if (api == null) return;
