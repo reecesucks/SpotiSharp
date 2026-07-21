@@ -170,6 +170,12 @@ public class PlayerBarViewModel : BaseViewModel
     {
         Task.Run(() =>
         {
+            if (Models.RadioConductor.Instance.AdvanceManually())
+            {
+                RefreshPlayerValues();
+                return;
+            }
+
             if (APICaller.Instance?.SkipToNextSong() ?? false) RefreshPlayerValues();
         });
     }
