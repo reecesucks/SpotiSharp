@@ -35,6 +35,8 @@ public class RadioConductor
             _lastObservedProgressMs = 0;
             _lastObservedDurationMs = 0;
         }
+
+        RadioBackgroundService.Start();
     }
 
     internal void Stop()
@@ -49,6 +51,8 @@ public class RadioConductor
     {
         _radio = null;
         _activeIndex = -1;
+
+        RadioBackgroundService.Stop();
     }
 
     private void Tick()
