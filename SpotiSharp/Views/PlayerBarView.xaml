@@ -53,9 +53,10 @@
                 </Label>
             </controls:PlayerBarButton>
 
-            <!-- shuffle -->
+            <!-- shuffle (Data is the Spotify default; the iPod variant is swapped in code-behind) -->
             <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Command="{Binding ChangeShuffle}">
-                <Path Style="{StaticResource Icon}"
+                <Path x:Name="ShuffleIcon"
+                      Style="{StaticResource Icon}"
                       Data="M10.59,9.17L5.41,4L4,5.41l5.17,5.17L10.59,9.17z M14.5,4l2.04,2.04L4,18.59L5.41,20L17.96,7.46L20,9.5V4H14.5z M14.83,13.41l-1.41,1.41l3.13,3.13L14.5,20H20v-5.5l-2.04,2.04L14.83,13.41z">
                     <Path.Triggers>
                         <DataTrigger TargetType="Path" Binding="{Binding IsShuffleOn}" Value="True">
@@ -99,9 +100,10 @@
                       Data="M6,18l8.5-6L6,6V18z M16,6v12h2V6H16z" />
             </controls:PlayerBarButton>
 
-            <!-- repeat -->
+            <!-- repeat (Data is the Spotify default; the iPod variant is swapped in code-behind) -->
             <controls:PlayerBarButton Style="{StaticResource IconTapTarget}" Command="{Binding ChangeRepeat}">
-                <Path Style="{StaticResource Icon}"
+                <Path x:Name="RepeatIcon"
+                      Style="{StaticResource Icon}"
                       Data="M7,7h10v3l4-4l-4-4v3H5v6h2V7z M17,17H7v-3l-4,4l4,4v-3h12v-6h-2V17z">
                     <Path.Triggers>
                         <DataTrigger TargetType="Path" Binding="{Binding IsRepeatOn}" Value="True">
