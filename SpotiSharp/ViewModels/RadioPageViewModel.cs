@@ -183,9 +183,10 @@ public class RadioPageViewModel : BaseViewModel
 
                 api.SetPlaybackShuffle(false);
 
-                return radioItem.IsPodcastSegment
+                var outcome = radioItem.IsPodcastSegment
                     ? api.PlayUriAtPosition(radioItem.PlayUri, radioItem.PositionMs)
                     : api.PlayUris(songRun);
+                return outcome == PlaybackAttempt.Success;
             });
             if (started)
             {
