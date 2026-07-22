@@ -78,5 +78,17 @@ public static class StorageHandler
         }
     }
     
+    private static string _selectedDeviceId = string.Empty;
+
+    public static string SelectedDeviceId
+    {
+        get { return _selectedDeviceId; }
+        set
+        {
+            _selectedDeviceId = value;
+            OnDataChange?.Invoke("selectedDeviceId", value);
+        }
+    }
+
     public static event DataChange OnDataChange;
 }
