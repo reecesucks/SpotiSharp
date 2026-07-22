@@ -1,5 +1,4 @@
 ﻿using SpotiSharp.Models;
-using SpotiSharp.Themes;
 using SpotiSharpBackend;
 
 namespace SpotiSharp;
@@ -9,8 +8,6 @@ public partial class AppShell : Shell
 	public AppShell()
 	{
 		InitializeComponent();
-
-		ThemeSwitch.IsToggled = ThemeService.Current == AppThemeVariant.Spotify;
 
 		Routing.RegisterRoute("DetailPlaylistPage", typeof(DetailPlaylistPage));
 		Routing.RegisterRoute("DetailArtistPage", typeof(Views.DetailArtistPage));
@@ -27,15 +24,52 @@ public partial class AppShell : Shell
 		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
 		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
 
-		// settings only holds desktop/collaboration config, hide it and its toolbar gear on mobile
-		SettingsContent.FlyoutItemIsVisible = !isMobile;
-		if (isMobile) ToolbarItems.Remove(SettingsToolbarItem);
+		SettingsContent.FlyoutItemIsVisible = true;
 
-		// the authentication page is only needed while logged out
 		UpdateAuthenticationVisibility();
 		Authentication.OnAuthenticate += () => MainThread.BeginInvokeOnMainThread(UpdateAuthenticationVisibility);
 
+		UpdateFlyoutWidth();
+		DeviceDisplay.Current.MainDisplayInfoChanged += (_, _) =>
+			MainThread.BeginInvokeOnMainThread(UpdateFlyoutWidth);
+
 		_ = BackendConnector.Instance;
+	}
+
+	private readonly List<string> _rootHistory = new();
+
+	protected override void OnNavigated(ShellNavigatedEventArgs args)
+	{
+		base.OnNavigated(args);
+
+		var route = args.Current?.Location?.OriginalString;
+		if (string.IsNullOrEmpty(route)) return;
+
+		if (route.Trim('/').Split('/').Length != 1) return;
+
+		if (_rootHistory.Count == 0 || _rootHistory[^1] != route) _rootHistory.Add(route);
+	}
+
+	protected override bool OnBackButtonPressed()
+	{
+		if (Navigation?.NavigationStack?.Count > 1) return base.OnBackButtonPressed();
+
+		if (_rootHistory.Count > 1)
+		{
+			_rootHistory.RemoveAt(_rootHistory.Count - 1);
+			_ = GoToAsync(_rootHistory[^1]);
+			return true;
+		}
+
+		return base.OnBackButtonPressed();
+	}
+
+	private void UpdateFlyoutWidth()
+	{
+		var display = DeviceDisplay.Current.MainDisplayInfo;
+		if (display.Width <= 0 || display.Density <= 0) return;
+
+		FlyoutWidth = display.Width / display.Density;
 	}
 
 	private void UpdateAuthenticationVisibility()
@@ -53,17 +87,11 @@ public partial class AppShell : Shell
 		{
 			await Shell.Current.GoToAsync("//AuthenticationPage");
 		}
+		else
+		{
+			FlyoutIsPresented = true;
+		}
 
 		UpdateAuthenticationVisibility();
 	}
-
-    private void OnThemeSwitchToggled(object sender, ToggledEventArgs e)
-    {
-        ThemeService.Apply(e.Value ? AppThemeVariant.Spotify : AppThemeVariant.Ipod);
-    }
-
-    private async void OnSettingsClicked(object sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//SettingsPage");
-    }
 }

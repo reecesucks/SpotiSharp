@@ -315,6 +315,24 @@ public class APICaller
     {
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result);
     }
+
+    public string? GetFirstAvailableDeviceId()
+    {
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
+        return response?.Devices?.FirstOrDefault()?.Id;
+    }
+
+    public bool PlayUrisOnDevice(List<string> uris, string deviceId, int positionMs = 0)
+    {
+        if (uris == null || uris.Count == 0 || string.IsNullOrEmpty(deviceId)) return false;
+
+        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+        {
+            DeviceId = deviceId,
+            Uris = uris,
+            PositionMs = positionMs
+        }).Result);
+    }
     
     public CurrentlyPlaying GetCurrentSong()
     {

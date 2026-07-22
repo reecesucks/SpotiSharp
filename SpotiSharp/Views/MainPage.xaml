@@ -3,7 +3,14 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                 xmlns:views="using:SpotiSharp.Views"
-                x:Class="SpotiSharp.MainPage">
+                x:Class="SpotiSharp.MainPage"
+                Title="Home">
+    <views:BasePage.ToolbarItems>
+        <ToolbarItem IconImageSource="settingsicon.png"
+                     Order="Primary"
+                     Priority="0"
+                     Command="{Binding OpenSettings}" />
+    </views:BasePage.ToolbarItems>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />

@@ -20,6 +20,10 @@
     <Color x:Key="Divider">#C7C5BC</Color>
     <Color x:Key="OnPrimary">#FFFFFF</Color>
 
+    <!-- Selected menu row: dark grey bar, text inverted to the light menu background colour. -->
+    <Color x:Key="SelectedRowBackground">#2B2B29</Color>
+    <Color x:Key="SelectedRowText">#EDEBE3</Color>
+
     <Color x:Key="Danger">#A8403A</Color>
     <Color x:Key="OnDanger">#FFFFFF</Color>
     <Color x:Key="Accent">#C8862E</Color>

@@ -15,16 +15,17 @@ public class MainPageViewModel : BaseViewModel
 
     private bool _isChecking;
 
-    // true while a stored session is being restored on startup, so nothing but a
-    // spinner shows until we know whether the user is logged in
     public bool IsChecking
     {
         get { return _isChecking; }
         private set { SetProperty(ref _isChecking, value); }
     }
 
+    public Command OpenSettings { get; }
+
     public MainPageViewModel()
     {
+        OpenSettings = new Command(async () => await Shell.Current.GoToAsync("//SettingsPage"));
         Authentication.OnAuthenticate += OnAuthenticated;
     }
 

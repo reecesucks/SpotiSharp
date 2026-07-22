@@ -21,6 +21,10 @@
     <!-- Foreground drawn on top of a Primary-coloured fill -->
     <Color x:Key="OnPrimary">#000000</Color>
 
+    <!-- Selected menu row: subtle dark highlight with the brand green as the label colour. -->
+    <Color x:Key="SelectedRowBackground">#282828</Color>
+    <Color x:Key="SelectedRowText">#1DB954</Color>
+
     <!-- Destructive actions (delete, remove, validation failures) -->
     <Color x:Key="Danger">#B33A3A</Color>
     <Color x:Key="OnDanger">#FFFFFF</Color>

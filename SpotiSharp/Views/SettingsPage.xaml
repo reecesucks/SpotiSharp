@@ -3,7 +3,8 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
-             x:Class="SpotiSharp.Views.SettingsPage">
+             x:Class="SpotiSharp.Views.SettingsPage"
+                Title="Settings">
     <views:BasePage.Content>
         <Grid>
             <Grid.RowDefinitions>
@@ -12,6 +13,8 @@
             </Grid.RowDefinitions>
             <Grid Grid.Row="1" Margin="10">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -32,6 +35,43 @@
                 <Label Grid.Row="5" Grid.Column="0" Text="CollaborationSession" />
                 <Entry Grid.Row="6" Grid.Column="0" Text="{Binding CollaborationSession}" />
                 <Button Grid.Row="7" Grid.Column="0" Text="Apply Settings" Command="{Binding ApplySettings}"/>
+
+                <Label Grid.Row="8" Grid.Column="0" Text="Theme" Margin="0,24,0,4" />
+                <Grid Grid.Row="9" Grid.Column="0"
+                      ColumnDefinitions="Auto,Auto,Auto"
+                      ColumnSpacing="8"
+                      HorizontalOptions="Start">
+                    <Label Grid.Column="0"
+                           Text="iPod"
+                           VerticalOptions="Center"
+                           TextColor="{DynamicResource TextSecondary}">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Source={x:Reference ThemeSwitch}, Path=IsToggled}"
+                                         Value="False">
+                                <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                                <Setter Property="FontAttributes" Value="Bold" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                    <Switch x:Name="ThemeSwitch"
+                            Grid.Column="1"
+                            VerticalOptions="Center"
+                            Toggled="OnThemeSwitchToggled" />
+                    <Label Grid.Column="2"
+                           Text="Spotify"
+                           VerticalOptions="Center"
+                           TextColor="{DynamicResource TextSecondary}">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Source={x:Reference ThemeSwitch}, Path=IsToggled}"
+                                         Value="True">
+                                <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                                <Setter Property="FontAttributes" Value="Bold" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                </Grid>
             </Grid>
         </Grid>
     </views:BasePage.Content>

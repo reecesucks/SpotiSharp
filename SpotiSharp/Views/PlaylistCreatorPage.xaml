@@ -6,7 +6,8 @@
                 xmlns:inputs="clr-namespace:Syncfusion.Maui.Inputs;assembly=Syncfusion.Maui.Inputs"
                 xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
                 xmlns:converters="clr-namespace:SpotiSharp.Converters"
-                x:Class="SpotiSharp.Views.PlaylistCreatorPage">
+                x:Class="SpotiSharp.Views.PlaylistCreatorPage"
+                Title="Create Playlists">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -9,7 +9,8 @@
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
-             x:Class="SpotiSharp.Views.RadioPage">
+             x:Class="SpotiSharp.Views.RadioPage"
+                Title="Radio">
     <views:BasePage.ToolbarItems>
         <ToolbarItem Text="Generate" Order="Primary" Priority="0" Command="{Binding GenerateRadio}" />
         <ToolbarItem Text="Settings" Order="Primary" Priority="1" Command="{Binding OpenSettings}" />

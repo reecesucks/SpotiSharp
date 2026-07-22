@@ -3,7 +3,8 @@
 <views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:views="clr-namespace:SpotiSharp.Views"
-             x:Class="SpotiSharp.Views.ArtistsPage">
+             x:Class="SpotiSharp.Views.ArtistsPage"
+                Title="Artists">
     <views:BasePage.Content>
         <views:ArtistListView />
     </views:BasePage.Content>
