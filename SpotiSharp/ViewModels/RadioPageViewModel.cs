@@ -239,17 +239,29 @@ public class RadioPageViewModel : BaseViewModel
         RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
     }
 
-    private static async Task<string> WaitForAvailableDeviceAsync()
+    private static async Task<string?> WaitForAvailableDeviceAsync()
     {
         var deadline = DateTime.UtcNow.AddSeconds(15);
+        var phoneGrace = DateTime.UtcNow.AddSeconds(6);
+        string? fallback = null;
+
         while (DateTime.UtcNow < deadline)
         {
-            var deviceId = await Task.Run(() => APICaller.Instance?.GetFirstAvailableDeviceId());
-            if (!string.IsNullOrEmpty(deviceId)) return deviceId;
+            var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
+            var phone = ids?.phone;
+            var any = ids?.any;
+
+            if (!string.IsNullOrEmpty(phone)) return phone;
+
+            if (!string.IsNullOrEmpty(any))
+            {
+                fallback = any;
+                if (DateTime.UtcNow > phoneGrace) return fallback;
+            }
 
             await Task.Delay(1000);
         }
-        return null;
+        return fallback;
     }
 
     private static async Task<bool> LaunchInSpotify(string uri)

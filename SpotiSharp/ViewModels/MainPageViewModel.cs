@@ -21,11 +21,8 @@ public class MainPageViewModel : BaseViewModel
         private set { SetProperty(ref _isChecking, value); }
     }
 
-    public Command OpenSettings { get; }
-
     public MainPageViewModel()
     {
-        OpenSettings = new Command(async () => await Shell.Current.GoToAsync("//SettingsPage"));
         Authentication.OnAuthenticate += OnAuthenticated;
     }
 

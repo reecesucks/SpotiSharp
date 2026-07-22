@@ -5,12 +5,6 @@
                 xmlns:views="using:SpotiSharp.Views"
                 x:Class="SpotiSharp.MainPage"
                 Title="Home">
-    <views:BasePage.ToolbarItems>
-        <ToolbarItem IconImageSource="settingsicon.png"
-                     Order="Primary"
-                     Priority="0"
-                     Command="{Binding OpenSettings}" />
-    </views:BasePage.ToolbarItems>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />

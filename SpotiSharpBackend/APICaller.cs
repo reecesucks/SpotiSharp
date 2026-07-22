@@ -111,7 +111,25 @@ public class APICaller
     {
         var response = HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Playlists.CurrentUsers().Result);
         return HandleExceptions(() => Authentication.SpotifyClient?.PaginateAll(response, new CustomPaginator()).Result);
-        
+
+    }
+
+    private string? _currentUserId;
+
+    public string? GetCurrentUserId()
+    {
+        if (!string.IsNullOrEmpty(_currentUserId)) return _currentUserId;
+        _currentUserId = HandleExceptions(() => Authentication.SpotifyClient?.UserProfile.Current().Result.Id);
+        return _currentUserId;
+    }
+
+    public bool IsPlaylistOwnedByCurrentUser(string playlistId)
+    {
+        var userId = GetCurrentUserId();
+        if (string.IsNullOrEmpty(userId)) return false;
+
+        var ownerId = GetPlaylistById(playlistId).Owner?.Id;
+        return !string.IsNullOrEmpty(ownerId) && ownerId == userId;
     }
 
     public IList<PlaylistTrack<IPlayableItem>> GetTracksByPlaylistId(string playlistId)
@@ -316,10 +334,19 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result);
     }
 
-    public string? GetFirstAvailableDeviceId()
+    public (string? phone, string? any) GetDeviceIds()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
-        return response?.Devices?.FirstOrDefault()?.Id;
+        var devices = response?.Devices;
+        if (devices == null || devices.Count == 0) return (null, null);
+
+        var phone = devices.FirstOrDefault(d => d.Type == "Smartphone")?.Id;
+
+        var any = (devices.FirstOrDefault(d => d.IsActive)
+                   ?? devices.FirstOrDefault(d => !d.IsRestricted)
+                   ?? devices.FirstOrDefault())?.Id;
+
+        return (phone, any);
     }
 
     public bool PlayUrisOnDevice(List<string> uris, string deviceId, int positionMs = 0)

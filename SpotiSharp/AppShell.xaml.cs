@@ -24,7 +24,7 @@ public partial class AppShell : Shell
 		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
 		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
 
-		SettingsContent.FlyoutItemIsVisible = true;
+		SettingsContent.FlyoutItemIsVisible = false;
 
 		UpdateAuthenticationVisibility();
 		Authentication.OnAuthenticate += () => MainThread.BeginInvokeOnMainThread(UpdateAuthenticationVisibility);
@@ -93,5 +93,11 @@ public partial class AppShell : Shell
 		}
 
 		UpdateAuthenticationVisibility();
+	}
+
+	private async void OnSettingsGearTapped(object sender, TappedEventArgs e)
+	{
+		FlyoutIsPresented = false;
+		await GoToAsync("//SettingsPage");
 	}
 }
