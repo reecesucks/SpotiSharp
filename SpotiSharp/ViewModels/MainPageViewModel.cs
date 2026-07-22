@@ -49,9 +49,5 @@ public class MainPageViewModel : BaseViewModel
 
         IsUserIsNotAuthenticated = Authentication.SpotifyClient == null;
 
-        if (!IsUserIsNotAuthenticated && AppState.Instance.IsMobile)
-        {
-            await Shell.Current.GoToAsync("//RadioPage");
-        }
     }
 }

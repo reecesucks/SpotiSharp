@@ -36,28 +36,13 @@ public partial class AppShell : Shell
 		_ = BackendConnector.Instance;
 	}
 
-	private readonly List<string> _rootHistory = new();
-
-	protected override void OnNavigated(ShellNavigatedEventArgs args)
-	{
-		base.OnNavigated(args);
-
-		var route = args.Current?.Location?.OriginalString;
-		if (string.IsNullOrEmpty(route)) return;
-
-		if (route.Trim('/').Split('/').Length != 1) return;
-
-		if (_rootHistory.Count == 0 || _rootHistory[^1] != route) _rootHistory.Add(route);
-	}
-
 	protected override bool OnBackButtonPressed()
 	{
 		if (Navigation?.NavigationStack?.Count > 1) return base.OnBackButtonPressed();
 
-		if (_rootHistory.Count > 1)
+		if (!FlyoutIsPresented)
 		{
-			_rootHistory.RemoveAt(_rootHistory.Count - 1);
-			_ = GoToAsync(_rootHistory[^1]);
+			FlyoutIsPresented = true;
 			return true;
 		}
 
@@ -81,15 +66,14 @@ public partial class AppShell : Shell
 	{
 		base.OnAppearing();
 
+		FlyoutIsPresented = true;
+
 		await BackendConnector.Instance.StorageLoadTask;
 
 		if (!await Authentication.RestoreSessionAsync())
 		{
+			FlyoutIsPresented = false;
 			await Shell.Current.GoToAsync("//AuthenticationPage");
-		}
-		else
-		{
-			FlyoutIsPresented = true;
 		}
 
 		UpdateAuthenticationVisibility();
