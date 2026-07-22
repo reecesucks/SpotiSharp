@@ -31,7 +31,7 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.jpg"/>
+		<MauiIcon Include="Resources\AppIcon\appicon.jpg" />
 
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#D6D9C8" BaseSize="1024,1024" />
@@ -55,6 +55,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\SpotiSharpBackend\SpotiSharpBackend.csproj" />
+	  <ProjectReference Include="..\QinF25.Input\QinF25.Input.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

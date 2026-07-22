@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.31611.283
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpotiSharp", "SpotiSharp\SpotiSharp.csproj", "{ED32313B-C86F-48D7-A2D6-3444817E2FC6}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotiSharpBackend", "SpotiSharpBackend\SpotiSharpBackend.csproj", "{831B743D-80B8-B7D0-D7E4-6B4BC873D6BA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotiSharpBackend.Tests", "SpotiSharpBackend.Tests\SpotiSharpBackend.Tests.csproj", "{E94507B2-E97A-42D7-AB3C-6081C3593543}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QinF25.Input", "QinF25.Input\QinF25.Input.csproj", "{3E631018-8D13-4D16-9FB2-FCB32BE3564F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +59,18 @@ Global
 		{E94507B2-E97A-42D7-AB3C-6081C3593543}.Release|x64.Build.0 = Release|Any CPU
 		{E94507B2-E97A-42D7-AB3C-6081C3593543}.Release|x86.ActiveCfg = Release|Any CPU
 		{E94507B2-E97A-42D7-AB3C-6081C3593543}.Release|x86.Build.0 = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|x64.Build.0 = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Debug|x86.Build.0 = Debug|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|x64.ActiveCfg = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|x64.Build.0 = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|x86.ActiveCfg = Release|Any CPU
+		{3E631018-8D13-4D16-9FB2-FCB32BE3564F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
