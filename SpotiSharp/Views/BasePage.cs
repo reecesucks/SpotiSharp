@@ -7,6 +7,20 @@ public class BasePage : ContentPage
     public BasePage()
     {
         ControlTemplate = new ControlTemplate(CreatePageTemplate);
+        Shell.SetTitleView(this, CreateTitleView());
+    }
+
+    private View CreateTitleView()
+    {
+        var title = new Label
+        {
+            FontSize = 20,
+            VerticalOptions = LayoutOptions.Center
+        };
+        title.SetBinding(Label.TextProperty, new Binding(nameof(Title), source: this));
+        title.SetDynamicResource(Label.FontFamilyProperty, "BodyFont");
+        title.SetDynamicResource(Label.TextColorProperty, "TextPrimary");
+        return title;
     }
 
     private static object CreatePageTemplate()

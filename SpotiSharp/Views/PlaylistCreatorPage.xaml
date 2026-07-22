@@ -6,7 +6,8 @@
                 xmlns:inputs="clr-namespace:Syncfusion.Maui.Inputs;assembly=Syncfusion.Maui.Inputs"
                 xmlns:core="clr-namespace:Syncfusion.Maui.Core;assembly=Syncfusion.Maui.Core"
                 xmlns:converters="clr-namespace:SpotiSharp.Converters"
-                x:Class="SpotiSharp.Views.PlaylistCreatorPage">
+                x:Class="SpotiSharp.Views.PlaylistCreatorPage"
+                Title="Create Playlists">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -17,7 +18,7 @@
         <Label Grid.Row="0" Text="You need to Authenticated to create playlists" FontSize="30" Margin="10"
                IsVisible="{Binding IsAuthenticated, Converter={converters:BooleanConverter}}" />
         <Border Grid.Row="1" IsVisible="{Binding IsAuthenticated}">
-            <Grid BackgroundColor="AliceBlue" >
+            <Grid BackgroundColor="{DynamicResource SurfaceBackground}" >
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto" />
@@ -29,9 +30,9 @@
                 <Grid Grid.Row="0">
                     <Entry Grid.Row="0" HorizontalOptions="Start" Margin="0" FontSize="15" Placeholder="Playlist Name" Text="{Binding PlaylistName}" />
                     <Grid HorizontalOptions="End" ColumnDefinitions="*,*,*">
-                        <Button Grid.Column="0" Text="Open Template" BackgroundColor="LightCyan" Command="{Binding OpenTemplate}"></Button>
-                        <Button Grid.Column="1" Text="Save Template" BackgroundColor="LightCyan" Command="{Binding SaveTemplate}"></Button>
-                        <Button Grid.Column="2" Text="Clear Template" BackgroundColor="LightCyan" Command="{Binding ClearTemplate}"></Button>
+                        <Button Grid.Column="0" Text="Open Template" BackgroundColor="{DynamicResource SurfaceAlt}" Command="{Binding OpenTemplate}"></Button>
+                        <Button Grid.Column="1" Text="Save Template" BackgroundColor="{DynamicResource SurfaceAlt}" Command="{Binding SaveTemplate}"></Button>
+                        <Button Grid.Column="2" Text="Clear Template" BackgroundColor="{DynamicResource SurfaceAlt}" Command="{Binding ClearTemplate}"></Button>
                     </Grid>
                 </Grid>
                 <ScrollView Grid.Row="1">
@@ -46,7 +47,7 @@
 
                 <Grid Grid.Row="3" ColumnDefinitions="*,*">
                     <Button Grid.Column="0" Text="+ music" Command="{Binding AddPlayListSection}" ></Button>
-                    <Button BackgroundColor="#FFA500" Grid.Column="1" Text="+ podcast" Command="{Binding AddPodcastSection}" ></Button>
+                    <Button BackgroundColor="{DynamicResource Accent}" TextColor="{DynamicResource OnAccent}" Grid.Column="1" Text="+ podcast" Command="{Binding AddPodcastSection}" ></Button>
                 </Grid>
                 <!--<Grid Grid.Row="2" VerticalOptions="Fill" IsVisible="False">
                     <Grid.ColumnDefinitions>
@@ -67,10 +68,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <inputs:SfComboBox Grid.Row="0" Grid.Column="0" BackgroundColor="{StaticResource Gray900}" TextColor="{StaticResource Primary}" Margin="5" IsEditable="False"
+                            <inputs:SfComboBox Grid.Row="0" Grid.Column="0" BackgroundColor="{DynamicResource Gray900}" TextColor="{DynamicResource Primary}" Margin="5" IsEditable="False"
                                                ItemsSource="{Binding PlaylistNamesIds}"
                                                SelectedItem="{Binding SelectedPlaylistNameId}" />
-                            <Button BackgroundColor="{StaticResource Gray900}" Grid.Row="0" Grid.Column="1" Margin="5" Text="+"
+                            <Button BackgroundColor="{DynamicResource Gray900}" Grid.Row="0" Grid.Column="1" Margin="5" Text="+"
                                     Command="{Binding AddSongsFromPlaylist}" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
                         </Grid>
                     </Border>
@@ -85,7 +86,7 @@
                                 <core:SfBusyIndicator Grid.Row="0" HeightRequest="10" HorizontalOptions="Fill"
                                                       AnimationType="LinearMaterial"
                                                       IsRunning="{Binding IsFilteringPlaylist}" 
-                                                      IndicatorColor="{StaticResource Primary}"/>
+                                                      IndicatorColor="{DynamicResource Primary}"/>
                                 <views:PlaylistCreationSonglistView Grid.Row="1" Grid.RowSpan="2" />
                             </Grid>
                         </ScrollView>
@@ -102,14 +103,14 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <inputs:SfComboBox Grid.Column="0" BackgroundColor="{StaticResource Gray900}" TextColor="{StaticResource Primary}" Margin="5" HorizontalOptions="Fill"
+                                <inputs:SfComboBox Grid.Column="0" BackgroundColor="{DynamicResource Gray900}" TextColor="{DynamicResource Primary}" Margin="5" HorizontalOptions="Fill"
                                                    IsEditable="False"
                                                    ItemsSource="{Binding Filters}"
                                                    SelectedItem="{Binding SelectedFilter}" />
-                                <Button Grid.Column="1" BackgroundColor="{StaticResource Gray900}" Margin="5" Text="+" Command="{Binding AddFilter}" />
+                                <Button Grid.Column="1" BackgroundColor="{DynamicResource Gray900}" Margin="5" Text="+" Command="{Binding AddFilter}" />
                             </Grid>
 
-                            <Button Grid.Row="1" BackgroundColor="{StaticResource Gray900}" Margin="5" Command="{Binding ApplyFilters}" Text="ApplyFilters" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
+                            <Button Grid.Row="1" BackgroundColor="{DynamicResource Gray900}" Margin="5" Command="{Binding ApplyFilters}" Text="ApplyFilters" IsEnabled="{Binding IsFilteringPlaylist, Converter={converters:BooleanConverter}}"/>
                             <ScrollView Grid.Row="2" Margin="5">
                                 <VerticalStackLayout x:Name="FilterLayout">
 
@@ -119,7 +120,7 @@
                     </Frame>
                 </Grid>-->
                 
-                <Button Grid.Row="5" BackgroundColor="{StaticResource Gray900}" 
+                <Button Grid.Row="5" BackgroundColor="{DynamicResource Gray900}" 
                         Text="Create Playlist" 
                         HeightRequest="65" 
                         FontSize="24" 

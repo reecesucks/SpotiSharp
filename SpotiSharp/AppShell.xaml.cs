@@ -24,15 +24,37 @@ public partial class AppShell : Shell
 		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
 		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
 
-		// settings only holds desktop/collaboration config, hide it and its toolbar gear on mobile
-		SettingsContent.FlyoutItemIsVisible = !isMobile;
-		if (isMobile) ToolbarItems.Remove(SettingsToolbarItem);
+		SettingsContent.FlyoutItemIsVisible = false;
 
-		// the authentication page is only needed while logged out
 		UpdateAuthenticationVisibility();
 		Authentication.OnAuthenticate += () => MainThread.BeginInvokeOnMainThread(UpdateAuthenticationVisibility);
 
+		UpdateFlyoutWidth();
+		DeviceDisplay.Current.MainDisplayInfoChanged += (_, _) =>
+			MainThread.BeginInvokeOnMainThread(UpdateFlyoutWidth);
+
 		_ = BackendConnector.Instance;
+	}
+
+	protected override bool OnBackButtonPressed()
+	{
+		if (Navigation?.NavigationStack?.Count > 1) return base.OnBackButtonPressed();
+
+		if (!FlyoutIsPresented)
+		{
+			FlyoutIsPresented = true;
+			return true;
+		}
+
+		return base.OnBackButtonPressed();
+	}
+
+	private void UpdateFlyoutWidth()
+	{
+		var display = DeviceDisplay.Current.MainDisplayInfo;
+		if (display.Width <= 0 || display.Density <= 0) return;
+
+		FlyoutWidth = display.Width / display.Density;
 	}
 
 	private void UpdateAuthenticationVisibility()
@@ -44,18 +66,22 @@ public partial class AppShell : Shell
 	{
 		base.OnAppearing();
 
+		FlyoutIsPresented = true;
+
 		await BackendConnector.Instance.StorageLoadTask;
 
 		if (!await Authentication.RestoreSessionAsync())
 		{
+			FlyoutIsPresented = false;
 			await Shell.Current.GoToAsync("//AuthenticationPage");
 		}
 
 		UpdateAuthenticationVisibility();
 	}
 
-    private async void OnSettingsClicked(object sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//SettingsPage");
-    }
+	private async void OnSettingsGearTapped(object sender, TappedEventArgs e)
+	{
+		FlyoutIsPresented = false;
+		await GoToAsync("//SettingsPage");
+	}
 }

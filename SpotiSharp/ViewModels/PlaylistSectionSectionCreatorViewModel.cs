@@ -33,8 +33,6 @@ namespace SpotiSharp.ViewModels
         public bool IsPodcast {  get { return _isPodcast; } }
         public bool IsMusic { get { return !_isPodcast; } }
 
-        public Brush Background => IsPodcast ? new SolidColorBrush(Color.FromHex("#FFA500"))  :  new SolidColorBrush(Color.FromHex("#1DB954"));
-
         public List<Playlist> Playlists
         {
             get { return _playlists; }
