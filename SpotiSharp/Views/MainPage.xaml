@@ -23,6 +23,21 @@
                            VerticalOptions="Center" />
         <VerticalStackLayout Grid.Row="0" Grid.Column="0" Margin="50,20,20,20">
             <Label FontSize="20" Margin="20,0,20,20" IsVisible="{Binding IsUserIsNotAuthenticated}" Text="You are not authenticated. To authenticate go to the ''Authentication'' page"/>
+
+            <!-- Keypad test harness: use the phone's Up/Down keys to move the highlight.
+                 Rows are built in code-behind (MainPage.xaml.cs). Remove once keypad input is proven. -->
+            <Label Text="Keypad test — press Up / Down"
+                   FontSize="16"
+                   Margin="20,20,20,8"
+                   TextColor="{DynamicResource TextSecondary}" />
+            <VerticalStackLayout x:Name="KeypadTestList"
+                                 Margin="20,0,20,0"
+                                 Spacing="2" />
+            <Label x:Name="KeypadStatusLabel"
+                   FontSize="14"
+                   Margin="20,12,20,0"
+                   TextColor="{DynamicResource TextSecondary}"
+                   Text="Last key: (none)" />
         </VerticalStackLayout>
     </Grid>
 </views:BasePage>
