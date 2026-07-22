@@ -15,8 +15,6 @@ public class MainPageViewModel : BaseViewModel
 
     private bool _isChecking;
 
-    // true while a stored session is being restored on startup, so nothing but a
-    // spinner shows until we know whether the user is logged in
     public bool IsChecking
     {
         get { return _isChecking; }
@@ -51,9 +49,5 @@ public class MainPageViewModel : BaseViewModel
 
         IsUserIsNotAuthenticated = Authentication.SpotifyClient == null;
 
-        if (!IsUserIsNotAuthenticated && AppState.Instance.IsMobile)
-        {
-            await Shell.Current.GoToAsync("//RadioPage");
-        }
     }
 }

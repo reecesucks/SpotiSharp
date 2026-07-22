@@ -73,9 +73,19 @@ public class SongRotationModel
             var tracks = RotationTracksModel.GetTracks(playlistId);
             if (tracks == null || tracks.All(track => track.SongUri != trackUri)) continue;
 
-            bool removed = playlistId == Constants.LIKED_PLALIST_ID
-                ? api.UnlikeTrack(TrackIdFromUri(trackUri))
-                : api.RemoveTrackFromPlaylist(playlistId, trackUri);
+            bool removed;
+            if (playlistId == Constants.LIKED_PLALIST_ID)
+            {
+                removed = api.UnlikeTrack(TrackIdFromUri(trackUri));
+            }
+            else if (api.IsPlaylistOwnedByCurrentUser(playlistId))
+            {
+                removed = api.RemoveTrackFromPlaylist(playlistId, trackUri);
+            }
+            else
+            {
+                continue;
+            }
 
             if (!removed) continue;
 
@@ -97,11 +107,16 @@ public class SongRotationModel
         var userPlaylists = api.GetAllUserPlaylists();
         if (userPlaylists == null) return null;
 
+        var currentUserId = api.GetCurrentUserId();
+
         var result = new List<RotationPlaylist>();
         foreach (var playlist in userPlaylists)
         {
             var match = RotationTag.Match(playlist.Name ?? string.Empty);
             if (!match.Success) continue;
+
+            // GetAllUserPlaylists also returns followed playlists; only manage rotation lists we own
+            if (currentUserId != null && playlist.Owner?.Id != currentUserId) continue;
 
             var trackUris = api.GetTracksByPlaylistId(playlist.Id)
                 .Select(playlistTrack => playlistTrack.Track)

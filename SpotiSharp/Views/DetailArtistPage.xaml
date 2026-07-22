@@ -22,7 +22,7 @@
                                           VerticalOptions="Center"
                                           Margin="0,0,5,0"
                                           Command="{Binding GoBack}">
-                    <Path Fill="{StaticResource Gray300}"
+                    <Path Fill="{DynamicResource Gray300}"
                           Aspect="Uniform"
                           WidthRequest="20"
                           HeightRequest="20"
@@ -60,7 +60,7 @@
                                        LineBreakMode="TailTruncation"
                                        Text="{Binding AlbumName}" />
                                 <Label FontSize="14"
-                                       TextColor="Gray"
+                                       TextColor="{DynamicResource TextSecondary}"
                                        Text="{Binding ReleaseDate}" />
                             </VerticalStackLayout>
                         </Grid>

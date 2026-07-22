@@ -57,7 +57,7 @@
                                            LineBreakMode="TailTruncation" />
                                     <Label Text="{Binding ReleaseDate, StringFormat='{0:d}'}"
                                            FontSize="16"
-                                           TextColor="Gray" />
+                                           TextColor="{DynamicResource TextSecondary}" />
                                 </VerticalStackLayout>
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>

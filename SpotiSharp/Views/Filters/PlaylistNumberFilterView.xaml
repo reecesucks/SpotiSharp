@@ -17,12 +17,12 @@
         </Grid.ColumnDefinitions>
         <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding FilterName}" Margin="5" />
         <Entry Grid.Row="1" Grid.Column="0" Keyboard="Numeric" Text="{Binding EnteredNumber}" Margin="5" WidthRequest="200"/>
-        <inputs:SfComboBox Grid.Row="1" Grid.Column="1" BackgroundColor="{StaticResource Gray900}"
-                           TextColor="{StaticResource Primary}" WidthRequest="200" IsEditable="False"
+        <inputs:SfComboBox Grid.Row="1" Grid.Column="1" BackgroundColor="{DynamicResource Gray900}"
+                           TextColor="{DynamicResource Primary}" WidthRequest="200" IsEditable="False"
                            ItemsSource="{Binding FilterOptions}" SelectedItem="{Binding SelectedFilterOption}"
                            Margin="5" />
-        <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ValidationMessage}" TextColor="Red" Margin="5,0,0,0"/>
+        <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ValidationMessage}" TextColor="{DynamicResource Danger}" Margin="5,0,0,0"/>
         <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Text="Remove" Command="{Binding RemoveFilterCommand}"
-                BackgroundColor="Red" TextColor="Black" Margin="5" />
+                BackgroundColor="{DynamicResource Danger}" TextColor="{DynamicResource OnDanger}" Margin="5" />
     </Grid>
 </ContentView>

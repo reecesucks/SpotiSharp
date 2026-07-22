@@ -7,6 +7,6 @@
         <Label Text="{Binding FilterName}"/>
         <Entry Text="{Binding GenreName}" HorizontalOptions="Fill" Margin="5"/>
         <Button Text="Remove" Command="{Binding RemoveFilterCommand}"
-                BackgroundColor="Red" TextColor="Black" Margin="5"/>
+                BackgroundColor="{DynamicResource Danger}" TextColor="{DynamicResource OnDanger}" Margin="5"/>
     </VerticalStackLayout>
 </ContentView>
