@@ -58,11 +58,14 @@ public class AuthenticationPageViewModel : BaseViewModel
     {
         _ = RefreshProfileAsync();
 
-        // on mobile, drop the user onto the radio once they finish logging in
-        if (Authentication.SpotifyClient != null && AppState.Instance.IsMobile)
+        if (Authentication.SpotifyClient == null) return;
+
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
-            MainThread.BeginInvokeOnMainThread(async () => await Shell.Current.GoToAsync("//RadioPage"));
-        }
+            var landing = AppState.Instance.IsMobile ? "//RadioPage" : "//MainPage";
+            await Shell.Current.GoToAsync(landing);
+            Shell.Current.FlyoutIsPresented = true;
+        });
     }
 
     internal override void OnAppearing()
@@ -74,7 +77,6 @@ public class AuthenticationPageViewModel : BaseViewModel
     {
         await BackendConnector.Instance.StorageLoadTask;
 
-        // wait out an in-flight session restore before deciding what to show
         if (Authentication.SpotifyClient == null && Authentication.HasStoredSession)
         {
             IsChecking = true;
