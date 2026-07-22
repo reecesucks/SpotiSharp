@@ -74,6 +74,11 @@ public class APICaller
                     var retryAfter = tooManyRequests.RetryAfter > TimeSpan.Zero ? tooManyRequests.RetryAfter : TimeSpan.FromSeconds(1);
                     Thread.Sleep(retryAfter);
                 }
+                else
+                {
+                    var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
+                    if (status is 400 or 403 or 404) return default;
+                }
             }
             currentRetries++;
             Thread.Sleep(TIME_OUT_IN_MILLI);
@@ -380,21 +385,56 @@ public class APICaller
         }).Result);
     }
 
-    public bool PlayUris(List<string> uris)
+    public PlaybackAttempt PlayUris(List<string> uris)
     {
-        if (uris == null || uris.Count == 0) return false;
+        if (uris == null || uris.Count == 0) return PlaybackAttempt.Failed;
 
-        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+        return ExecutePlayback(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
             Uris = uris
         }).Result);
     }
 
-    public bool PlayUriAtPosition(string uri, int positionMs)
+    // Like HandleExceptions, but classifies the outcome so callers can tell a permanently
+    // unavailable item (skip it) apart from a transient failure (retry later). Rate limits are
+    // waited out; 400/404 mean the item is gone; anything else is treated as a plain failure.
+    private PlaybackAttempt ExecutePlayback(Func<bool> call)
     {
-        if (uri == null) return false;
+        int currentRetries = 0;
+        while (currentRetries < MAX_RETRIES)
+        {
+            try
+            {
+                if (Ratelimiter.RequestCall()) return call() ? PlaybackAttempt.Success : PlaybackAttempt.Failed;
+            }
+            catch (AggregateException ex)
+            {
+                Debug.WriteLine($"[APICaller] playback failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
 
-        return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
+                var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
+                if (tooManyRequests != null)
+                {
+                    var retryAfter = tooManyRequests.RetryAfter > TimeSpan.Zero ? tooManyRequests.RetryAfter : TimeSpan.FromSeconds(1);
+                    Thread.Sleep(retryAfter);
+                }
+                else
+                {
+                    var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
+                    if (status is 400 or 404) return PlaybackAttempt.Unavailable;
+                    if (status is >= 400 and < 500) return PlaybackAttempt.Failed;
+                }
+            }
+            currentRetries++;
+            Thread.Sleep(TIME_OUT_IN_MILLI);
+        }
+        return PlaybackAttempt.Failed;
+    }
+
+    public PlaybackAttempt PlayUriAtPosition(string uri, int positionMs)
+    {
+        if (uri == null) return PlaybackAttempt.Failed;
+
+        return ExecutePlayback(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
             Uris = new List<string> { uri },
             PositionMs = positionMs
