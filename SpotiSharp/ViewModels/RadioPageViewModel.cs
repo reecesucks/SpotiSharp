@@ -246,8 +246,16 @@ public class RadioPageViewModel : BaseViewModel
         var phoneGrace = DateTime.UtcNow.AddSeconds(6);
         string? fallback = null;
 
+        var pinnedId = StorageHandler.SelectedDeviceId;
+
         while (DateTime.UtcNow < deadline)
         {
+            if (!string.IsNullOrEmpty(pinnedId))
+            {
+                var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
+                if (devices != null && devices.Any(d => d.Id == pinnedId)) return pinnedId;
+            }
+
             var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
             var phone = ids?.phone;
             var any = ids?.any;
