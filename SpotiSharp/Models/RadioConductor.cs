@@ -7,6 +7,7 @@ public class RadioConductor
     private const int END_TOLERANCE_MS = 5000;
     private const int RESUME_REWIND_MS = 10000;
     private const int TRANSITION_GRACE_TICKS = 5;
+    private const int EMPTY_TICKS_TO_ADVANCE = 2;
 
     private static RadioConductor _instance;
     public static RadioConductor Instance => _instance ??= new RadioConductor();
@@ -16,6 +17,7 @@ public class RadioConductor
     private List<RadioItem> _radio;
     private int _activeIndex = -1;
     private int _graceRemaining;
+    private int _emptyTicks;
     private int _lastObservedProgressMs;
     private int _lastObservedDurationMs;
 
@@ -46,6 +48,7 @@ public class RadioConductor
             _radio = radio;
             _activeIndex = startIndex;
             _graceRemaining = TRANSITION_GRACE_TICKS;
+            _emptyTicks = 0;
             _lastObservedProgressMs = 0;
             _lastObservedDurationMs = 0;
         }
@@ -90,7 +93,22 @@ public class RadioConductor
 
             var state = PlaybackStateStore.Instance;
 
-            if (string.IsNullOrEmpty(state.CurrentItemUri)) return;
+            if (string.IsNullOrEmpty(state.CurrentItemUri))
+            {
+                if (_graceRemaining > 0)
+                {
+                    _graceRemaining--;
+                    return;
+                }
+                if (++_emptyTicks >= EMPTY_TICKS_TO_ADVANCE && ActiveItemNearEnd())
+                {
+                    _emptyTicks = 0;
+                    AdvanceLocked();
+                }
+                return;
+            }
+
+            _emptyTicks = 0;
 
             if (state.CurrentItemUri == _radio[_activeIndex].PlayUri)
             {
@@ -154,6 +172,12 @@ public class RadioConductor
         return _lastObservedDurationMs;
     }
 
+    private bool ActiveItemNearEnd()
+    {
+        int endMs = ActiveEndMs(_radio[_activeIndex]);
+        return endMs > 0 && _lastObservedProgressMs >= endMs - END_TOLERANCE_MS;
+    }
+
     private int IndexInActiveSongRun(string uri)
     {
         if (_radio[_activeIndex].IsPodcastSegment) return -1;
@@ -179,6 +203,7 @@ public class RadioConductor
 
         _activeIndex = nextIndex;
         _graceRemaining = TRANSITION_GRACE_TICKS;
+        _emptyTicks = 0;
         _lastObservedProgressMs = 0;
         _lastObservedDurationMs = 0;
 
