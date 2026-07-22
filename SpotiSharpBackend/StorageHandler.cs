@@ -44,7 +44,9 @@ public static class StorageHandler
 
     public static bool IsUsingCollaborationHost
     {
-        get { return _isUsingCollaborationHost; }
+        // Collaboration host is disabled for now: hard-off so no session API calls are ever made,
+        // regardless of any previously stored value. Restore `_isUsingCollaborationHost` to re-enable.
+        get { return false; }
         set
         {
             _isUsingCollaborationHost = value;

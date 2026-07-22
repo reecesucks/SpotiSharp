@@ -11,34 +11,23 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Grid Grid.Row="1" Margin="10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Label Grid.Row="0" Grid.Column="0" Text="Settings" FontSize="35"/>
-                <Label Grid.Row="1" Grid.Column="0" Text="Use CollaborationHost" />
-                <Switch Grid.Row="2" Grid.Column="0" IsToggled="{Binding IsUsingCollaborationHost}"/>
-                <Label Grid.Row="3" Grid.Column="0" Text="CollaborationHost Address" />
-                <Entry Grid.Row="4" Grid.Column="0" Text="{Binding CollaborationHostAddress}" Placeholder="[IP/Domain]:[Port] example: http://127.0.0.1:5000" />
-                <Label Grid.Row="5" Grid.Column="0" Text="CollaborationSession" />
-                <Entry Grid.Row="6" Grid.Column="0" Text="{Binding CollaborationSession}" />
-                <Button Grid.Row="7" Grid.Column="0" Text="Apply Settings" Command="{Binding ApplySettings}"/>
+            <Grid Grid.Row="1" Margin="10" RowDefinitions="Auto,Auto" RowSpacing="0">
+                <!-- Collaboration host controls, hidden while the feature is disabled.
+                     Flip IsVisible to True (and re-enable StorageHandler.IsUsingCollaborationHost) to restore. -->
+                <VerticalStackLayout Grid.Row="0" IsVisible="False" Spacing="4">
+                    <Label Text="Settings" FontSize="35"/>
+                    <Label Text="Use CollaborationHost" />
+                    <Switch IsToggled="{Binding IsUsingCollaborationHost}"/>
+                    <Label Text="CollaborationHost Address" />
+                    <Entry Text="{Binding CollaborationHostAddress}" Placeholder="[IP/Domain]:[Port] example: http://127.0.0.1:5000" />
+                    <Label Text="CollaborationSession" />
+                    <Entry Text="{Binding CollaborationSession}" />
+                    <Button Text="Apply Settings" Command="{Binding ApplySettings}"/>
+                </VerticalStackLayout>
 
-                <Label Grid.Row="8" Grid.Column="0" Text="Theme" Margin="0,24,0,4" />
-                <Grid Grid.Row="9" Grid.Column="0"
-                      ColumnDefinitions="Auto,Auto,Auto"
+                <VerticalStackLayout Grid.Row="1" Spacing="4">
+                <Label Text="Theme" />
+                <Grid ColumnDefinitions="Auto,Auto,Auto"
                       ColumnSpacing="8"
                       HorizontalOptions="Start">
                     <Label Grid.Column="0"
@@ -72,6 +61,7 @@
                         </Label.Triggers>
                     </Label>
                 </Grid>
+                </VerticalStackLayout>
             </Grid>
         </Grid>
     </views:BasePage.Content>
