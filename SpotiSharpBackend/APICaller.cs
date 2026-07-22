@@ -339,6 +339,12 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result);
     }
 
+    public List<Device> GetDevices()
+    {
+        var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
+        return response?.Devices ?? new List<Device>();
+    }
+
     public (string? phone, string? any) GetDeviceIds()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);

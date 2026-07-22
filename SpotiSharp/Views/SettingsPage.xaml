@@ -61,6 +61,13 @@
                         </Label.Triggers>
                     </Label>
                 </Grid>
+
+                <Label Text="Playback device" Margin="0,12,0,0" />
+                <Picker ItemsSource="{Binding Devices}"
+                        SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                        ItemDisplayBinding="{Binding DisplayName}"
+                        HorizontalOptions="Start"
+                        MinimumWidthRequest="240" />
                 </VerticalStackLayout>
             </Grid>
         </Grid>
