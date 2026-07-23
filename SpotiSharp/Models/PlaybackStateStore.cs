@@ -1,3 +1,5 @@
+using SpotiSharpBackend.Radio;
+
 namespace SpotiSharp.Models;
 
 public class PlaybackStateStore
@@ -5,22 +7,22 @@ public class PlaybackStateStore
     private static PlaybackStateStore? _instance;
     public static PlaybackStateStore Instance => _instance ??= new PlaybackStateStore();
 
-    public bool IsPlaying { get; private set; }
-    public string? ActiveDeviceId { get; private set; }
-    public string? CurrentItemUri { get; private set; }
-    public int ProgressMs { get; private set; }
-    public int DurationMs { get; private set; }
+    private volatile PlaybackSnapshot _snapshot = PlaybackSnapshot.Empty;
 
-    public bool HasActiveDevice => !string.IsNullOrEmpty(ActiveDeviceId);
+    public PlaybackSnapshot Snapshot => _snapshot;
+
+    public bool IsPlaying => _snapshot.IsPlaying;
+    public string? ActiveDeviceId => _snapshot.ActiveDeviceId;
+    public string? CurrentItemUri => _snapshot.CurrentItemUri;
+    public int ProgressMs => _snapshot.ProgressMs;
+    public int DurationMs => _snapshot.DurationMs;
+
+    public bool HasActiveDevice => _snapshot.HasActiveDevice;
 
     private PlaybackStateStore() { }
 
     public void Update(bool isPlaying, string? activeDeviceId, string? currentItemUri, int progressMs, int durationMs)
     {
-        IsPlaying = isPlaying;
-        ActiveDeviceId = activeDeviceId;
-        CurrentItemUri = currentItemUri;
-        ProgressMs = progressMs;
-        DurationMs = durationMs;
+        _snapshot = new PlaybackSnapshot(isPlaying, activeDeviceId, currentItemUri, progressMs, durationMs);
     }
 }
