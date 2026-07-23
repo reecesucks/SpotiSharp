@@ -1,9 +1,10 @@
 using System.ComponentModel;
 using System.Text.Json.Serialization;
+using SpotiSharpBackend.Radio;
 
 namespace SpotiSharp.Models;
 
-public class RadioItem : INotifyPropertyChanged
+public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 {
     public bool IsPodcastSegment { get; }
     public string Title { get; }

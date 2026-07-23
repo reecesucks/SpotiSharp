@@ -19,11 +19,38 @@ public class RadioPageViewModel : BaseViewModel
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
-        RadioConductor.Instance.ActiveItemChanged += SetCurrentItem;
         _ = LoadCachedRadioAsync();
     }
 
     private RadioItem _currentItem;
+
+    internal override void OnAppearing()
+    {
+        base.OnAppearing();
+        RadioConductor.Instance.ActiveItemChanged += SetCurrentItem;
+        SyncWithConductor();
+    }
+
+    internal override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        RadioConductor.Instance.ActiveItemChanged -= SetCurrentItem;
+    }
+
+    private void SyncWithConductor()
+    {
+        var remaining = RadioConductor.Instance.RemainingItems;
+        if (remaining == null || remaining.Count == 0) return;
+
+        Items = new ObservableCollection<RadioItem>(remaining);
+
+        if (_currentItem != null && !ReferenceEquals(_currentItem, remaining[0])) _currentItem.IsCurrent = false;
+        _currentItem = remaining[0];
+        _currentItem.IsCurrent = true;
+
+        var snapshot = Items.ToList();
+        Task.Run(() => RadioModel.SaveRadio(snapshot));
+    }
 
     private void SetCurrentItem(RadioItem item)
     {
@@ -72,7 +99,7 @@ public class RadioPageViewModel : BaseViewModel
         if (_currentItem == null || !RadioConductor.Instance.IsActive) return;
 
         int index = Items.IndexOf(_currentItem);
-        if (index >= 0) RadioConductor.Instance.Start(Items.ToList(), index);
+        if (index >= 0) RadioConductor.Instance.Resync(Items.ToList(), index);
     }
 
     private void TrimPlayed(RadioItem current)

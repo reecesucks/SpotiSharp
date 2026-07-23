@@ -6,7 +6,7 @@ namespace SpotiSharp.Models;
 
 public class RadioModel
 {
-    internal const int SEGMENT_LENGTH_MS = 15 * 60 * 1000;
+    internal const int SEGMENT_LENGTH_MS = SpotiSharpBackend.Radio.RadioTuning.SEGMENT_LENGTH_MS;
     internal const int SONGS_BETWEEN_SEGMENTS = 3;
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
