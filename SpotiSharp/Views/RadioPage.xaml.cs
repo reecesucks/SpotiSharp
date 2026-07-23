@@ -17,7 +17,15 @@ public partial class RadioPage : BasePage
     private void OnRowHandlerChanged(object sender, EventArgs e)
     {
         if (sender is not View element) return;
-        if (element.Handler?.PlatformView is not global::Android.Views.View platformView) return;
+
+        if (element.Handler?.PlatformView is not global::Android.Views.View platformView)
+        {
+            foreach (var stale in _rowElements.Where(entry => ReferenceEquals(entry.Value, element)).Select(entry => entry.Key).ToList())
+            {
+                _rowElements.Remove(stale);
+            }
+            return;
+        }
 
         _rowElements[platformView] = element;
 
