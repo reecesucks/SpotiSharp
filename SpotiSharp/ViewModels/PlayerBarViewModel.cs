@@ -139,7 +139,8 @@ public class PlayerBarViewModel : BaseViewModel
             currentlyPlayingContext?.Device?.Id,
             currentItemUri,
             currentlyPlayingContext?.ProgressMs ?? 0,
-            currentItemDurationMs);
+            currentItemDurationMs,
+            currentlyPlayingContext?.ShuffleState ?? false);
 
         ApplyIsPlaying(currentlyPlayingContext?.IsPlaying ?? false);
         HasCurrentSong = currentlyPlayingContext?.Item != null;

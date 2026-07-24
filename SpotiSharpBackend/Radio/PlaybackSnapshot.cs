@@ -5,7 +5,8 @@ public sealed record PlaybackSnapshot(
     string? ActiveDeviceId,
     string? CurrentItemUri,
     int ProgressMs,
-    int DurationMs)
+    int DurationMs,
+    bool ShuffleOn = false)
 {
     public static readonly PlaybackSnapshot Empty = new PlaybackSnapshot(false, null, null, 0, 0);
 

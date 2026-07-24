@@ -16,13 +16,14 @@ public class PlaybackStateStore
     public string? CurrentItemUri => _snapshot.CurrentItemUri;
     public int ProgressMs => _snapshot.ProgressMs;
     public int DurationMs => _snapshot.DurationMs;
+    public bool ShuffleOn => _snapshot.ShuffleOn;
 
     public bool HasActiveDevice => _snapshot.HasActiveDevice;
 
     private PlaybackStateStore() { }
 
-    public void Update(bool isPlaying, string? activeDeviceId, string? currentItemUri, int progressMs, int durationMs)
+    public void Update(bool isPlaying, string? activeDeviceId, string? currentItemUri, int progressMs, int durationMs, bool shuffleOn)
     {
-        _snapshot = new PlaybackSnapshot(isPlaying, activeDeviceId, currentItemUri, progressMs, durationMs);
+        _snapshot = new PlaybackSnapshot(isPlaying, activeDeviceId, currentItemUri, progressMs, durationMs, shuffleOn);
     }
 }
