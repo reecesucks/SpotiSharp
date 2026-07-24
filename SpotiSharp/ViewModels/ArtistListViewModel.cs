@@ -29,16 +29,18 @@ public class ArtistListViewModel : BaseViewModel
 
     public ArtistListViewModel()
     {
-        _ = LoadArtistsAsync();
+        IsLoading = true;
+        Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadArtistsAsync());
     }
 
     private async Task LoadArtistsAsync()
     {
         var cached = await Task.Run(() => ArtistListModel.CachedArtists);
         if (cached.Count > 0)
+        {
             Artists = cached;
-        else
-            IsLoading = true;
+            IsLoading = false;
+        }
 
         await RefreshDataAsync();
         IsLoading = false;

@@ -7,10 +7,6 @@
              x:DataType="viewmodels:RecentEpisodesListViewModel"
              x:Class="SpotiSharp.Views.RecentEpisodesListView">
     <Grid>
-    <ActivityIndicator IsRunning="{Binding IsLoading}"
-                        IsVisible="{Binding IsLoading}"
-                        HeightRequest="32"
-                        VerticalOptions="Start" />
     <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
     <CollectionView ItemsSource="{Binding ShowGroups}">
         <CollectionView.ItemTemplate>
@@ -67,5 +63,15 @@
         </CollectionView.ItemTemplate>
     </CollectionView>
     </RefreshView>
+
+    <!-- Opaque cover shown while the list first populates, so the rows inflate under it
+         instead of freezing the flyout as it slides closed. -->
+    <Grid IsVisible="{Binding IsLoading}" BackgroundColor="{DynamicResource PageBackground}">
+        <ActivityIndicator IsRunning="{Binding IsLoading}"
+                           HeightRequest="40"
+                           WidthRequest="40"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+    </Grid>
     </Grid>
 </ContentView>
