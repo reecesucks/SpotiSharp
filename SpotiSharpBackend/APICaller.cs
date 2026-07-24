@@ -339,6 +339,14 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result);
     }
 
+    public bool TryGetCurrentPlaybackContext(out CurrentlyPlayingContext? context)
+    {
+        var result = HandleExceptions(() =>
+            Tuple.Create(Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result));
+        context = result?.Item1;
+        return result != null;
+    }
+
     public List<Device> GetDevices()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
