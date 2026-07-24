@@ -4,7 +4,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:spotiSharp="clr-namespace:SpotiSharp"
              xmlns:views="clr-namespace:SpotiSharp.Views"
-             x:Class="SpotiSharp.DetailPlaylistPage">
+             x:Class="SpotiSharp.DetailPlaylistPage"
+             Title="{Binding PlaylistName}">
         <FlexLayout>
             <Grid>
                 <Grid.RowDefinitions>
@@ -16,8 +17,6 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Label Grid.Row="1" Grid.Column="0"
-                       Text="{Binding PlaylistName}" FontSize="28" Margin="10"/>
                 <spotiSharp:SongsListView Grid.Row="2" Grid.Column="0"
                                           x:Name="SongsListView"
                                           PlayListId="{Binding PlaylistId}" />
