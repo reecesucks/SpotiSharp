@@ -29,16 +29,18 @@ public class PlaylistListViewModel : BaseViewModel
 
     public PlaylistListViewModel()
     {
-        _ = LoadPlayListsAsync();
+        IsLoading = true;
+        Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadPlayListsAsync());
     }
 
     private async Task LoadPlayListsAsync()
     {
         var cached = await Task.Run(() => PlaylistListModel.CachedPlayLists);
         if (cached.Count > 0)
+        {
             PlayLists = cached;
-        else
-            IsLoading = true;
+            IsLoading = false;
+        }
 
         await RefreshDataAsync();
         IsLoading = false;
