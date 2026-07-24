@@ -2,7 +2,6 @@
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
-using Device = SpotifyAPI.Web.Device;
 
 namespace SpotiSharp.ViewModels;
 
@@ -61,41 +60,40 @@ public class SettingsPageViewModel : BaseViewModel
             });
 
         UseCurrentDevice = new Command(PinCurrentDevice);
+        RefreshDevices = new Command(async () => await RefreshDevicesAsync());
 
-        _ = LoadDevicesAsync();
+        ShowDevices();
+        _ = RefreshDevicesAsync();
     }
-
-    private async Task LoadDevicesAsync()
+    private void ShowDevices()
     {
         var pinnedId = StorageHandler.SelectedDeviceId;
+        var activeId = PlaybackStateStore.Instance.ActiveDeviceId;
 
-        PopulateDevices(
-            DeviceStore.Instance.Devices.Select(device => new DeviceOption { Id = device.Id, DisplayName = FormatCached(device) }),
-            pinnedId);
-
-        var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
-        if (devices == null) return;
-
-        DeviceStore.Instance.Update(devices);
-        PopulateDevices(
-            devices.Select(device => new DeviceOption { Id = device.Id, DisplayName = FormatDevice(device) }),
-            pinnedId);
-    }
-
-    private void PopulateDevices(IEnumerable<DeviceOption> options, string pinnedId)
-    {
         _isLoadingDevices = true;
 
         Devices.Clear();
         Devices.Add(new DeviceOption { Id = string.Empty, DisplayName = "Automatic (active device)" });
-        foreach (var option in options) Devices.Add(option);
+        foreach (var device in DeviceStore.Instance.Devices)
+            Devices.Add(new DeviceOption { Id = device.Id, DisplayName = FormatCached(device, activeId) });
 
         if (!string.IsNullOrEmpty(pinnedId) && Devices.All(option => option.Id != pinnedId))
-            Devices.Add(new DeviceOption { Id = pinnedId, DisplayName = "Selected device (offline)" });
+            Devices.Add(new DeviceOption { Id = pinnedId, DisplayName = "Selected device" });
 
         SelectedDevice = Devices.FirstOrDefault(option => option.Id == pinnedId) ?? Devices[0];
 
         _isLoadingDevices = false;
+    }
+
+    // Pulls the live device list and merges it into the cache (adds new, keeps existing), then
+    // refreshes the picker. This is what the "Refresh devices" button runs.
+    private async Task RefreshDevicesAsync()
+    {
+        var live = await Task.Run(() => APICaller.Instance?.GetDevices());
+        if (live == null) return;
+
+        DeviceStore.Instance.Merge(live);
+        ShowDevices();
     }
 
     private async void PinCurrentDevice()
@@ -117,7 +115,7 @@ public class SettingsPageViewModel : BaseViewModel
             option = new DeviceOption
             {
                 Id = activeId,
-                DisplayName = cached != null ? FormatCached(cached) : "Current device"
+                DisplayName = cached != null ? FormatCached(cached, activeId) : "Current device"
             };
             Devices.Add(option);
         }
@@ -126,15 +124,15 @@ public class SettingsPageViewModel : BaseViewModel
         SelectedDevice = option;
     }
 
-    private static string FormatDevice(Device device)
+    private static string FormatCached(CachedDevice device, string activeId)
     {
-        var active = device.IsActive ? " • active" : string.Empty;
+        var active = device.Id == activeId ? " • active" : string.Empty;
         return $"{device.Name} ({device.Type}){active}";
     }
-
-    private static string FormatCached(CachedDevice device) => $"{device.Name} ({device.Type})";
 
     public ICommand ApplySettings { private set; get; }
 
     public ICommand UseCurrentDevice { private set; get; }
+
+    public ICommand RefreshDevices { private set; get; }
 }

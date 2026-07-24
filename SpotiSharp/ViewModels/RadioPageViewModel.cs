@@ -213,15 +213,7 @@ public class RadioPageViewModel : BaseViewModel
 
     private static async Task<bool> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
     {
-
-        var deviceId = PlaybackStateStore.Instance.ActiveDeviceId;
-
-        if (string.IsNullOrEmpty(deviceId))
-        {
-            var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
-            deviceId = ids?.phone ?? ids?.any;
-        }
-
+        var deviceId = await ResolvePlayableDeviceAsync();
         if (string.IsNullOrEmpty(deviceId)) return false;
 
         return await Task.Run(() =>
@@ -235,6 +227,25 @@ public class RadioPageViewModel : BaseViewModel
                 ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
                 : api.PlayUrisOnDevice(songRun, deviceId);
         });
+    }
+
+    private static async Task<string?> ResolvePlayableDeviceAsync()
+    {
+        var selectedId = StorageHandler.SelectedDeviceId;
+
+        if (!string.IsNullOrEmpty(selectedId))
+        {
+            if (selectedId == PlaybackStateStore.Instance.ActiveDeviceId) return selectedId;
+
+            var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
+            return devices != null && devices.Any(device => device.Id == selectedId) ? selectedId : null;
+        }
+
+        var activeId = PlaybackStateStore.Instance.ActiveDeviceId;
+        if (!string.IsNullOrEmpty(activeId)) return activeId;
+
+        var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
+        return ids?.phone ?? ids?.any;
     }
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)

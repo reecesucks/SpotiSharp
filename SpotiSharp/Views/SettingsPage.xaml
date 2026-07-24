@@ -68,6 +68,10 @@
                         ItemDisplayBinding="{Binding DisplayName}"
                         HorizontalOptions="Start"
                         MinimumWidthRequest="240" />
+                <Button Text="Refresh devices"
+                        Command="{Binding RefreshDevices}"
+                        HorizontalOptions="Start"
+                        Margin="0,8,0,0" />
                 <Button Text="Use current device"
                         Command="{Binding UseCurrentDevice}"
                         HorizontalOptions="Start"
