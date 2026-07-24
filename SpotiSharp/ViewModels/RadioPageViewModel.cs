@@ -201,28 +201,40 @@ public class RadioPageViewModel : BaseViewModel
                 .Select(item => item.PlayUri)
                 .ToList();
 
-        if (PlaybackStateStore.Instance.HasActiveDevice)
+
+        if (await TryPlayOnActiveDeviceAsync(radioItem, songRun))
         {
-            bool started = await Task.Run(() =>
-            {
-                var api = APICaller.Instance;
-                if (api == null) return false;
-
-                api.SetPlaybackShuffle(false);
-
-                var outcome = radioItem.IsPodcastSegment
-                    ? api.PlayUriAtPosition(radioItem.PlayUri, radioItem.PositionMs)
-                    : api.PlayUris(songRun);
-                return outcome == PlaybackAttempt.Success;
-            });
-            if (started)
-            {
-                RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
-                return;
-            }
+            RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+            return;
         }
 
         await LaunchAndRestoreContextAsync(radioItem, songRun);
+    }
+
+    private static async Task<bool> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
+    {
+
+        var deviceId = PlaybackStateStore.Instance.ActiveDeviceId;
+
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
+            deviceId = ids?.phone ?? ids?.any;
+        }
+
+        if (string.IsNullOrEmpty(deviceId)) return false;
+
+        return await Task.Run(() =>
+        {
+            var api = APICaller.Instance;
+            if (api == null) return false;
+
+            if (PlaybackStateStore.Instance.ShuffleOn) api.SetPlaybackShuffle(false);
+
+            return radioItem.IsPodcastSegment
+                ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
+                : api.PlayUrisOnDevice(songRun, deviceId);
+        });
     }
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
