@@ -391,19 +391,17 @@ public class APICaller
         }).Result);
     }
 
-    public PlaybackAttempt PlayUris(List<string> uris)
+    public PlaybackAttempt PlayUris(List<string> uris, string deviceId = null)
     {
         if (uris == null || uris.Count == 0) return PlaybackAttempt.Failed;
 
         return ExecutePlayback(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
+            DeviceId = string.IsNullOrEmpty(deviceId) ? null : deviceId,
             Uris = uris
         }).Result);
     }
 
-    // Like HandleExceptions, but classifies the outcome so callers can tell a permanently
-    // unavailable item (skip it) apart from a transient failure (retry later). Rate limits are
-    // waited out; 400/404 mean the item is gone; anything else is treated as a plain failure.
     private PlaybackAttempt ExecutePlayback(Func<bool> call)
     {
         int currentRetries = 0;
@@ -436,12 +434,13 @@ public class APICaller
         return PlaybackAttempt.Failed;
     }
 
-    public PlaybackAttempt PlayUriAtPosition(string uri, int positionMs)
+    public PlaybackAttempt PlayUriAtPosition(string uri, int positionMs, string deviceId = null)
     {
         if (uri == null) return PlaybackAttempt.Failed;
 
         return ExecutePlayback(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
+            DeviceId = string.IsNullOrEmpty(deviceId) ? null : deviceId,
             Uris = new List<string> { uri },
             PositionMs = positionMs
         }).Result);

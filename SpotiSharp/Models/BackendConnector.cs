@@ -36,5 +36,6 @@ public class BackendConnector
         if (string.IsNullOrEmpty(StorageHandler.ClientId)) StorageHandler.ClientId = "1"; // paste key here for simplified debugging
         StorageHandler.RefreshToken = await SecureStorage.Default.GetAsync("refreshToken") ?? string.Empty;
         StorageHandler.SelectedDeviceId = await SecureStorage.Default.GetAsync("selectedDeviceId") ?? string.Empty;
+        StorageHandler.CachedDevices = await SecureStorage.Default.GetAsync("cachedDevices") ?? string.Empty;
     }
 }

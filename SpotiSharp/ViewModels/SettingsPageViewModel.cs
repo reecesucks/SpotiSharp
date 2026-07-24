@@ -60,20 +60,35 @@ public class SettingsPageViewModel : BaseViewModel
             // TODO: else clear current state of playlist creation.
             });
 
+        UseCurrentDevice = new Command(PinCurrentDevice);
+
         _ = LoadDevicesAsync();
     }
 
     private async Task LoadDevicesAsync()
     {
-        var devices = await Task.Run(() => APICaller.Instance?.GetDevices()) ?? new List<Device>();
         var pinnedId = StorageHandler.SelectedDeviceId;
 
+        PopulateDevices(
+            DeviceStore.Instance.Devices.Select(device => new DeviceOption { Id = device.Id, DisplayName = FormatCached(device) }),
+            pinnedId);
+
+        var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
+        if (devices == null) return;
+
+        DeviceStore.Instance.Update(devices);
+        PopulateDevices(
+            devices.Select(device => new DeviceOption { Id = device.Id, DisplayName = FormatDevice(device) }),
+            pinnedId);
+    }
+
+    private void PopulateDevices(IEnumerable<DeviceOption> options, string pinnedId)
+    {
         _isLoadingDevices = true;
 
         Devices.Clear();
         Devices.Add(new DeviceOption { Id = string.Empty, DisplayName = "Automatic (active device)" });
-        foreach (var device in devices)
-            Devices.Add(new DeviceOption { Id = device.Id, DisplayName = FormatDevice(device) });
+        foreach (var option in options) Devices.Add(option);
 
         if (!string.IsNullOrEmpty(pinnedId) && Devices.All(option => option.Id != pinnedId))
             Devices.Add(new DeviceOption { Id = pinnedId, DisplayName = "Selected device (offline)" });
@@ -83,11 +98,43 @@ public class SettingsPageViewModel : BaseViewModel
         _isLoadingDevices = false;
     }
 
+    private async void PinCurrentDevice()
+    {
+        var activeId = PlaybackStateStore.Instance.ActiveDeviceId;
+        if (string.IsNullOrEmpty(activeId))
+        {
+            await Shell.Current.DisplayAlert(
+                "No active device",
+                "Start playing something on the device you want to use, then try again.",
+                "OK");
+            return;
+        }
+
+        var option = Devices.FirstOrDefault(existing => existing.Id == activeId);
+        if (option == null)
+        {
+            var cached = DeviceStore.Instance.Devices.FirstOrDefault(device => device.Id == activeId);
+            option = new DeviceOption
+            {
+                Id = activeId,
+                DisplayName = cached != null ? FormatCached(cached) : "Current device"
+            };
+            Devices.Add(option);
+        }
+
+        // The setter persists it to StorageHandler.SelectedDeviceId.
+        SelectedDevice = option;
+    }
+
     private static string FormatDevice(Device device)
     {
         var active = device.IsActive ? " • active" : string.Empty;
         return $"{device.Name} ({device.Type}){active}";
     }
 
+    private static string FormatCached(CachedDevice device) => $"{device.Name} ({device.Type})";
+
     public ICommand ApplySettings { private set; get; }
+
+    public ICommand UseCurrentDevice { private set; get; }
 }
