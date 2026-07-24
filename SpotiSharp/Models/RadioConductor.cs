@@ -12,28 +12,28 @@ public class RadioConductor
 
     private RadioTickState _state;
 
+    // Lock-free views for the UI thread, refreshed under _lock on every state change. Reading
+    // these never waits on _lock — which Tick holds across the blocking playback network call —
+    // so opening the radio page never stalls behind an in-flight track transition.
+    private volatile bool _activeSnapshot;
+    private volatile RadioItem _currentItemSnapshot;
+    private volatile List<RadioItem> _remainingSnapshot;
+
     internal event Action<RadioItem> ActiveItemChanged;
 
-    internal bool IsActive
-    {
-        get { lock (_lock) { return _state != null && _state.IsActive; } }
-    }
+    internal bool IsActive => _activeSnapshot;
 
-    internal RadioItem CurrentItem
-    {
-        get { lock (_lock) { return _state?.ActiveItem as RadioItem; } }
-    }
+    internal RadioItem CurrentItem => _currentItemSnapshot;
 
-    internal List<RadioItem> RemainingItems
+    internal List<RadioItem> RemainingItems => _remainingSnapshot;
+
+    // Must be called while holding _lock.
+    private void CaptureState()
     {
-        get
-        {
-            lock (_lock)
-            {
-                if (_state == null || !_state.IsActive) return null;
-                return _state.RemainingItems.Cast<RadioItem>().ToList();
-            }
-        }
+        bool active = _state != null && _state.IsActive;
+        _activeSnapshot = active;
+        _currentItemSnapshot = active ? _state.ActiveItem as RadioItem : null;
+        _remainingSnapshot = active ? _state.RemainingItems.Cast<RadioItem>().ToList() : null;
     }
 
     private RadioConductor()
@@ -55,6 +55,7 @@ public class RadioConductor
         lock (_lock)
         {
             _state = new RadioTickState(radio, startIndex, DateTime.UtcNow, alreadyIssued: true);
+            CaptureState();
         }
 
         RadioBackgroundService.Start();
@@ -66,6 +67,7 @@ public class RadioConductor
         lock (_lock)
         {
             _state?.Resync(radio, activeIndex);
+            CaptureState();
         }
     }
 
@@ -75,6 +77,7 @@ public class RadioConductor
         {
             if (_state == null || !_state.IsActive) return;
             _state.Stop();
+            CaptureState();
         }
 
         RadioBackgroundService.Stop();
@@ -88,6 +91,7 @@ public class RadioConductor
             if (_state == null || !_state.IsActive) return false;
 
             Apply(_state.AdvanceManually(DateTime.UtcNow));
+            CaptureState();
             return true;
         }
     }
@@ -99,6 +103,7 @@ public class RadioConductor
             if (_state == null || !_state.IsActive) return;
 
             Apply(_state.Tick(PlaybackStateStore.Instance.Snapshot, DateTime.UtcNow));
+            CaptureState();
         }
     }
 
