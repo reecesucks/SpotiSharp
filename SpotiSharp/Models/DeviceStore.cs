@@ -34,14 +34,19 @@ public class DeviceStore
         }
     }
 
-    public void Update(IEnumerable<Device> devices)
+    public void Merge(IEnumerable<Device> devices)
     {
-        var mapped = devices
-            .Where(device => !string.IsNullOrEmpty(device.Id))
-            .Select(device => new CachedDevice(device.Id, device.Name, device.Type))
-            .ToList();
+        var byId = new Dictionary<string, CachedDevice>();
+        foreach (var device in _devices) byId[device.Id] = device;
 
-        _devices = mapped;
-        StorageHandler.CachedDevices = JsonSerializer.Serialize(mapped);
+        foreach (var device in devices)
+        {
+            if (string.IsNullOrEmpty(device.Id)) continue;
+            byId[device.Id] = new CachedDevice(device.Id, device.Name, device.Type);
+        }
+
+        var merged = byId.Values.ToList();
+        _devices = merged;
+        StorageHandler.CachedDevices = JsonSerializer.Serialize(merged);
     }
 }
