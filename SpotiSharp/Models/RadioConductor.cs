@@ -132,14 +132,25 @@ public class RadioConductor
         var api = APICaller.Instance;
         if (item == null || api == null) return PlaybackAttempt.Failed;
 
-        api.SetPlaybackShuffle(false);
+        var deviceId = ResolveDeviceId(api);
+
+        if (PlaybackStateStore.Instance.ShuffleOn) api.SetPlaybackShuffle(false);
 
         if (item.IsPodcastSegment)
         {
-            return api.PlayUriAtPosition(item.PlayUri, Math.Max(0, item.PositionMs - RadioTuning.RESUME_REWIND_MS));
+            return api.PlayUriAtPosition(item.PlayUri, Math.Max(0, item.PositionMs - RadioTuning.RESUME_REWIND_MS), deviceId);
         }
 
-        return api.PlayUris(SongRunFrom(item));
+        return api.PlayUris(SongRunFrom(item), deviceId);
+    }
+
+    private static string ResolveDeviceId(APICaller api)
+    {
+        var deviceId = PlaybackStateStore.Instance.ActiveDeviceId;
+        if (!string.IsNullOrEmpty(deviceId)) return deviceId;
+
+        var ids = api.GetDeviceIds();
+        return ids.phone ?? ids.any;
     }
 
     private List<string> SongRunFrom(RadioItem item)
