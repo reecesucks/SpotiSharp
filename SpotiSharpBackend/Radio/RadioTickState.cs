@@ -130,6 +130,7 @@ public sealed class RadioTickState
 
         if (state.DurationMs > 0) _lastObservedDurationMs = state.DurationMs;
 
+        bool wasPlaying = _lastObservedWasPlaying;
         _lastObservedWasPlaying = state.IsPlaying;
         if (state.IsPlaying)
         {
@@ -142,9 +143,14 @@ public sealed class RadioTickState
 
         if (state.IsPlaying && active.IsPodcastSegment && state.ProgressMs >= endMs) return Advance(nowUtc);
 
-        if (!state.IsPlaying && Math.Max(state.ProgressMs, _lastObservedProgressMs) >= endMs - RadioTuning.END_TOLERANCE_MS)
+        if (!state.IsPlaying)
         {
-            return Advance(nowUtc);
+            if (Math.Max(state.ProgressMs, _lastObservedProgressMs) >= endMs - RadioTuning.END_TOLERANCE_MS)
+            {
+                return Advance(nowUtc);
+            }
+
+            if (wasPlaying && state.ProgressMs == 0 && _lastObservedProgressMs > 0) return Advance(nowUtc);
         }
 
         return RadioTickResult.Nothing;

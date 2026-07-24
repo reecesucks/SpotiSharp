@@ -119,7 +119,20 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void RefreshPlayerValues()
     {
-        var currentlyPlayingContext = APICaller.Instance?.GetCurrentPlaybackContext();
+        CurrentlyPlayingContext currentlyPlayingContext = null;
+        var api = APICaller.Instance;
+        if (api == null || !api.TryGetCurrentPlaybackContext(out currentlyPlayingContext))
+        {
+            // A failed poll says nothing about playback. Keep the last snapshot and UI as they
+            // are — writing an empty snapshot here reads as 30s of dead air to the radio, which
+            // then shuts itself off in the middle of a network blip.
+            if (Authentication.SpotifyClient == null)
+            {
+                HasCurrentSong = false;
+                SongName = "Unauthorized";
+            }
+            return;
+        }
 
         string currentItemUri = null;
         int currentItemDurationMs = 0;
@@ -156,14 +169,22 @@ public class PlayerBarViewModel : BaseViewModel
             case FullTrack fullTrack:
             {
                 SongName = fullTrack.Name;
-                SongImageURL = fullTrack.Album.Images.ElementAtOrDefault(0)?.Url ?? string.Empty;
+                // local files come through as FullTrack with no album and no id
+                SongImageURL = fullTrack.Album?.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = fullTrack.Uri;
                 if (_currentTrackId != fullTrack.Id)
                 {
                     _currentTrackId = fullTrack.Id;
                     IsTrackPlaying = true;
-                    var liked = APICaller.Instance?.IsTrackLiked(fullTrack.Id);
-                    if (liked.HasValue && _currentTrackId == fullTrack.Id) IsSongLiked = liked.Value;
+                    if (string.IsNullOrEmpty(fullTrack.Id))
+                    {
+                        IsSongLiked = false;
+                    }
+                    else
+                    {
+                        var liked = APICaller.Instance?.IsTrackLiked(fullTrack.Id);
+                        if (liked.HasValue && _currentTrackId == fullTrack.Id) IsSongLiked = liked.Value;
+                    }
                 }
                 break;
             }

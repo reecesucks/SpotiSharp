@@ -96,8 +96,12 @@ public class RadioConductor
         }
     }
 
+    private static readonly TimeSpan SnapshotMaxAge = TimeSpan.FromMilliseconds(RadioTuning.SNAPSHOT_STALE_MS);
+
     private void Tick()
     {
+        if (!PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge)) return;
+
         lock (_lock)
         {
             if (_state == null || !_state.IsActive) return;

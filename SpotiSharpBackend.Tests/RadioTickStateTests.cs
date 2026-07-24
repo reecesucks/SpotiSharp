@@ -90,6 +90,53 @@ public class RadioTickStateTests
     }
 
     [Fact]
+    public void Plays_the_songs_when_a_finished_podcast_parks_rewound_to_the_start()
+    {
+        var segment = Segment("ep1", positionMs: 50 * 60 * 1000);
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 50 * 60 * 1000, EpisodeMs));
+        harness.Wait(TimeSpan.FromMinutes(9)).Tick(Playing(segment, EpisodeMs - 8000, EpisodeMs));
+
+        harness.Wait(9).Tick(Paused(segment, 0, EpisodeMs));
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { song.PlayUri }, harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Plays_the_podcast_when_the_finished_song_parks_rewound_to_the_start()
+    {
+        var song = Song("a");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { song, podcast });
+
+        PlayThrough(harness, song, SongMs, stopShortMs: 8000);
+        harness.Wait(9).Tick(Paused(song, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+    }
+
+    [Fact]
+    public void Does_not_mistake_a_pause_dragged_back_to_the_start_for_a_finish()
+    {
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { song, Segment("ep1") });
+
+        harness.Tick(Playing(song, 20000, SongMs));
+        harness.Wait(3).Tick(Paused(song, 20000, SongMs));
+
+        harness.Wait(3).Tick(Paused(song, 0, SongMs));
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
     public void Advances_at_the_end_of_a_podcast_segment_not_the_end_of_the_episode()
     {
         var segment = Segment("ep1");
