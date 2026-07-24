@@ -4,6 +4,8 @@ namespace SpotiSharp.Views;
 
 public class BasePage : ContentPage
 {
+    protected virtual double TitleTranslationX => -35;
+
     public BasePage()
     {
         ControlTemplate = new ControlTemplate(CreatePageTemplate);
@@ -15,12 +17,23 @@ public class BasePage : ContentPage
         var title = new Label
         {
             FontSize = 20,
-            VerticalOptions = LayoutOptions.Center
+            VerticalOptions = LayoutOptions.Center,
+            HorizontalOptions = LayoutOptions.Center,
+            HorizontalTextAlignment = TextAlignment.Center
         };
         title.SetBinding(Label.TextProperty, new Binding(nameof(Title), source: this));
         title.SetDynamicResource(Label.FontFamilyProperty, "BodyFont");
         title.SetDynamicResource(Label.TextColorProperty, "TextPrimary");
-        return title;
+
+#if ANDROID
+        title.TranslationX = TitleTranslationX;
+#endif
+
+        return new Grid
+        {
+            HorizontalOptions = LayoutOptions.Fill,
+            Children = { title }
+        };
     }
 
     private static object CreatePageTemplate()

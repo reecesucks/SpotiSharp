@@ -5,6 +5,8 @@ namespace SpotiSharp.Views;
 
 public partial class RadioPage : BasePage
 {
+    protected override double TitleTranslationX => 35;
+
     public RadioPage()
     {
         InitializeComponent();

@@ -42,7 +42,7 @@ public class RadioPageViewModel : BaseViewModel
         var remaining = RadioConductor.Instance.RemainingItems;
         if (remaining == null || remaining.Count == 0) return;
 
-        Items = new ObservableCollection<RadioItem>(remaining);
+        if (!Items.SequenceEqual(remaining)) Items = new ObservableCollection<RadioItem>(remaining);
 
         if (_currentItem != null && !ReferenceEquals(_currentItem, remaining[0])) _currentItem.IsCurrent = false;
         _currentItem = remaining[0];

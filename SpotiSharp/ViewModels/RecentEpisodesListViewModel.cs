@@ -22,16 +22,18 @@ public class RecentEpisodesListViewModel : BaseViewModel
 
     public RecentEpisodesListViewModel()
     {
-        _ = LoadShowGroupsAsync();
+        IsLoading = true;
+        Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadShowGroupsAsync());
     }
 
     private async Task LoadShowGroupsAsync()
     {
         var cached = await Task.Run(() => PlaylistListModel.CachedSavedShows);
         if (cached.Count > 0)
+        {
             ShowGroups = ToShowGroups(cached);
-        else
-            IsLoading = true;
+            IsLoading = false;
+        }
 
         await RefreshDataAsync();
         IsLoading = false;
