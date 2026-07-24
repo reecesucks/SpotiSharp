@@ -90,5 +90,17 @@ public static class StorageHandler
         }
     }
 
+    private static string _cachedDevices = string.Empty;
+
+    public static string CachedDevices
+    {
+        get { return _cachedDevices; }
+        set
+        {
+            _cachedDevices = value;
+            OnDataChange?.Invoke("cachedDevices", value);
+        }
+    }
+
     public static event DataChange OnDataChange;
 }
