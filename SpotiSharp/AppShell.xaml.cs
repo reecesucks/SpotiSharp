@@ -75,6 +75,11 @@ public partial class AppShell : Shell
 			FlyoutIsPresented = false;
 			await Shell.Current.GoToAsync("//AuthenticationPage");
 		}
+		else if (AppState.Instance.IsMobile)
+		{
+			await Shell.Current.GoToAsync("//RadioPage", animate: false);
+			FlyoutIsPresented = true;
+		}
 
 		UpdateAuthenticationVisibility();
 	}

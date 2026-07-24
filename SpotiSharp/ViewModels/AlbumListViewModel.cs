@@ -29,16 +29,18 @@ public class AlbumListViewModel : BaseViewModel
 
     public AlbumListViewModel()
     {
-        _ = LoadAlbumsAsync();
+        IsLoading = true;
+        Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadAlbumsAsync());
     }
 
     private async Task LoadAlbumsAsync()
     {
         var cached = await Task.Run(() => SavedAlbumsModel.CachedAlbums);
         if (cached.Count > 0)
+        {
             Albums = cached;
-        else
-            IsLoading = true;
+            IsLoading = false;
+        }
 
         await RefreshDataAsync();
         IsLoading = false;
