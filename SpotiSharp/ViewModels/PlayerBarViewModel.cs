@@ -117,12 +117,20 @@ public class PlayerBarViewModel : BaseViewModel
         UiLoop.Instance.OnRefreshUi += RefreshPlayerValues;
     }
 
+    private bool _pollsWereFailing;
+
     private void RefreshPlayerValues()
     {
         CurrentlyPlayingContext currentlyPlayingContext = null;
         var api = APICaller.Instance;
         if (api == null || !api.TryGetCurrentPlaybackContext(out currentlyPlayingContext))
         {
+            if (!_pollsWereFailing)
+            {
+                _pollsWereFailing = true;
+                DiagnosticLog.Write($"[Poll] playback poll failing (client={(Authentication.SpotifyClient != null ? "up" : "null")}, cooldown={Ratelimiter.InCooldown})");
+            }
+
             // A failed poll says nothing about playback. Keep the last snapshot and UI as they
             // are — writing an empty snapshot here reads as 30s of dead air to the radio, which
             // then shuts itself off in the middle of a network blip.
@@ -132,6 +140,12 @@ public class PlayerBarViewModel : BaseViewModel
                 SongName = "Unauthorized";
             }
             return;
+        }
+
+        if (_pollsWereFailing)
+        {
+            _pollsWereFailing = false;
+            DiagnosticLog.Write("[Poll] playback poll recovered");
         }
 
         string currentItemUri = null;
