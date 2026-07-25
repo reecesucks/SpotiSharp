@@ -181,6 +181,25 @@ public class RadioTickStateTests
     }
 
     [Fact]
+    public void Does_not_mistake_a_pause_right_after_a_normal_advance_for_a_finished_run()
+    {
+        // the reported bug: song a auto-advances to song b (normal, mid-run), the user pauses
+        // almost immediately, and the poll catches it paused at 0. That is not the run wrapping
+        // back to its start -- it must not skip straight to the podcast.
+        var a = Song("a");
+        var b = Song("b");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Paused(b, 0, SongMs));
+
+        Assert.Equal(b.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
     public void Advances_at_the_end_of_a_podcast_segment_not_the_end_of_the_episode()
     {
         var segment = Segment("ep1");

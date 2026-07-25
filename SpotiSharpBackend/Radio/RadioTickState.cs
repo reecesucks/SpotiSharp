@@ -63,7 +63,8 @@ public sealed class RadioTickState
         if (runIndex >= 0)
         {
 
-            if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying) return AdvancePastRun(nowUtc);
+            if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying && runIndex <= _activeIndex)
+                return AdvancePastRun(nowUtc);
 
             return MoveWithinRun(runIndex, state, nowUtc);
         }
