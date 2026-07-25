@@ -113,6 +113,12 @@
                         </Grid>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
+                <CollectionView.Footer>
+                    <Button Text="Add More"
+                            Margin="8,12"
+                            Command="{Binding GenerateMoreRadio}"
+                            IsEnabled="{Binding IsGenerating, Converter={converters:BooleanConverter}}" />
+                </CollectionView.Footer>
             </CollectionView>
         </Grid>
     </views:BasePage.Content>

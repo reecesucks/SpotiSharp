@@ -9,6 +9,7 @@ namespace SpotiSharp.ViewModels;
 public class RadioPageViewModel : BaseViewModel
 {
     public ICommand GenerateRadio { get; }
+    public ICommand GenerateMoreRadio { get; }
     public ICommand OpenSettings { get; }
 
     public ICommand RemoveSingle { get; }
@@ -17,6 +18,7 @@ public class RadioPageViewModel : BaseViewModel
     public RadioPageViewModel()
     {
         GenerateRadio = new Command(async () => await GenerateAsync());
+        GenerateMoreRadio = new Command(async () => await GenerateMoreAsync());
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
@@ -182,6 +184,25 @@ public class RadioPageViewModel : BaseViewModel
 
         var items = await Task.Run(RadioModel.Generate);
         if (items != null) Items = new ObservableCollection<RadioItem>(items);
+
+        IsGenerating = false;
+    }
+
+    private async Task GenerateMoreAsync()
+    {
+        if (IsGenerating) return;
+        IsGenerating = true;
+
+        var items = await Task.Run(RadioModel.Generate);
+        if (items != null)
+        {
+            foreach (var item in items) Items.Add(item);
+
+            ResyncConductor();
+
+            var snapshot = Items.ToList();
+            Task.Run(() => RadioModel.SaveRadio(snapshot));
+        }
 
         IsGenerating = false;
     }
