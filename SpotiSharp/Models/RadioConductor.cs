@@ -52,6 +52,8 @@ public class RadioConductor
     {
         if (radio == null || startIndex < 0 || startIndex >= radio.Count) return;
 
+        DiagnosticLog.Write($"[Radio] conducting {radio.Count} items from index {startIndex} ({radio[startIndex].PlayUri})");
+
         lock (_lock)
         {
             _state = new RadioTickState(radio, startIndex, DateTime.UtcNow, alreadyIssued: true);
@@ -98,9 +100,25 @@ public class RadioConductor
 
     private static readonly TimeSpan SnapshotMaxAge = TimeSpan.FromMilliseconds(RadioTuning.SNAPSHOT_STALE_MS);
 
+    private bool _holdingForStaleSnapshot;
+
     private void Tick()
     {
-        if (!PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge)) return;
+        if (!PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge))
+        {
+            if (!_holdingForStaleSnapshot && IsActive)
+            {
+                _holdingForStaleSnapshot = true;
+                DiagnosticLog.Write("[Radio] snapshot stale, radio holding");
+            }
+            return;
+        }
+
+        if (_holdingForStaleSnapshot)
+        {
+            _holdingForStaleSnapshot = false;
+            if (IsActive) DiagnosticLog.Write("[Radio] snapshot fresh again, radio resuming");
+        }
 
         lock (_lock)
         {
@@ -118,7 +136,7 @@ public class RadioConductor
         {
             if (result.ActiveItemChanged)
             {
-                System.Diagnostics.Debug.WriteLine($"[Radio] advancing to {_state.ActiveItem?.PlayUri}");
+                DiagnosticLog.Write($"[Radio] advancing to {_state.ActiveItem?.PlayUri}");
                 RaiseActiveItem(_state.ActiveItem as RadioItem);
             }
 
@@ -126,12 +144,12 @@ public class RadioConductor
             {
                 case RadioTickAction.StartActive:
                     var outcome = IssuePlayback(_state.ActiveItem as RadioItem);
-                    System.Diagnostics.Debug.WriteLine($"[Radio] issued {_state.ActiveItem?.PlayUri}: {outcome}");
+                    DiagnosticLog.Write($"[Radio] issued {_state.ActiveItem?.PlayUri}: {outcome}");
                     result = _state.ReportStartOutcome(outcome, DateTime.UtcNow);
                     continue;
 
                 case RadioTickAction.Stop:
-                    System.Diagnostics.Debug.WriteLine("[Radio] stopping");
+                    DiagnosticLog.Write("[Radio] stopping");
                     RadioBackgroundService.Stop();
                     RaiseActiveItem(null);
                     return;

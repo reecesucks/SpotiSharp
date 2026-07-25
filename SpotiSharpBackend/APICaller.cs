@@ -71,7 +71,7 @@ public class APICaller
             }
             catch (AggregateException ex)
             {
-                Debug.WriteLine($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+                DiagnosticLog.Write($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
 
                 var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
                 if (tooManyRequests != null)
@@ -428,7 +428,7 @@ public class APICaller
             }
             catch (AggregateException ex)
             {
-                Debug.WriteLine($"[APICaller] playback failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+                DiagnosticLog.Write($"[APICaller] playback failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
 
                 var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
                 if (tooManyRequests != null)

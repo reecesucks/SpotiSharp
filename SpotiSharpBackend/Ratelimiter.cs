@@ -9,7 +9,7 @@ public static class Ratelimiter
 
     static Ratelimiter()
     {
-        var thread = new Thread(ResetLimit);
+        var thread = new Thread(ResetLimit) { IsBackground = true };
         thread.Start();
     }
 
@@ -25,7 +25,7 @@ public static class Ratelimiter
     public static void NotifyRetryAfter(TimeSpan retryAfter)
     {
         if (retryAfter <= TimeSpan.Zero) retryAfter = TimeSpan.FromSeconds(1);
-        System.Diagnostics.Debug.WriteLine($"[Ratelimiter] 429 from Spotify, cooling down for {retryAfter.TotalSeconds:0.#}s");
+        DiagnosticLog.Write($"[Ratelimiter] 429 from Spotify, cooling down for {retryAfter.TotalSeconds:0.#}s");
         long until = DateTime.UtcNow.Add(retryAfter).Ticks;
 
         // several calls can hit 429 at once; keep whichever cooldown reaches furthest

@@ -203,12 +203,16 @@ public class RadioPageViewModel : BaseViewModel
                 .ToList();
 
 
+        DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
+
         if (await TryPlayOnActiveDeviceAsync(radioItem, songRun))
         {
+            DiagnosticLog.Write("[Radio] direct play on active device succeeded");
             RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
             return;
         }
 
+        DiagnosticLog.Write("[Radio] no active device took the command, launching Spotify");
         await LaunchAndRestoreContextAsync(radioItem, songRun);
     }
 
@@ -255,6 +259,7 @@ public class RadioPageViewModel : BaseViewModel
 
         if (!await LaunchInSpotify(radioItem.PlayUri))
         {
+            DiagnosticLog.Write("[Radio] deep link into Spotify failed, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
@@ -264,11 +269,13 @@ public class RadioPageViewModel : BaseViewModel
         var deviceId = await WaitForAvailableDeviceAsync();
         if (deviceId == null)
         {
+            DiagnosticLog.Write("[Radio] no device appeared after launch, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             return;
         }
 
+        DiagnosticLog.Write($"[Radio] device {deviceId} appeared, handing over the run");
         await Task.Run(() => APICaller.Instance?.SetPlaybackShuffle(false));
 
         // The deep link already has Spotify playing the tapped item, so a failed handover must
@@ -276,7 +283,9 @@ public class RadioPageViewModel : BaseViewModel
         // the conductor re-issues it at the item boundary through its usual start watchdog. The
         // handover only buys a gapless transition into the rest of the run.
         bool handedOver = await StartRunOnDeviceAsync(radioItem, songRun, deviceId);
-        if (!handedOver) Debug.WriteLine("[Radio] launch handover failed; conductor will re-issue at the item boundary");
+        DiagnosticLog.Write(handedOver
+            ? "[Radio] handover succeeded"
+            : "[Radio] launch handover failed; conductor will re-issue at the item boundary");
 
         RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
     }
@@ -303,7 +312,7 @@ public class RadioPageViewModel : BaseViewModel
             });
 
             if (started) return true;
-            Debug.WriteLine($"[Radio] handover to {deviceId} refused, {(deadline - DateTime.UtcNow).TotalSeconds:0.#}s left in window");
+            DiagnosticLog.Write($"[Radio] handover to {deviceId} refused, {(deadline - DateTime.UtcNow).TotalSeconds:0.#}s left in window");
             if (DateTime.UtcNow >= deadline) return false;
 
             await Task.Delay(1000);

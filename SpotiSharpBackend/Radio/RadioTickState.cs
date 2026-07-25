@@ -60,8 +60,13 @@ public sealed class RadioTickState
         if (state.CurrentItemUri == _queue[_activeIndex].PlayUri) return HandleActiveItem(state, nowUtc);
 
         int runIndex = IndexInActiveSongRun(state.CurrentItemUri);
-        if (runIndex >= 0) return MoveWithinRun(runIndex, state, nowUtc);
+        if (runIndex >= 0)
+        {
 
+            if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying) return AdvancePastRun(nowUtc);
+
+            return MoveWithinRun(runIndex, state, nowUtc);
+        }
 
         if (!_startConfirmed)
         {
@@ -185,6 +190,18 @@ public sealed class RadioTickState
     {
         int nextIndex = _activeIndex + 1;
         if (nextIndex >= _queue!.Count) return StopResult();
+
+        SetActive(nextIndex, nowUtc);
+        return RadioTickResult.Start(activeItemChanged: true);
+    }
+
+    private RadioTickResult AdvancePastRun(DateTime nowUtc)
+    {
+        int runEnd = _activeIndex;
+        while (runEnd + 1 < _queue!.Count && !_queue[runEnd + 1].IsPodcastSegment) runEnd++;
+
+        int nextIndex = runEnd + 1;
+        if (nextIndex >= _queue.Count) return StopResult();
 
         SetActive(nextIndex, nowUtc);
         return RadioTickResult.Start(activeItemChanged: true);
