@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
@@ -202,12 +203,16 @@ public class RadioPageViewModel : BaseViewModel
                 .ToList();
 
 
+        DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
+
         if (await TryPlayOnActiveDeviceAsync(radioItem, songRun))
         {
+            DiagnosticLog.Write("[Radio] direct play on active device succeeded");
             RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
             return;
         }
 
+        DiagnosticLog.Write("[Radio] no active device took the command, launching Spotify");
         await LaunchAndRestoreContextAsync(radioItem, songRun);
     }
 
@@ -254,6 +259,7 @@ public class RadioPageViewModel : BaseViewModel
 
         if (!await LaunchInSpotify(radioItem.PlayUri))
         {
+            DiagnosticLog.Write("[Radio] deep link into Spotify failed, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
@@ -263,31 +269,54 @@ public class RadioPageViewModel : BaseViewModel
         var deviceId = await WaitForAvailableDeviceAsync();
         if (deviceId == null)
         {
+            DiagnosticLog.Write("[Radio] no device appeared after launch, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             return;
         }
 
-        bool started = await Task.Run(() =>
-        {
-            var api = APICaller.Instance;
-            if (api == null) return false;
+        DiagnosticLog.Write($"[Radio] device {deviceId} appeared, handing over the run");
+        await Task.Run(() => APICaller.Instance?.SetPlaybackShuffle(false));
 
-            api.SetPlaybackShuffle(false);
-
-            return radioItem.IsPodcastSegment
-                ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
-                : api.PlayUrisOnDevice(songRun, deviceId);
-        });
-
-        if (!started)
-        {
-            SetCurrentItem(null);
-            RadioBackgroundService.Stop();
-            return;
-        }
+        // The deep link already has Spotify playing the tapped item, so a failed handover must
+        // not kill the session. Start conducting either way: if the run never reached Spotify,
+        // the conductor re-issues it at the item boundary through its usual start watchdog. The
+        // handover only buys a gapless transition into the rest of the run.
+        bool handedOver = await StartRunOnDeviceAsync(radioItem, songRun, deviceId);
+        DiagnosticLog.Write(handedOver
+            ? "[Radio] handover succeeded"
+            : "[Radio] launch handover failed; conductor will re-issue at the item boundary");
 
         RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+    }
+
+    private static async Task<bool> StartRunOnDeviceAsync(RadioItem radioItem, List<string> songRun, string deviceId)
+    {
+        // A freshly woken device is listed a moment before it accepts commands, and the wake-up
+        // burst can trip a rate-limit cooldown: keep asking for a while instead of giving up on
+        // the first refusal — this handover is the whole point of the launch.
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+
+        while (true)
+        {
+            deadline += await Ratelimiter.WaitOutCooldownAsync(TimeSpan.FromSeconds(30));
+
+            bool started = await Task.Run(() =>
+            {
+                var api = APICaller.Instance;
+                if (api == null) return false;
+
+                return radioItem.IsPodcastSegment
+                    ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
+                    : api.PlayUrisOnDevice(songRun, deviceId);
+            });
+
+            if (started) return true;
+            DiagnosticLog.Write($"[Radio] handover to {deviceId} refused, {(deadline - DateTime.UtcNow).TotalSeconds:0.#}s left in window");
+            if (DateTime.UtcNow >= deadline) return false;
+
+            await Task.Delay(1000);
+        }
     }
 
     private static async Task<string?> WaitForAvailableDeviceAsync()
@@ -300,22 +329,28 @@ public class RadioPageViewModel : BaseViewModel
 
         while (DateTime.UtcNow < deadline)
         {
-            if (!string.IsNullOrEmpty(pinnedId))
+            // A rate-limit cooldown pauses the clock rather than counting against the deadline.
+            // Unlike the shared loop thread, this user-initiated task can afford to wait it out.
+            var waited = await Ratelimiter.WaitOutCooldownAsync(TimeSpan.FromSeconds(30));
+            deadline += waited;
+            phoneGrace += waited;
+
+            var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
+            if (devices != null && devices.Count > 0)
             {
-                var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
-                if (devices != null && devices.Any(d => d.Id == pinnedId)) return pinnedId;
-            }
+                if (!string.IsNullOrEmpty(pinnedId) && devices.Any(d => d.Id == pinnedId)) return pinnedId;
 
-            var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
-            var phone = ids?.phone;
-            var any = ids?.any;
+                var phone = devices.FirstOrDefault(d => d.Type == "Smartphone")?.Id;
+                if (!string.IsNullOrEmpty(phone)) return phone;
 
-            if (!string.IsNullOrEmpty(phone)) return phone;
-
-            if (!string.IsNullOrEmpty(any))
-            {
-                fallback = any;
-                if (DateTime.UtcNow > phoneGrace) return fallback;
+                var any = (devices.FirstOrDefault(d => d.IsActive)
+                           ?? devices.FirstOrDefault(d => !d.IsRestricted)
+                           ?? devices.FirstOrDefault())?.Id;
+                if (!string.IsNullOrEmpty(any))
+                {
+                    fallback = any;
+                    if (DateTime.UtcNow > phoneGrace) return fallback;
+                }
             }
 
             await Task.Delay(1000);

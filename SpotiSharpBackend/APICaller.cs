@@ -60,25 +60,28 @@ public class APICaller
         int currentRetries = 0;
         while (currentRetries < MAX_RETRIES)
         {
+            // Sleeping out a Retry-After here would stall the calling thread — for polls and
+            // radio ticks that is the shared loop thread. Fail fast instead; the cooldown makes
+            // every call report failure until the window has passed.
+            if (Ratelimiter.InCooldown) return default;
+
             try
             {
                 if (Ratelimiter.RequestCall()) return call();
             }
             catch (AggregateException ex)
             {
-                Debug.WriteLine($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+                DiagnosticLog.Write($"[APICaller] call failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
 
                 var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
                 if (tooManyRequests != null)
                 {
-                    var retryAfter = tooManyRequests.RetryAfter > TimeSpan.Zero ? tooManyRequests.RetryAfter : TimeSpan.FromSeconds(1);
-                    Thread.Sleep(retryAfter);
+                    Ratelimiter.NotifyRetryAfter(tooManyRequests.RetryAfter);
+                    return default;
                 }
-                else
-                {
-                    var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
-                    if (status is 400 or 403 or 404) return default;
-                }
+
+                var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
+                if (status is 400 or 403 or 404) return default;
             }
             currentRetries++;
             Thread.Sleep(TIME_OUT_IN_MILLI);
@@ -339,6 +342,14 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result);
     }
 
+    public bool TryGetCurrentPlaybackContext(out CurrentlyPlayingContext? context)
+    {
+        var result = HandleExceptions(() =>
+            Tuple.Create(Authentication.SpotifyClient.Player.GetCurrentPlayback(new PlayerCurrentPlaybackRequest()).Result));
+        context = result?.Item1;
+        return result != null;
+    }
+
     public List<Device> GetDevices()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
@@ -407,26 +418,28 @@ public class APICaller
         int currentRetries = 0;
         while (currentRetries < MAX_RETRIES)
         {
+            // Failed (not Unavailable): a rate limit says nothing about the item, so the radio
+            // must not skip it. Its start watchdog retries once polls flow again.
+            if (Ratelimiter.InCooldown) return PlaybackAttempt.Failed;
+
             try
             {
                 if (Ratelimiter.RequestCall()) return call() ? PlaybackAttempt.Success : PlaybackAttempt.Failed;
             }
             catch (AggregateException ex)
             {
-                Debug.WriteLine($"[APICaller] playback failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
+                DiagnosticLog.Write($"[APICaller] playback failed (retry {currentRetries}): {ex.InnerException?.Message ?? ex.Message}");
 
                 var tooManyRequests = ex.InnerExceptions.OfType<APITooManyRequestsException>().FirstOrDefault();
                 if (tooManyRequests != null)
                 {
-                    var retryAfter = tooManyRequests.RetryAfter > TimeSpan.Zero ? tooManyRequests.RetryAfter : TimeSpan.FromSeconds(1);
-                    Thread.Sleep(retryAfter);
+                    Ratelimiter.NotifyRetryAfter(tooManyRequests.RetryAfter);
+                    return PlaybackAttempt.Failed;
                 }
-                else
-                {
-                    var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
-                    if (status is 400 or 404) return PlaybackAttempt.Unavailable;
-                    if (status is >= 400 and < 500) return PlaybackAttempt.Failed;
-                }
+
+                var status = (int?)ex.InnerExceptions.OfType<APIException>().FirstOrDefault()?.Response?.StatusCode;
+                if (status is 400 or 404) return PlaybackAttempt.Unavailable;
+                if (status is >= 400 and < 500) return PlaybackAttempt.Failed;
             }
             currentRetries++;
             Thread.Sleep(TIME_OUT_IN_MILLI);

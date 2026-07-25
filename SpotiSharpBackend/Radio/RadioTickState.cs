@@ -60,8 +60,13 @@ public sealed class RadioTickState
         if (state.CurrentItemUri == _queue[_activeIndex].PlayUri) return HandleActiveItem(state, nowUtc);
 
         int runIndex = IndexInActiveSongRun(state.CurrentItemUri);
-        if (runIndex >= 0) return MoveWithinRun(runIndex, state, nowUtc);
+        if (runIndex >= 0)
+        {
 
+            if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying) return AdvancePastRun(nowUtc);
+
+            return MoveWithinRun(runIndex, state, nowUtc);
+        }
 
         if (!_startConfirmed)
         {
@@ -130,6 +135,7 @@ public sealed class RadioTickState
 
         if (state.DurationMs > 0) _lastObservedDurationMs = state.DurationMs;
 
+        bool wasPlaying = _lastObservedWasPlaying;
         _lastObservedWasPlaying = state.IsPlaying;
         if (state.IsPlaying)
         {
@@ -142,9 +148,14 @@ public sealed class RadioTickState
 
         if (state.IsPlaying && active.IsPodcastSegment && state.ProgressMs >= endMs) return Advance(nowUtc);
 
-        if (!state.IsPlaying && Math.Max(state.ProgressMs, _lastObservedProgressMs) >= endMs - RadioTuning.END_TOLERANCE_MS)
+        if (!state.IsPlaying)
         {
-            return Advance(nowUtc);
+            if (Math.Max(state.ProgressMs, _lastObservedProgressMs) >= endMs - RadioTuning.END_TOLERANCE_MS)
+            {
+                return Advance(nowUtc);
+            }
+
+            if (wasPlaying && state.ProgressMs == 0 && _lastObservedProgressMs > 0) return Advance(nowUtc);
         }
 
         return RadioTickResult.Nothing;
@@ -179,6 +190,18 @@ public sealed class RadioTickState
     {
         int nextIndex = _activeIndex + 1;
         if (nextIndex >= _queue!.Count) return StopResult();
+
+        SetActive(nextIndex, nowUtc);
+        return RadioTickResult.Start(activeItemChanged: true);
+    }
+
+    private RadioTickResult AdvancePastRun(DateTime nowUtc)
+    {
+        int runEnd = _activeIndex;
+        while (runEnd + 1 < _queue!.Count && !_queue[runEnd + 1].IsPodcastSegment) runEnd++;
+
+        int nextIndex = runEnd + 1;
+        if (nextIndex >= _queue.Count) return StopResult();
 
         SetActive(nextIndex, nowUtc);
         return RadioTickResult.Start(activeItemChanged: true);

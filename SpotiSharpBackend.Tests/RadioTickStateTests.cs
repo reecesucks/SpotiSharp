@@ -90,6 +90,97 @@ public class RadioTickStateTests
     }
 
     [Fact]
+    public void Plays_the_songs_when_a_finished_podcast_parks_rewound_to_the_start()
+    {
+        var segment = Segment("ep1", positionMs: 50 * 60 * 1000);
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 50 * 60 * 1000, EpisodeMs));
+        harness.Wait(TimeSpan.FromMinutes(9)).Tick(Playing(segment, EpisodeMs - 8000, EpisodeMs));
+
+        harness.Wait(9).Tick(Paused(segment, 0, EpisodeMs));
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { song.PlayUri }, harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Plays_the_podcast_when_the_finished_song_parks_rewound_to_the_start()
+    {
+        var song = Song("a");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { song, podcast });
+
+        PlayThrough(harness, song, SongMs, stopShortMs: 8000);
+        harness.Wait(9).Tick(Paused(song, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+    }
+
+    [Fact]
+    public void Starts_the_podcast_when_a_finished_run_parks_on_its_first_song()
+    {
+        // the failure captured on device 2026-07-25: the run plays through, then Spotify parks
+        // paused at the start of the FIRST track of the exhausted uri-list. That song is a run
+        // member, so run-following adopted it as active and wiped the played-through evidence,
+        // leaving the radio waiting forever on a parked song instead of starting the podcast.
+        var a = Song("a");
+        var b = Song("b");
+        var c = Song("c");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, c, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(c, 1000, SongMs));
+
+        harness.Wait(180).Tick(Paused(a, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Starts_the_podcast_after_a_run_finish_the_polls_only_partly_followed()
+    {
+        // slow polls missed song c entirely: the active index is still on b when the park
+        // shows up, but the run ended all the same -- continue past the run, not from b
+        var a = Song("a");
+        var b = Song("b");
+        var c = Song("c");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, c, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+
+        harness.Wait(360).Tick(Paused(a, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+    }
+
+    [Fact]
+    public void Does_not_mistake_a_pause_dragged_back_to_the_start_for_a_finish()
+    {
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { song, Segment("ep1") });
+
+        harness.Tick(Playing(song, 20000, SongMs));
+        harness.Wait(3).Tick(Paused(song, 20000, SongMs));
+
+        harness.Wait(3).Tick(Paused(song, 0, SongMs));
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
     public void Advances_at_the_end_of_a_podcast_segment_not_the_end_of_the_episode()
     {
         var segment = Segment("ep1");
@@ -474,6 +565,86 @@ public class RadioTickStateTests
     #endregion
 
     #region a long session
+
+    [Fact]
+    public void Plays_a_full_queue_across_every_way_spotify_reports_an_ending()
+    {
+        // Every ending shape observed on real devices, cycled across a whole session:
+        //  - the finished item drops off entirely (silent)
+        //  - Spotify parks paused at the start of the finished context (run's first song)
+        //  - Spotify reports the finished item paused on its last moment
+        //  - Spotify autoplays a recommendation of its own past the end
+        // Whatever the shape, every item in the queue must still be reached in order.
+        var queue = new List<IRadioQueueItem>();
+        for (int block = 0; block < 8; block++)
+        {
+            queue.Add(Song($"s{block}a"));
+            queue.Add(Song($"s{block}b"));
+            queue.Add(Song($"s{block}c"));
+            queue.Add(Segment($"ep{block}"));
+        }
+
+        var harness = new RadioHarness(queue);
+        int endingStyle = 0;
+
+        for (int i = 0; i < queue.Count; i++)
+        {
+            var item = queue[i];
+            int durationMs = item.IsPodcastSegment ? EpisodeMs : SongMs;
+            int endMs = item.IsPodcastSegment ? RadioTuning.SEGMENT_LENGTH_MS : durationMs;
+
+            for (int progress = 1000; progress < endMs; progress += 3000)
+            {
+                harness.Tick(Playing(item, progress, durationMs)).Wait(3);
+            }
+            Assert.Equal(item.PlayUri, harness.ActiveUri);
+
+            if (item.IsPodcastSegment)
+            {
+                // a mid-episode boundary: the episode keeps playing straight past it
+                harness.Tick(Playing(item, endMs + 500, durationMs));
+            }
+            else if (i + 1 < queue.Count && !queue[i + 1].IsPodcastSegment)
+            {
+                // mid-run: Spotify moves on to the next song by itself; the next iteration's
+                // first playing tick is the transition
+                continue;
+            }
+            else
+            {
+                harness.Wait(3);
+                switch (endingStyle++ % 4)
+                {
+                    case 0:
+                        harness.Tick(Silent);
+                        break;
+                    case 1:
+                        int runStart = i;
+                        while (runStart > 0 && !queue[runStart - 1].IsPodcastSegment) runStart--;
+                        harness.Tick(Paused(queue[runStart], 0, durationMs));
+                        break;
+                    case 2:
+                        harness.Tick(Paused(item, endMs, durationMs));
+                        break;
+                    case 3:
+                        harness.Tick(Foreign($"spotify:track:autoplay{i}"));
+                        break;
+                }
+            }
+
+            if (i + 1 < queue.Count)
+            {
+                Assert.Equal(queue[i + 1].PlayUri, harness.ActiveUri);
+            }
+            else
+            {
+                Assert.True(harness.Stopped);
+            }
+        }
+
+        // one issued command per boundary between conducted units, none within runs
+        Assert.Equal(15, harness.Started.Count);
+    }
 
     [Fact]
     public void Plays_a_full_queue_end_to_end_under_a_poll_that_keeps_getting_slower()
