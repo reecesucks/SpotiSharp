@@ -116,16 +116,22 @@ public class RadioConductor
     {
         while (true)
         {
-            if (result.ActiveItemChanged) RaiseActiveItem(_state.ActiveItem as RadioItem);
+            if (result.ActiveItemChanged)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Radio] advancing to {_state.ActiveItem?.PlayUri}");
+                RaiseActiveItem(_state.ActiveItem as RadioItem);
+            }
 
             switch (result.Action)
             {
                 case RadioTickAction.StartActive:
                     var outcome = IssuePlayback(_state.ActiveItem as RadioItem);
+                    System.Diagnostics.Debug.WriteLine($"[Radio] issued {_state.ActiveItem?.PlayUri}: {outcome}");
                     result = _state.ReportStartOutcome(outcome, DateTime.UtcNow);
                     continue;
 
                 case RadioTickAction.Stop:
+                    System.Diagnostics.Debug.WriteLine("[Radio] stopping");
                     RadioBackgroundService.Stop();
                     RaiseActiveItem(null);
                     return;
