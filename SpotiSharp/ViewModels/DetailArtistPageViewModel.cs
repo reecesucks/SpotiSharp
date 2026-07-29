@@ -7,9 +7,17 @@ public class DetailArtistPageViewModel : BaseViewModel
 {
     public ICommand GoBack { get; }
 
+    public ICommand OpenAlbumCommand { get; }
+
     public DetailArtistPageViewModel()
     {
         GoBack = new Command(async () => await Shell.Current.GoToAsync(".."));
+        OpenAlbumCommand = new Command<Album>(album =>
+        {
+            if (album is null) return;
+            SelectedAlbum = album;
+            GoToAlbumDetail();
+        });
     }
 
     private string _artistId;

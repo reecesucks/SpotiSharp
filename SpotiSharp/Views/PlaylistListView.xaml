@@ -4,17 +4,33 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:PlaylistListViewModel"
              x:Class="SpotiSharp.PlaylistListView">
     <Grid>
     <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-    <CollectionView x:Name="MainListView"
+    <keypad:KeypadCollectionView x:Name="MainListView"
               ItemsSource="{Binding PlayLists}"
-              SelectionMode="Single"
-              SelectedItem="{Binding SelectedPlaylist}">
+              SelectedItem="{Binding SelectedPlaylist}"
+              ActivateCommand="{Binding OpenPlaylistCommand}">
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:Playlist">
                 <Grid Margin="0,2,0,0" AutomationId="{Binding PlayListId}">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <!-- Keypad focus / touch selection highlight. -->
+                            <VisualState x:Name="Selected">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -41,7 +57,7 @@
                 </Grid>
             </DataTemplate>
         </CollectionView.ItemTemplate>
-    </CollectionView>
+    </keypad:KeypadCollectionView>
     </RefreshView>
 
     <!-- Opaque cover shown while the list first populates, so the rows inflate under it

@@ -4,17 +4,32 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:ArtistListViewModel"
              x:Class="SpotiSharp.Views.ArtistListView">
     <Grid>
     <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-    <CollectionView x:Name="MainListView"
+    <keypad:KeypadCollectionView x:Name="MainListView"
               ItemsSource="{Binding Artists}"
-              SelectionMode="Single"
-              SelectedItem="{Binding SelectedArtist}">
+              SelectedItem="{Binding SelectedArtist}"
+              ActivateCommand="{Binding OpenArtistCommand}">
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:Artist">
                 <Grid Margin="0,2,0,0" ColumnDefinitions="Auto,*" AutomationId="{Binding ArtistId}">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Selected">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
                     <Border Grid.Column="0"
                             StrokeShape="Ellipse"
                             StrokeThickness="0"
@@ -34,7 +49,7 @@
                 </Grid>
             </DataTemplate>
         </CollectionView.ItemTemplate>
-    </CollectionView>
+    </keypad:KeypadCollectionView>
     </RefreshView>
 
     <!-- Opaque cover shown while the list first populates. The flyout slides closed over an

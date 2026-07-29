@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                xmlns:views="clr-namespace:SpotiSharp.Views"
+                xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+                xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
+                x:DataType="viewmodels:MenuViewModel"
+                x:Class="SpotiSharp.Views.MenuPage"
+                Title="spotify f25">
+    <keypad:KeypadCollectionView x:Name="MenuList"
+                    ItemsSource="{Binding Destinations}"
+                    ActivateCommand="{Binding OpenCommand}">
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="viewmodels:MenuDestination">
+                <!-- Classic click-wheel iPod menu row: title left, disclosure arrow right. -->
+                <Grid ColumnDefinitions="*,Auto"
+                      Padding="20,0"
+                      HeightRequest="52">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Selected">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                    <Label Grid.Column="0"
+                           Text="{Binding Title}"
+                           FontSize="18"
+                           VerticalOptions="Center"
+                           TextColor="{DynamicResource TextPrimary}" />
+                    <Path Grid.Column="1"
+                          VerticalOptions="Center"
+                          HeightRequest="16"
+                          WidthRequest="9"
+                          Aspect="Uniform"
+                          Stroke="{DynamicResource TextSecondary}"
+                          StrokeThickness="2.6"
+                          StrokeLineCap="Round"
+                          StrokeLineJoin="Round"
+                          Data="M0,0 L7,6 L0,12" />
+                </Grid>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </keypad:KeypadCollectionView>
+</views:BasePage>

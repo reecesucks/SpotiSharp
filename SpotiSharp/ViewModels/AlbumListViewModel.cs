@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
@@ -11,6 +12,8 @@ public class AlbumListViewModel : BaseViewModel
         get { return _selectedAlbum; }
         set { SetProperty(ref _selectedAlbum, value); }
     }
+
+    public ICommand OpenAlbumCommand { get; }
 
     private bool _isLoading;
     public bool IsLoading
@@ -29,6 +32,13 @@ public class AlbumListViewModel : BaseViewModel
 
     public AlbumListViewModel()
     {
+        OpenAlbumCommand = new Command<Album>(album =>
+        {
+            if (album is null) return;
+            SelectedAlbum = album;
+            GoToAlbumDetail();
+        });
+
         IsLoading = true;
         Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadAlbumsAsync());
     }

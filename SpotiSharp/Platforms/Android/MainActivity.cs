@@ -2,13 +2,14 @@ using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using QinF25.Input;
 using SpotiSharp.Models;
 using SpotiSharp.Platforms.Android;
 
 namespace SpotiSharp;
 
 [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
-public class MainActivity : MauiAppCompatActivity
+public class MainActivity : KeypadActivity
 {
     protected override void OnCreate(Bundle savedInstanceState)
     {

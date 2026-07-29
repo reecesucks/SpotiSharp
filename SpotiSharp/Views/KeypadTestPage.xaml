@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                xmlns:views="clr-namespace:SpotiSharp.Views"
+                x:Class="SpotiSharp.Views.KeypadTestPage"
+                Title="Keypad Test">
+    <!-- Temporary page for exercising QinF25.Input on-device. Delete once keypad
+         input is proven and real navigation is wired. -->
+    <ScrollView>
+        <VerticalStackLayout Margin="20" Spacing="8">
+            <Label Text="Keypad test"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource TextPrimary}" />
+            <Label Text="Press Up / Down to move the highlight, Select (centre) or tap a row to activate it."
+                   FontSize="15"
+                   TextColor="{DynamicResource TextSecondary}" />
+
+            <VerticalStackLayout x:Name="KeypadTestList"
+                                 Margin="0,12,0,0"
+                                 Spacing="2" />
+
+            <Label x:Name="KeypadStatusLabel"
+                   FontSize="15"
+                   Margin="0,16,0,0"
+                   TextColor="{DynamicResource TextSecondary}"
+                   Text="Last key: (none)" />
+
+            <!-- Raw diagnostics: every key the device sends, mapped or not. -->
+            <Label Text="Raw key log (newest first):"
+                   FontSize="13"
+                   Margin="0,16,0,0"
+                   TextColor="{DynamicResource TextSecondary}" />
+            <Label x:Name="KeypadRawLog"
+                   FontSize="13"
+                   TextColor="{DynamicResource TextPrimary}"
+                   Text="(press any key)" />
+        </VerticalStackLayout>
+    </ScrollView>
+</views:BasePage>
