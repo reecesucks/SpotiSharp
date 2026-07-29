@@ -183,7 +183,7 @@ public class RadioConductor
         if (!string.IsNullOrEmpty(deviceId)) return deviceId;
 
         var ids = api.GetDeviceIds();
-        return ids.phone ?? ids.any;
+        return ids?.phone ?? ids?.any;
     }
 
     private List<string> SongRunFrom(RadioItem item)

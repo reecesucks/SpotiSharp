@@ -226,10 +226,19 @@ public class RadioPageViewModel : BaseViewModel
 
         DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
 
-        if (await TryPlayOnActiveDeviceAsync(radioItem, songRun))
+        var (played, apiFailed) = await TryPlayOnActiveDeviceAsync(radioItem, songRun);
+        if (played)
         {
             DiagnosticLog.Write("[Radio] direct play on active device succeeded");
             RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+            return;
+        }
+
+        if (apiFailed)
+        {
+            DiagnosticLog.Write("[Radio] device lookup failed (Spotify API unreachable), not launching Spotify");
+            SetCurrentItem(null);
+            await Shell.Current.DisplayAlert("Playback failed", "Couldn't reach Spotify right now. Check your connection and try again.", "OK");
             return;
         }
 
@@ -237,12 +246,13 @@ public class RadioPageViewModel : BaseViewModel
         await LaunchAndRestoreContextAsync(radioItem, songRun);
     }
 
-    private static async Task<bool> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
+    private static async Task<(bool played, bool apiFailed)> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
     {
-        var deviceId = await ResolvePlayableDeviceAsync();
-        if (string.IsNullOrEmpty(deviceId)) return false;
+        var (deviceId, apiFailed) = await ResolvePlayableDeviceAsync();
+        if (apiFailed) return (false, true);
+        if (string.IsNullOrEmpty(deviceId)) return (false, false);
 
-        return await Task.Run(() =>
+        var played = await Task.Run(() =>
         {
             var api = APICaller.Instance;
             if (api == null) return false;
@@ -253,25 +263,30 @@ public class RadioPageViewModel : BaseViewModel
                 ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
                 : api.PlayUrisOnDevice(songRun, deviceId);
         });
+        return (played, false);
     }
 
-    private static async Task<string?> ResolvePlayableDeviceAsync()
+    // apiFailed distinguishes "the lookup call itself errored" from "the call succeeded and
+    // genuinely found no matching device" — only the latter should make ClickItem launch Spotify.
+    private static async Task<(string? deviceId, bool apiFailed)> ResolvePlayableDeviceAsync()
     {
         var selectedId = StorageHandler.SelectedDeviceId;
 
         if (!string.IsNullOrEmpty(selectedId))
         {
-            if (selectedId == PlaybackStateStore.Instance.ActiveDeviceId) return selectedId;
+            if (selectedId == PlaybackStateStore.Instance.ActiveDeviceId) return (selectedId, false);
 
             var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
-            return devices != null && devices.Any(device => device.Id == selectedId) ? selectedId : null;
+            if (devices == null) return (null, true);
+            return (devices.Any(device => device.Id == selectedId) ? selectedId : null, false);
         }
 
         var activeId = PlaybackStateStore.Instance.ActiveDeviceId;
-        if (!string.IsNullOrEmpty(activeId)) return activeId;
+        if (!string.IsNullOrEmpty(activeId)) return (activeId, false);
 
         var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
-        return ids?.phone ?? ids?.any;
+        if (ids == null) return (null, true);
+        return (ids.Value.phone ?? ids.Value.any, false);
     }
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
