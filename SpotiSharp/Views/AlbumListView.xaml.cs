@@ -8,12 +8,5 @@ public partial class AlbumListView : ContentView
     {
         InitializeComponent();
         BindingContext = new AlbumListViewModel();
-
-        MainListView.SelectionChanged += (sender, args) =>
-        {
-            if (args.CurrentSelection.Count > 0 && BindingContext is AlbumListViewModel albumListViewModel)
-                albumListViewModel.GoToAlbumDetail();
-            MainListView.SelectedItem = null;
-        };
     }
 }

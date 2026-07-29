@@ -28,6 +28,14 @@ public sealed class KeypadManager
     public event EventHandler<KeypadKeyEventArgs>? KeyPressed;
 
     /// <summary>
+    /// Diagnostic channel: raised for <em>every</em> raw key the platform
+    /// reports, including keys that do not map to a <see cref="KeypadKey"/>.
+    /// Intended for bringing keypad support up on a new device — subscribe to see
+    /// exactly which codes the hardware sends.
+    /// </summary>
+    public event EventHandler<KeypadRawKeyEventArgs>? RawKeyReceived;
+
+    /// <summary>
     /// Raises <see cref="KeyPressed"/> for <paramref name="key"/> and reports
     /// whether a subscriber consumed it.
     /// </summary>
@@ -48,5 +56,20 @@ public sealed class KeypadManager
         var args = new KeypadKeyEventArgs(key);
         handler(this, args);
         return args.Handled;
+    }
+
+    /// <summary>
+    /// Platform entry point: reports the raw <paramref name="rawCode"/>/
+    /// <paramref name="rawName"/> on <see cref="RawKeyReceived"/> (always), then
+    /// dispatches <paramref name="mappedKey"/> through <see cref="Dispatch(KeypadKey)"/>.
+    /// </summary>
+    /// 
+    /// 
+    /// 
+    /// <returns>Whatever <see cref="Dispatch(KeypadKey)"/> returns for the mapped key.</returns>
+    public bool Dispatch(KeypadKey mappedKey, int rawCode, string rawName)
+    {
+        RawKeyReceived?.Invoke(this, new KeypadRawKeyEventArgs(rawCode, rawName, mappedKey));
+        return Dispatch(mappedKey);
     }
 }

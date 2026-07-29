@@ -1,4 +1,5 @@
-﻿using SpotiSharp.Models;
+﻿using System.Windows.Input;
+using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
 
@@ -11,6 +12,8 @@ public class PlaylistListViewModel : BaseViewModel
         get { return _selectedPlaylist; }
         set { SetProperty(ref _selectedPlaylist, value); }
     }
+
+    public ICommand OpenPlaylistCommand { get; }
 
     private bool _isLoading;
     public bool IsLoading
@@ -29,6 +32,13 @@ public class PlaylistListViewModel : BaseViewModel
 
     public PlaylistListViewModel()
     {
+        OpenPlaylistCommand = new Command<Playlist>(playlist =>
+        {
+            if (playlist is null) return;
+            SelectedPlaylist = playlist;
+            GoToPlaylistDetail();
+        });
+
         IsLoading = true;
         Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadPlayListsAsync());
     }

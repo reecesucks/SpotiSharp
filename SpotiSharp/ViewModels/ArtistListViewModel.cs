@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
@@ -11,6 +12,8 @@ public class ArtistListViewModel : BaseViewModel
         get { return _selectedArtist; }
         set { SetProperty(ref _selectedArtist, value); }
     }
+
+    public ICommand OpenArtistCommand { get; }
 
     private bool _isLoading;
     public bool IsLoading
@@ -29,6 +32,13 @@ public class ArtistListViewModel : BaseViewModel
 
     public ArtistListViewModel()
     {
+        OpenArtistCommand = new Command<Artist>(artist =>
+        {
+            if (artist is null) return;
+            SelectedArtist = artist;
+            GoToArtistDetail();
+        });
+
         IsLoading = true;
         Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadArtistsAsync());
     }

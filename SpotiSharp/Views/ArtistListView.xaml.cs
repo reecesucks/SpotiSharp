@@ -8,12 +8,5 @@ public partial class ArtistListView : ContentView
     {
         InitializeComponent();
         BindingContext = new ArtistListViewModel();
-
-        MainListView.SelectionChanged += (sender, args) =>
-        {
-            if (args.CurrentSelection.Count > 0 && BindingContext is ArtistListViewModel artistListViewModel)
-                artistListViewModel.GoToArtistDetail();
-            MainListView.SelectedItem = null;
-        };
     }
 }

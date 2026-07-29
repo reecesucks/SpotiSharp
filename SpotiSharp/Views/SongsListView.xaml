@@ -4,6 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:SongsListViewModel"
              x:Class="SpotiSharp.SongsListView">
     <Grid>
@@ -12,12 +13,26 @@
                         HeightRequest="32"
                         VerticalOptions="Start" />
     <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-    <CollectionView x:Name="MainListView"
+    <keypad:KeypadCollectionView x:Name="MainListView"
         ItemsSource="{Binding Songs}"
-        SelectionMode="Single">
+        ActivateCommand="{Binding PlaySongCommand}">
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:Song">
                 <Grid ColumnDefinitions="Auto,Auto" AutomationId="{Binding SongId}">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Selected">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
                     <Image Grid.Column="0"
                            x:Name="SongImage"
                            Source="{Binding SongImageURL}"
@@ -33,7 +48,7 @@
                 </Grid>
             </DataTemplate>
         </CollectionView.ItemTemplate>
-    </CollectionView>
+    </keypad:KeypadCollectionView>
     </RefreshView>
     </Grid>
 </ContentView>
