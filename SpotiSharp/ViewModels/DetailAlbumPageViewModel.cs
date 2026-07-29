@@ -9,10 +9,13 @@ public class DetailAlbumPageViewModel : BaseViewModel
     public ICommand GoBack { get; }
     public ICommand ToggleAlbumSaved { get; }
 
+    public ICommand PlaySongCommand { get; }
+
     public DetailAlbumPageViewModel()
     {
         GoBack = new Command(async () => await Shell.Current.GoToAsync(".."));
         ToggleAlbumSaved = new Command(ToggleAlbumSavedFunc);
+        PlaySongCommand = new Command<object>(ClickSong);
     }
 
     private bool _isAlbumSaved;

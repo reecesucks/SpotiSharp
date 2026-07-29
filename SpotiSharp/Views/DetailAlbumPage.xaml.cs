@@ -8,14 +8,6 @@ public partial class DetailAlbumPage : BasePage, IQueryAttributable
     {
         InitializeComponent();
         BindingContext = new DetailAlbumPageViewModel();
-
-        MainListView.SelectionChanged += (sender, args) =>
-        {
-            var selectedSong = args.CurrentSelection.FirstOrDefault();
-            if (selectedSong != null && BindingContext is DetailAlbumPageViewModel detailAlbumPageViewModel)
-                detailAlbumPageViewModel.ClickSong(selectedSong);
-            MainListView.SelectedItem = null;
-        };
     }
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)

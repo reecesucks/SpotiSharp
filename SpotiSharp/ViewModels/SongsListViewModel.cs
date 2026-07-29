@@ -1,4 +1,5 @@
-﻿using SpotiSharpBackend;
+﻿using System.Windows.Input;
+using SpotiSharpBackend;
 using SpotiSharp.Consts;
 using SpotiSharp.Models;
 
@@ -8,6 +9,13 @@ public class SongsListViewModel : BaseViewModel
 {
     private List<Song> _songs = new List<Song>();
     private string _latestRequestedPlaylistId;
+
+    public ICommand PlaySongCommand { get; }
+
+    public SongsListViewModel()
+    {
+        PlaySongCommand = new Command<object>(ClickSong);
+    }
 
     public List<Song> Songs
     {
