@@ -6,6 +6,7 @@
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:DetailAlbumPageViewModel"
              Shell.NavBarIsVisible="False"
              x:Class="SpotiSharp.Views.DetailAlbumPage">
@@ -80,12 +81,26 @@
                                HeightRequest="32"
                                VerticalOptions="Start" />
             <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-            <CollectionView x:Name="MainListView"
+            <keypad:KeypadCollectionView x:Name="MainListView"
                       ItemsSource="{Binding Songs}"
-                      SelectionMode="Single">
+                      ActivateCommand="{Binding PlaySongCommand}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:AlbumSong">
                         <Grid ColumnDefinitions="30,*" Padding="10,8" AutomationId="{Binding SongId}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="Transparent" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
                             <Label Grid.Column="0"
                                    Text="{Binding TrackNumber}"
                                    TextColor="{DynamicResource TextSecondary}"
@@ -97,7 +112,7 @@
                         </Grid>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
-            </CollectionView>
+            </keypad:KeypadCollectionView>
             </RefreshView>
         </Grid>
     </views:BasePage.Content>

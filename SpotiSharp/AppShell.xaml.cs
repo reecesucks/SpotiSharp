@@ -14,25 +14,6 @@ public partial class AppShell : Shell
 		Routing.RegisterRoute("DetailAlbumPage", typeof(Views.DetailAlbumPage));
 		Routing.RegisterRoute("RadioSettingsPage", typeof(Views.RadioSettingsPage));
 
-		var isMobile = AppState.Instance.IsMobile;
-		HomeContent.FlyoutItemIsVisible = !isMobile;
-		RadioContent.FlyoutItemIsVisible = isMobile;
-		PlaylistsContent.FlyoutItemIsVisible = isMobile;
-		ArtistsContent.FlyoutItemIsVisible = isMobile;
-		AlbumsContent.FlyoutItemIsVisible = isMobile;
-		PodcastsContent.FlyoutItemIsVisible = isMobile;
-		PlaylistCreatorContent.FlyoutItemIsVisible = !isMobile;
-		ManagePlaylistsContent.FlyoutItemIsVisible = !isMobile;
-
-		SettingsContent.FlyoutItemIsVisible = false;
-
-		UpdateAuthenticationVisibility();
-		Authentication.OnAuthenticate += () => MainThread.BeginInvokeOnMainThread(UpdateAuthenticationVisibility);
-
-		UpdateFlyoutWidth();
-		DeviceDisplay.Current.MainDisplayInfoChanged += (_, _) =>
-			MainThread.BeginInvokeOnMainThread(UpdateFlyoutWidth);
-
 		_ = BackendConnector.Instance;
 	}
 
@@ -40,53 +21,26 @@ public partial class AppShell : Shell
 	{
 		if (Navigation?.NavigationStack?.Count > 1) return base.OnBackButtonPressed();
 
-		if (!FlyoutIsPresented)
+		// Back returns to the menu instead of exiting, unless we are already on it.
+		if (CurrentItem?.Route != "MenuPage")
 		{
-			FlyoutIsPresented = true;
+			_ = GoToAsync("//MenuPage");
 			return true;
 		}
 
 		return base.OnBackButtonPressed();
 	}
 
-	private void UpdateFlyoutWidth()
-	{
-		var display = DeviceDisplay.Current.MainDisplayInfo;
-		if (display.Width <= 0 || display.Density <= 0) return;
-
-		FlyoutWidth = display.Width / display.Density;
-	}
-
-	private void UpdateAuthenticationVisibility()
-	{
-		AuthenticationContent.FlyoutItemIsVisible = Authentication.SpotifyClient == null;
-	}
-
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
 
-		FlyoutIsPresented = true;
-
 		await BackendConnector.Instance.StorageLoadTask;
 
+		// The full-screen menu replaces the flyout, so land there once authenticated.
 		if (!await Authentication.RestoreSessionAsync())
-		{
-			FlyoutIsPresented = false;
 			await Shell.Current.GoToAsync("//AuthenticationPage");
-		}
-		else if (AppState.Instance.IsMobile)
-		{
-			await Shell.Current.GoToAsync("//RadioPage", animate: false);
-			FlyoutIsPresented = true;
-		}
-
-		UpdateAuthenticationVisibility();
-	}
-
-	private async void OnSettingsGearTapped(object sender, TappedEventArgs e)
-	{
-		FlyoutIsPresented = false;
-		await GoToAsync("//SettingsPage");
+		else
+			await Shell.Current.GoToAsync("//MenuPage", animate: false);
 	}
 }
