@@ -350,17 +350,17 @@ public class APICaller
         return result != null;
     }
 
-    public List<Device> GetDevices()
+    public List<Device>? GetDevices()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
-        return response?.Devices ?? new List<Device>();
+        return response?.Devices;
     }
 
-    public (string? phone, string? any) GetDeviceIds()
+    public (string? phone, string? any)? GetDeviceIds()
     {
-        var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);
-        var devices = response?.Devices;
-        if (devices == null || devices.Count == 0) return (null, null);
+        var devices = GetDevices();
+        if (devices == null) return null;
+        if (devices.Count == 0) return (null, null);
 
         var phone = devices.FirstOrDefault(d => d.Type == "Smartphone")?.Id;
 
