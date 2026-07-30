@@ -1,3 +1,4 @@
+using SpotiSharp.Keypad;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
 
@@ -7,10 +8,35 @@ public partial class RadioPage : BasePage
 {
     protected override double TitleTranslationX => 35;
 
+    private RadioHeaderButtons _headerButtons;
+    private readonly KeypadFocusScope _focusScope;
+
     public RadioPage()
     {
         InitializeComponent();
         BindingContext = new RadioPageViewModel();
+
+        _headerButtons.BindingContext = BindingContext;
+
+        _focusScope = new KeypadFocusScope(horizontal: _headerButtons.Row, vertical: MainListView);
+    }
+
+    protected override View CreateTitleAccessory()
+    {
+        _headerButtons = new RadioHeaderButtons();
+        return _headerButtons;
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _focusScope.Attach();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _focusScope.Detach();
     }
 
 #if ANDROID
