@@ -12,6 +12,8 @@ public class BasePage : ContentPage
         Shell.SetTitleView(this, CreateTitleView());
     }
 
+    protected virtual View? CreateTitleAccessory() => null;
+
     private View CreateTitleView()
     {
         var title = new Label
@@ -29,11 +31,28 @@ public class BasePage : ContentPage
         title.TranslationX = TitleTranslationX;
 #endif
 
-        return new Grid
+        var accessory = CreateTitleAccessory();
+        if (accessory is null)
+        {
+            return new Grid
+            {
+                HorizontalOptions = LayoutOptions.Fill,
+                Children = { title }
+            };
+        }
+
+        var grid = new Grid
         {
             HorizontalOptions = LayoutOptions.Fill,
-            Children = { title }
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto)
+            }
         };
+        grid.Add(title, column: 0);
+        grid.Add(accessory, column: 1);
+        return grid;
     }
 
     private static object CreatePageTemplate()

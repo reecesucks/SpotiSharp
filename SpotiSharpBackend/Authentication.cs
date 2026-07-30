@@ -124,7 +124,7 @@ public static class Authentication
 
     private static void CreateAuthenticatedClient(PKCETokenResponse tokenResponse)
     {
-        var authenticator = new PKCEAuthenticator(_clientId, tokenResponse);
+        var authenticator = new SelfHealingPkceAuthenticator(_clientId, tokenResponse);
         authenticator.TokenRefreshed += (_, token) =>
         {
             if (!string.IsNullOrEmpty(token.RefreshToken)) StorageHandler.RefreshToken = token.RefreshToken;

@@ -177,13 +177,13 @@ public class RadioConductor
         return api.PlayUris(SongRunFrom(item), deviceId);
     }
 
-    private static string ResolveDeviceId(APICaller api)
+    internal static string ResolveDeviceId(APICaller api)
     {
         var deviceId = PlaybackStateStore.Instance.ActiveDeviceId;
         if (!string.IsNullOrEmpty(deviceId)) return deviceId;
 
         var ids = api.GetDeviceIds();
-        return ids.phone ?? ids.any;
+        return ids?.phone ?? ids?.any;
     }
 
     private List<string> SongRunFrom(RadioItem item)

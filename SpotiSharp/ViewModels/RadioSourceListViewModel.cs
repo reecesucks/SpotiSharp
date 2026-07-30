@@ -22,6 +22,14 @@ public class RadioSourceListViewModel : BaseViewModel
         private set { SetProperty(ref _items, value); }
     }
 
+    private RadioSourceWeightViewModel _selectedItem;
+
+    public RadioSourceWeightViewModel SelectedItem
+    {
+        get { return _selectedItem; }
+        set { SetProperty(ref _selectedItem, value); }
+    }
+
     public RadioSourceListViewModel(string title, Func<List<RadioSourceWeightViewModel>> loadItems, Action refreshSource)
     {
         Title = title;
@@ -39,7 +47,6 @@ public class RadioSourceListViewModel : BaseViewModel
 
     protected override async Task RefreshDataAsync()
     {
-        // pull-to-refresh forces the api, then rebuilds the toggle rows from fresh data
         Items = await Task.Run(() =>
         {
             _refreshSource();

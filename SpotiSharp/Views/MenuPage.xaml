@@ -22,16 +22,19 @@
                             <VisualState x:Name="Normal">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="Transparent" />
+                                    <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
                                 </VisualState.Setters>
                             </VisualState>
                             <VisualState x:Name="Selected">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                    <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
                     </VisualStateManager.VisualStateGroups>
                     <Label Grid.Column="0"
+                           x:Name="TitleLabel"
                            Text="{Binding Title}"
                            FontSize="18"
                            VerticalOptions="Center"

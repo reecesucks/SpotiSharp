@@ -6,6 +6,7 @@
              xmlns:controls="clr-namespace:SpotiSharp.Controls"
              xmlns:selectors="clr-namespace:SpotiSharp.Selectors"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:RadioSettingsPageViewModel"
              Shell.NavBarIsVisible="False"
              x:Class="SpotiSharp.Views.RadioSettingsPage">
@@ -26,11 +27,28 @@
                                    HeightRequest="32"
                                    VerticalOptions="Start" />
                 <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-                <CollectionView ItemsSource="{Binding Items}"
-                                SelectionMode="None">
+                <keypad:KeypadCollectionView SelfManaged="False"
+                                ItemsSource="{Binding Items}"
+                                SelectedItem="{Binding SelectedItem}"
+                                Loaded="OnPageListLoaded"
+                                Unloaded="OnPageListUnloaded">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:RadioSourceWeightViewModel">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Padding="10,4">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="Transparent" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
                                 <Image Grid.Column="0"
                                        Source="{Binding ImageUrl}"
                                        Aspect="AspectFill"
@@ -89,7 +107,7 @@
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
-                </CollectionView>
+                </keypad:KeypadCollectionView>
                 </RefreshView>
             </Grid>
         </DataTemplate>
@@ -110,11 +128,28 @@
                                    HeightRequest="32"
                                    VerticalOptions="Start" />
                 <RefreshView Grid.Row="1" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-                <CollectionView ItemsSource="{Binding Items}"
-                                SelectionMode="None">
+                <keypad:KeypadCollectionView SelfManaged="False"
+                                ItemsSource="{Binding Items}"
+                                SelectedItem="{Binding SelectedItem}"
+                                Loaded="OnPageListLoaded"
+                                Unloaded="OnPageListUnloaded">
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:RadioAlbumToggleViewModel">
                             <Grid ColumnDefinitions="Auto,*,Auto" Padding="10,4">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="Transparent" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
                                 <Image Grid.Column="0"
                                        Source="{Binding ImageUrl}"
                                        Aspect="AspectFill"
@@ -151,7 +186,7 @@
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
-                </CollectionView>
+                </keypad:KeypadCollectionView>
                 </RefreshView>
             </Grid>
         </DataTemplate>
@@ -192,6 +227,7 @@
             </Grid>
 
             <CarouselView Grid.Row="1"
+                          x:Name="PagesCarousel"
                           ItemsSource="{Binding Pages}"
                           IndicatorView="PageIndicator"
                           ItemTemplate="{StaticResource SettingsTemplateSelector}"
