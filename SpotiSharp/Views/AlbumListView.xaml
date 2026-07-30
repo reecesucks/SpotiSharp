@@ -21,11 +21,15 @@
                             <VisualState x:Name="Normal">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="Transparent" />
+                                    <Setter TargetName="AlbumNameLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                    <Setter TargetName="ArtistNamesLabel" Property="Label.TextColor" Value="{DynamicResource TextSecondary}" />
                                 </VisualState.Setters>
                             </VisualState>
                             <VisualState x:Name="Selected">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                    <Setter TargetName="AlbumNameLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                    <Setter TargetName="ArtistNamesLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
@@ -36,10 +40,12 @@
                            HeightRequest="60"
                            WidthRequest="60" />
                     <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
-                        <Label FontSize="18"
+                        <Label x:Name="AlbumNameLabel"
+                               FontSize="18"
                                LineBreakMode="TailTruncation"
                                Text="{Binding AlbumName}" />
-                        <Label FontSize="14"
+                        <Label x:Name="ArtistNamesLabel"
+                               FontSize="14"
                                TextColor="{DynamicResource TextSecondary}"
                                LineBreakMode="TailTruncation"
                                Text="{Binding ArtistNames}" />

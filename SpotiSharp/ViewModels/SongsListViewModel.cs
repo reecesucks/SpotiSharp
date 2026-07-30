@@ -57,6 +57,7 @@ public class SongsListViewModel : BaseViewModel
     {
         if (sourceItem is not Song song) return;
 
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
 
         if (PlaybackStateStore.Instance.HasActiveDevice)
         {

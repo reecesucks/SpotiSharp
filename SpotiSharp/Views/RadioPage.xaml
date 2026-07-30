@@ -6,15 +6,12 @@
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
              xmlns:converters="clr-namespace:SpotiSharp.Converters"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              x:DataType="viewmodels:RadioPageViewModel"
              x:Name="RadioPageRoot"
              x:Class="SpotiSharp.Views.RadioPage"
                 Title="Radio">
-    <views:BasePage.ToolbarItems>
-        <ToolbarItem Text="Generate" Order="Primary" Priority="0" Command="{Binding GenerateRadio}" />
-        <ToolbarItem Text="Settings" Order="Primary" Priority="1" Command="{Binding OpenSettings}" />
-    </views:BasePage.ToolbarItems>
     <views:BasePage.Content>
         <Grid>
             <ActivityIndicator IsRunning="{Binding IsGenerating}"
@@ -22,9 +19,10 @@
                                HeightRequest="32"
                                VerticalOptions="Start" />
 
-            <CollectionView x:Name="MainListView"
+            <keypad:KeypadCollectionView x:Name="MainListView" SelfManaged="False"
                             ItemsSource="{Binding Items}"
-                            SelectionMode="None"
+                            SelectedItem="{Binding SelectedItem}"
+                            ActivateCommand="{Binding SelectItem}"
                             ItemSizingStrategy="MeasureFirstItem">
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="models:RadioItem">
@@ -33,6 +31,21 @@
                              TapGestureRecognizer swallows the touch and blocks long press -->
                         <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64"
                               HandlerChanged="OnRowHandlerChanged">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="Transparent" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <!-- Keypad focus highlight; "currently playing" uses the separate IsCurrent trigger below. -->
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
                             <Grid.Triggers>
                                 <DataTrigger TargetType="Grid" Binding="{Binding IsCurrent}" Value="True">
                                     <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
@@ -119,7 +132,7 @@
                             Command="{Binding GenerateMoreRadio}"
                             IsEnabled="{Binding IsGenerating, Converter={converters:BooleanConverter}}" />
                 </CollectionView.Footer>
-            </CollectionView>
+            </keypad:KeypadCollectionView>
         </Grid>
     </views:BasePage.Content>
 </views:BasePage>

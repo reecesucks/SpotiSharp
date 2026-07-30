@@ -92,22 +92,29 @@
                                     <VisualState x:Name="Normal">
                                         <VisualState.Setters>
                                             <Setter Property="BackgroundColor" Value="Transparent" />
+                                            <Setter TargetName="TrackNumberLabel" Property="Label.TextColor" Value="{DynamicResource TextSecondary}" />
+                                            <Setter TargetName="SongTitleLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                            <Setter TargetName="SongArtistsLabel" Property="Label.TextColor" Value="{DynamicResource TextSecondary}" />
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Selected">
                                         <VisualState.Setters>
                                             <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                            <Setter TargetName="TrackNumberLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                            <Setter TargetName="SongTitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                            <Setter TargetName="SongArtistsLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
                             <Label Grid.Column="0"
+                                   x:Name="TrackNumberLabel"
                                    Text="{Binding TrackNumber}"
                                    TextColor="{DynamicResource TextSecondary}"
                                    VerticalOptions="Center" />
                             <VerticalStackLayout Grid.Column="1" Spacing="0" Margin="10,0,0,0" VerticalOptions="Center">
-                                <Label Text="{Binding SongTitle}" LineBreakMode="TailTruncation" />
-                                <Label Text="{Binding SongArtists}" FontSize="13" TextColor="{DynamicResource TextSecondary}" LineBreakMode="TailTruncation" />
+                                <Label x:Name="SongTitleLabel" Text="{Binding SongTitle}" LineBreakMode="TailTruncation" />
+                                <Label x:Name="SongArtistsLabel" Text="{Binding SongArtists}" FontSize="13" TextColor="{DynamicResource TextSecondary}" LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </Grid>
                     </DataTemplate>

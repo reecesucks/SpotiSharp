@@ -111,20 +111,33 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
             return;
 
         var current = SelectedItem is null ? -1 : items.IndexOf(SelectedItem);
-        var next = current < 0
-            // First press with nothing selected: enter at the top (Down) or bottom (Up).
+        var enteringFresh = current < 0;
+        var next = enteringFresh
             ? (delta > 0 ? 0 : items.Count - 1)
-            // Thereafter wrap around.
             : (current + delta + items.Count) % items.Count;
 
-        SetSelectionSilently(items[next]);
+        SetSelectionSilently(items[next], reaffirm: enteringFresh);
         ScrollTo(next, position: ScrollToPosition.MakeVisible, animate: false);
     }
 
-    private void SetSelectionSilently(object? item)
+    private void SetSelectionSilently(object? item, bool reaffirm = false)
     {
         _movingFocus = true;
         SelectedItem = item;
         _movingFocus = false;
+
+        if (!reaffirm || item is null)
+            return;
+
+        Dispatcher.Dispatch(() =>
+        {
+            if (!ReferenceEquals(SelectedItem, item))
+                return;
+
+            _movingFocus = true;
+            SelectedItem = null;
+            SelectedItem = item;
+            _movingFocus = false;
+        });
     }
 }

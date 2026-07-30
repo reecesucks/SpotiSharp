@@ -21,6 +21,14 @@ public class RadioAlbumListViewModel : BaseViewModel
         private set { SetProperty(ref _items, value); }
     }
 
+    private RadioAlbumToggleViewModel _selectedItem;
+
+    public RadioAlbumToggleViewModel SelectedItem
+    {
+        get { return _selectedItem; }
+        set { SetProperty(ref _selectedItem, value); }
+    }
+
     public RadioAlbumListViewModel()
     {
         _ = LoadAsync();

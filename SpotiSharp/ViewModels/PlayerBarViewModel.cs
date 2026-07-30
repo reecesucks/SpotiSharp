@@ -103,6 +103,54 @@ public class PlayerBarViewModel : BaseViewModel
         IsShuffleOn = reported;
     }
 
+    private static readonly TimeSpan BackoffAfter = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan BackedOffInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan StopAfter = TimeSpan.FromMinutes(20);
+
+    private DateTime _idleSinceUtc = DateTime.UtcNow;
+    private DateTime _nextPollAllowedUtc = DateTime.MinValue;
+    private bool _pollingBackedOff;
+    private bool _pollingStopped;
+
+    public void NotifyPlaybackStarting()
+    {
+        _idleSinceUtc = DateTime.UtcNow;
+        _nextPollAllowedUtc = DateTime.MinValue;
+        if (_pollingBackedOff || _pollingStopped) DiagnosticLog.Write("[Poll] resuming active polling");
+        _pollingBackedOff = false;
+        _pollingStopped = false;
+    }
+
+    private void ScheduleNextPoll(DateTime now)
+    {
+        if (IsPlaying)
+        {
+            _idleSinceUtc = now;
+            _nextPollAllowedUtc = DateTime.MinValue;
+            _pollingBackedOff = false;
+            _pollingStopped = false;
+            return;
+        }
+
+        var idleFor = now - _idleSinceUtc;
+        if (idleFor >= StopAfter)
+        {
+            _nextPollAllowedUtc = DateTime.MaxValue;
+            if (!_pollingStopped) DiagnosticLog.Write("[Poll] paused 20+ minutes, stopping until playback starts again");
+            _pollingStopped = true;
+        }
+        else if (idleFor >= BackoffAfter)
+        {
+            _nextPollAllowedUtc = now + BackedOffInterval;
+            if (!_pollingBackedOff) DiagnosticLog.Write("[Poll] paused 30s+, backing off to a 15s poll interval");
+            _pollingBackedOff = true;
+        }
+        else
+        {
+            _nextPollAllowedUtc = DateTime.MinValue;
+        }
+    }
+
     private PlayerBarViewModel()
     {
         _playerBarViewModel = this;
@@ -120,6 +168,15 @@ public class PlayerBarViewModel : BaseViewModel
     private bool _pollsWereFailing;
 
     private void RefreshPlayerValues()
+    {
+        var now = DateTime.UtcNow;
+        if (now < _nextPollAllowedUtc) return;
+
+        RefreshPlayerValuesCore();
+        ScheduleNextPoll(now);
+    }
+
+    private void RefreshPlayerValuesCore()
     {
         CurrentlyPlayingContext currentlyPlayingContext = null;
         var api = APICaller.Instance;
@@ -169,13 +226,26 @@ public class PlayerBarViewModel : BaseViewModel
             currentItemDurationMs,
             currentlyPlayingContext?.ShuffleState ?? false);
 
-        ApplyIsPlaying(currentlyPlayingContext?.IsPlaying ?? false);
-        HasCurrentSong = currentlyPlayingContext?.Item != null;
-
         if (currentlyPlayingContext?.Item == null)
         {
+            if (!string.IsNullOrEmpty(_lastKnownUri))
+            {
+                ApplyIsPlaying(false);
+                HasCurrentSong = true;
+                return;
+            }
+
+            HasCurrentSong = false;
             SongName = "Unauthorized";
             return;
+        }
+
+        ApplyIsPlaying(currentlyPlayingContext.IsPlaying);
+        HasCurrentSong = true;
+        if (!string.IsNullOrEmpty(currentItemUri))
+        {
+            _lastKnownUri = currentItemUri;
+            _lastKnownProgressMs = currentlyPlayingContext.ProgressMs;
         }
 
         switch (currentlyPlayingContext.Item)
@@ -183,7 +253,6 @@ public class PlayerBarViewModel : BaseViewModel
             case FullTrack fullTrack:
             {
                 SongName = fullTrack.Name;
-                // local files come through as FullTrack with no album and no id
                 SongImageURL = fullTrack.Album?.Images?.ElementAtOrDefault(0)?.Url ?? string.Empty;
                 _currentTrackUri = fullTrack.Uri;
                 if (_currentTrackId != fullTrack.Id)
@@ -224,8 +293,21 @@ public class PlayerBarViewModel : BaseViewModel
         IsPlaying = target;
         _expectedIsPlaying = target;
         _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+        if (target) NotifyPlaybackStarting();
 
-        Task.Run(() => APICaller.Instance?.TogglePlaybackStatus());
+        var resumeUri = _lastKnownUri;
+        var resumeProgressMs = _lastKnownProgressMs;
+
+        Task.Run(() =>
+        {
+            var api = APICaller.Instance;
+            if (api == null) return;
+            if (api.TogglePlaybackStatus()) return;
+
+            if (!target || string.IsNullOrEmpty(resumeUri)) return;
+            var deviceId = Models.RadioConductor.ResolveDeviceId(api);
+            if (!string.IsNullOrEmpty(deviceId)) api.PlayUriAtPosition(resumeUri, resumeProgressMs, deviceId);
+        });
     }
 
     private void SongBackFunc()
@@ -267,6 +349,9 @@ public class PlayerBarViewModel : BaseViewModel
 
     private string _currentTrackUri;
     private string _currentTrackId;
+
+    private string _lastKnownUri;
+    private int _lastKnownProgressMs;
 
     private void ToggleSongLikedFunc()
     {
