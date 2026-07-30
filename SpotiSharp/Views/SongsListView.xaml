@@ -24,11 +24,15 @@
                             <VisualState x:Name="Normal">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="Transparent" />
+                                    <Setter TargetName="SongName" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                    <Setter TargetName="SongArtists" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
                                 </VisualState.Setters>
                             </VisualState>
                             <VisualState x:Name="Selected">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                    <Setter TargetName="SongName" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                    <Setter TargetName="SongArtists" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>

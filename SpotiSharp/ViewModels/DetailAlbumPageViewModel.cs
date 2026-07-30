@@ -136,6 +136,8 @@ public class DetailAlbumPageViewModel : BaseViewModel
     {
         if (sourceItem is not AlbumSong song) return;
 
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
+
         if (PlaybackStateStore.Instance.HasActiveDevice)
         {
             bool started = await Task.Run(() => APICaller.Instance?.SetCurrentPlayingSongInAlbum(song.SongUri, AlbumId) ?? false);

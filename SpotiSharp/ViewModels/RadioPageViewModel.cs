@@ -14,6 +14,7 @@ public class RadioPageViewModel : BaseViewModel
 
     public ICommand RemoveSingle { get; }
     public ICommand RemoveAllSections { get; }
+    public ICommand SelectItem { get; }
 
     public RadioPageViewModel()
     {
@@ -22,7 +23,23 @@ public class RadioPageViewModel : BaseViewModel
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
+        SelectItem = new Command<RadioItem>(item =>
+        {
+            if (item == null) return;
+            if (item.IsConfirmingRemove) ClearRemoveOptions();
+            else ClickItem(item);
+        });
         _ = LoadCachedRadioAsync();
+    }
+
+    private RadioItem _selectedItem;
+
+    // Bound to KeypadCollectionView.SelectedItem so keypad focus has somewhere to live;
+    // the list has no touch-selection concept of its own (tap plays, long-press removes).
+    public RadioItem SelectedItem
+    {
+        get { return _selectedItem; }
+        set { SetProperty(ref _selectedItem, value); }
     }
 
     private RadioItem _currentItem;
@@ -207,9 +224,17 @@ public class RadioPageViewModel : BaseViewModel
         IsGenerating = false;
     }
 
+    private RadioItem _lastClickedItem;
+    private DateTime _lastClickedAt;
+
     public async void ClickItem(object sourceItem)
     {
         if (sourceItem is not RadioItem radioItem) return;
+
+        var now = DateTime.UtcNow;
+        if (ReferenceEquals(_lastClickedItem, radioItem) && now - _lastClickedAt < TimeSpan.FromMilliseconds(400)) return;
+        _lastClickedItem = radioItem;
+        _lastClickedAt = now;
 
         ClearRemoveOptions();
 
@@ -225,6 +250,8 @@ public class RadioPageViewModel : BaseViewModel
 
 
         DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
+
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
 
         var (played, apiFailed) = await TryPlayOnActiveDeviceAsync(radioItem, songRun);
         if (played)
