@@ -320,9 +320,13 @@ public class RadioPageViewModel : BaseViewModel
     {
         RadioBackgroundService.Start();
 
-        if (!await LaunchInSpotify(radioItem.PlayUri))
+        bool woke = Models.PlaybackCommands.WakeSpotify != null
+            ? await Models.PlaybackCommands.WakeSpotify()
+            : await LaunchInSpotify(radioItem.PlayUri);
+
+        if (!woke)
         {
-            DiagnosticLog.Write("[Radio] deep link into Spotify failed, aborting");
+            DiagnosticLog.Write("[Radio] could not wake Spotify, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
@@ -341,10 +345,6 @@ public class RadioPageViewModel : BaseViewModel
         DiagnosticLog.Write($"[Radio] device {deviceId} appeared, handing over the run");
         await Task.Run(() => APICaller.Instance?.SetPlaybackShuffle(false));
 
-        // The deep link already has Spotify playing the tapped item, so a failed handover must
-        // not kill the session. Start conducting either way: if the run never reached Spotify,
-        // the conductor re-issues it at the item boundary through its usual start watchdog. The
-        // handover only buys a gapless transition into the rest of the run.
         bool handedOver = await StartRunOnDeviceAsync(radioItem, songRun, deviceId);
         DiagnosticLog.Write(handedOver
             ? "[Radio] handover succeeded"
