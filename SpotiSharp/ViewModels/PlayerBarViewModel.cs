@@ -218,13 +218,16 @@ public class PlayerBarViewModel : BaseViewModel
             currentItemDurationMs = playingEpisode.DurationMs;
         }
 
-        Models.PlaybackStateStore.Instance.Update(
-            currentlyPlayingContext?.IsPlaying ?? false,
-            currentlyPlayingContext?.Device?.Id,
-            currentItemUri,
-            currentlyPlayingContext?.ProgressMs ?? 0,
-            currentItemDurationMs,
-            currentlyPlayingContext?.ShuffleState ?? false);
+        if (Models.PlaybackStateStore.HasActivePushSource?.Invoke() != true)
+        {
+            Models.PlaybackStateStore.Instance.Update(
+                currentlyPlayingContext?.IsPlaying ?? false,
+                currentlyPlayingContext?.Device?.Id,
+                currentItemUri,
+                currentlyPlayingContext?.ProgressMs ?? 0,
+                currentItemDurationMs,
+                currentlyPlayingContext?.ShuffleState ?? false);
+        }
 
         if (currentlyPlayingContext?.Item == null)
         {
@@ -287,6 +290,8 @@ public class PlayerBarViewModel : BaseViewModel
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
     }
 
+    private static bool HasAppRemote => Models.PlaybackStateStore.HasActivePushSource?.Invoke() == true;
+
     private void TogglePlayingFunc()
     {
         bool target = !IsPlaying;
@@ -294,6 +299,13 @@ public class PlayerBarViewModel : BaseViewModel
         _expectedIsPlaying = target;
         _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
         if (target) NotifyPlaybackStarting();
+
+        if (HasAppRemote)
+        {
+            if (target) Models.PlaybackCommands.Resume?.Invoke();
+            else Models.PlaybackCommands.Pause?.Invoke();
+            return;
+        }
 
         var resumeUri = _lastKnownUri;
         var resumeProgressMs = _lastKnownProgressMs;
@@ -312,6 +324,12 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void SongBackFunc()
     {
+        if (HasAppRemote)
+        {
+            Models.PlaybackCommands.SkipPrevious?.Invoke();
+            return;
+        }
+
         Task.Run(() =>
         {
             if (APICaller.Instance?.SkipToPreviousSong() ?? false) RefreshPlayerValues();
@@ -328,12 +346,24 @@ public class PlayerBarViewModel : BaseViewModel
                 return;
             }
 
+            if (HasAppRemote)
+            {
+                Models.PlaybackCommands.SkipNext?.Invoke();
+                return;
+            }
+
             if (APICaller.Instance?.SkipToNextSong() ?? false) RefreshPlayerValues();
         });
     }
 
     private void ChangeRepeatFunc()
     {
+        if (HasAppRemote)
+        {
+            Models.PlaybackCommands.ToggleRepeat?.Invoke();
+            return;
+        }
+
         Task.Run(() => APICaller.Instance?.ChangePlaybackRepeatType());
     }
 
@@ -343,6 +373,12 @@ public class PlayerBarViewModel : BaseViewModel
         IsShuffleOn = target;
         _expectedShuffle = target;
         _shufflePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
+        if (HasAppRemote)
+        {
+            Models.PlaybackCommands.SetShuffle?.Invoke(target);
+            return;
+        }
 
         Task.Run(() => APICaller.Instance?.TogglePlaybackShuffle());
     }

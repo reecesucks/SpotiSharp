@@ -58,6 +58,19 @@
 	  <ProjectReference Include="..\QinF25.Input\QinF25.Input.csproj" />
 	</ItemGroup>
 
+	<!-- App Remote SDK spike: push-based playback state, replacing the radio's 2s poll.
+	     JitPack's Maven mirror publishes an empty jar for this SDK (a known JitPack gap for
+	     com.android.library modules with no jar-publishing task), so the AARs are vendored
+	     locally from Spotify's own GitHub release instead of resolved from Maven. -->
+	<!-- auth-lib (Spotify's browser-redirect OAuth helper) is deliberately not included: it ships
+	     its own manifest placeholders for a redirect scheme/host, and this app already does PKCE
+	     auth itself (see SpotiSharpBackend/Authentication.cs). App Remote's own connect() authorizes
+	     through the Spotify app directly and doesn't need auth-lib. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+	  <AndroidLibrary Include="Platforms\Android\Libs\spotify-app-remote-release-0.8.0.aar" Bind="true" />
+	  <TransformFile Include="Transforms\Metadata.xml" />
+	</ItemGroup>
+
 	<ItemGroup>
 	  <MauiXaml Update="Controls\MultiSelectPicker.xaml">
 	    <Generator>MSBuild:Compile</Generator>

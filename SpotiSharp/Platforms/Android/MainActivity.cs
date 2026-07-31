@@ -5,6 +5,7 @@ using Android.OS;
 using QinF25.Input;
 using SpotiSharp.Models;
 using SpotiSharp.Platforms.Android;
+using SpotiSharpBackend;
 
 namespace SpotiSharp;
 
@@ -30,5 +31,11 @@ public class MainActivity : KeypadActivity
             var context = global::Android.App.Application.Context;
             context.StopService(new Intent(context, typeof(RadioForegroundService)));
         };
+
+        if (Authentication.HasStoredSession)
+            SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
+
+        Authentication.OnAuthenticate += () =>
+            SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
     }
 }

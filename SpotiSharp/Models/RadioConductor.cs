@@ -102,7 +102,7 @@ public class RadioConductor
 
     private bool _holdingForStaleSnapshot;
 
-    private void Tick()
+    internal void Tick()
     {
         if (!PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge))
         {
