@@ -215,6 +215,35 @@ public class RadioTickStateTests
     }
 
     [Fact]
+    public void Advances_a_segment_from_elapsed_time_when_no_fresh_sample_ever_confirms_the_crossing()
+    {
+        var segment = Segment("ep1");
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 5000, EpisodeMs));
+
+        harness.Wait(RadioTuning.SEGMENT_LENGTH_MS / 1000 + 60).Tick(Playing(segment, 5000, EpisodeMs));
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+    }
+
+    [Fact]
+    public void Pausing_early_in_a_segment_does_not_trigger_a_premature_advance()
+    {
+        var segment = Segment("ep1");
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 5000, EpisodeMs));
+
+        harness.Wait(RadioTuning.SEGMENT_LENGTH_MS / 1000 + 60).Tick(Paused(segment, 5000, EpisodeMs));
+
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
     public void Ends_a_segment_early_when_the_episode_runs_out_before_the_boundary()
     {
         // the last segment of an episode: its 15 minute boundary is past the end of the episode
