@@ -9,9 +9,16 @@ namespace SpotiSharp.Platforms.Android;
 internal static class SpotifyAppRemoteConnector
 {
     private static SpotifyAppRemote _appRemote;
+    private static string? _clientId;
+    private static string? _redirectUri;
+    private static TaskCompletionSource<bool>? _pendingConnect;
 
     internal static void Connect(string clientId, string redirectUri)
     {
+        _clientId = clientId;
+        _redirectUri = redirectUri;
+        PlaybackCommands.WakeSpotify ??= WakeAsync;
+
         var connectionParams = new ConnectionParams.Builder(clientId)
             .SetRedirectUri(redirectUri)
             .ShowAuthView(true)
@@ -21,6 +28,19 @@ internal static class SpotifyAppRemoteConnector
             global::Android.App.Application.Context,
             connectionParams,
             new ConnectionListener());
+    }
+
+    private static async Task<bool> WakeAsync()
+    {
+        if (_appRemote?.IsConnected == true) return true;
+        if (string.IsNullOrEmpty(_clientId) || string.IsNullOrEmpty(_redirectUri)) return false;
+
+        var tcs = new TaskCompletionSource<bool>();
+        _pendingConnect = tcs;
+        Connect(_clientId, _redirectUri);
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(8)));
+        return completed == tcs.Task && tcs.Task.Result;
     }
 
     private static void OnConnected(SpotifyAppRemote appRemote)
@@ -37,14 +57,21 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.ToggleRepeat = () => _appRemote?.PlayerApi.ToggleRepeat()?.SetErrorCallback(new CommandErrorCallback("toggle repeat"));
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
+
+        _pendingConnect?.TrySetResult(true);
+        _pendingConnect = null;
     }
 
     private class ConnectionListener : Java.Lang.Object, IConnector.IConnectionListener
     {
         public void OnConnected(SpotifyAppRemote appRemote) => SpotifyAppRemoteConnector.OnConnected(appRemote);
 
-        public void OnFailure(Java.Lang.Throwable? error) =>
+        public void OnFailure(Java.Lang.Throwable? error)
+        {
             DiagnosticLog.Write($"[AppRemote] connect failed: {error?.Message}");
+            _pendingConnect?.TrySetResult(false);
+            _pendingConnect = null;
+        }
     }
 
     private class CommandErrorCallback : Java.Lang.Object, IErrorCallback
