@@ -44,10 +44,15 @@ public class RadioModel
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
             int segmentCount = Math.Max(1, (int)Math.Ceiling(remainingMs / (double)SEGMENT_LENGTH_MS));
 
+            int totalSegments = Math.Max(segmentCount, (int)Math.Ceiling(episode.DurationMs / (double)SEGMENT_LENGTH_MS));
+            int firstSegmentNumber = totalSegments - segmentCount;
+
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 if (radio.Count > 0) AddSongs(radio, songPool, ref songIndex, SONGS_BETWEEN_SEGMENTS);
-                radio.Add(RadioItem.ForPodcastSegment(episode, segmentIndex, segmentCount, SEGMENT_LENGTH_MS, startMs));
+                radio.Add(RadioItem.ForPodcastSegment(
+                    episode, segmentIndex, SEGMENT_LENGTH_MS, startMs,
+                    firstSegmentNumber + segmentIndex, totalSegments));
             }
         }
 

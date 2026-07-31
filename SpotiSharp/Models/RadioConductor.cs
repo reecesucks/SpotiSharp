@@ -102,9 +102,12 @@ public class RadioConductor
 
     private bool _holdingForStaleSnapshot;
 
+    private static bool SnapshotUsable =>
+        PlaybackStateStore.HasActivePushSource?.Invoke() == true || PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge);
+
     internal void Tick()
     {
-        if (!PlaybackStateStore.Instance.IsFresh(SnapshotMaxAge))
+        if (!SnapshotUsable)
         {
             if (!_holdingForStaleSnapshot && IsActive)
             {
@@ -171,19 +174,35 @@ public class RadioConductor
 
         if (item.IsPodcastSegment)
         {
-            return api.PlayUriAtPosition(item.PlayUri, Math.Max(0, item.PositionMs - RadioTuning.RESUME_REWIND_MS), deviceId);
+            var rewoundMs = Math.Max(0, item.PositionMs - RadioTuning.RESUME_REWIND_MS);
+            var attempt = api.PlayUriAtPosition(item.PlayUri, rewoundMs, deviceId);
+
+            if (attempt == PlaybackAttempt.Success) PlaybackCommands.SeekTo?.Invoke(rewoundMs);
+
+            return attempt;
         }
 
         return api.PlayUris(SongRunFrom(item), deviceId);
     }
 
-    internal static string ResolveDeviceId(APICaller api)
+    internal static string? ResolveDeviceId(APICaller api)
     {
-        var deviceId = PlaybackStateStore.Instance.ActiveDeviceId;
-        if (!string.IsNullOrEmpty(deviceId)) return deviceId;
+        var selectedId = StorageHandler.SelectedDeviceId;
 
-        var ids = api.GetDeviceIds();
-        return ids?.phone ?? ids?.any;
+        var devices = api.GetDevices();
+        string? deviceId;
+        if (devices == null || devices.Count == 0)
+        {
+            deviceId = !string.IsNullOrEmpty(selectedId) ? selectedId : PlaybackStateStore.Instance.ActiveDeviceId;
+        }
+        else
+        {
+            api.TryGetCurrentPlaybackContext(out var context);
+            deviceId = DeviceResolver.Resolve(devices, selectedId, context?.IsPlaying == true, context?.Device?.Id);
+        }
+
+        DiagnosticLog.Write($"[Radio] resolved device {deviceId}");
+        return deviceId;
     }
 
     private List<string> SongRunFrom(RadioItem item)

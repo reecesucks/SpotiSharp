@@ -49,18 +49,40 @@ internal static class SpotifyAppRemoteConnector
         DiagnosticLog.Write("[AppRemote] connected");
 
         PlaybackStateStore.HasActivePushSource = () => _appRemote?.IsConnected == true;
-        PlaybackCommands.Pause = () => _appRemote?.PlayerApi.Pause()?.SetErrorCallback(new CommandErrorCallback("pause"));
-        PlaybackCommands.Resume = () => _appRemote?.PlayerApi.Resume()?.SetErrorCallback(new CommandErrorCallback("resume"));
-        PlaybackCommands.SkipNext = () => _appRemote?.PlayerApi.SkipNext()?.SetErrorCallback(new CommandErrorCallback("skip next"));
-        PlaybackCommands.SkipPrevious = () => _appRemote?.PlayerApi.SkipPrevious()?.SetErrorCallback(new CommandErrorCallback("skip previous"));
-        PlaybackCommands.SetShuffle = shuffle => _appRemote?.PlayerApi.SetShuffle(shuffle)?.SetErrorCallback(new CommandErrorCallback("set shuffle"));
-        PlaybackCommands.ToggleRepeat = () => _appRemote?.PlayerApi.ToggleRepeat()?.SetErrorCallback(new CommandErrorCallback("toggle repeat"));
+        PlaybackCommands.Pause = () => Pause();
+        PlaybackCommands.Resume = () => Resume();
+        PlaybackCommands.SkipNext = () => SkipNext();
+        PlaybackCommands.SkipPrevious = () => SkipPrevious();
+        PlaybackCommands.SetShuffle = shuffle => SetShuffle(shuffle);
+        PlaybackCommands.ToggleRepeat = () => ToggleRepeat();
+        PlaybackCommands.SeekTo = positionMs => SeekTo(positionMs);
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
 
         _pendingConnect?.TrySetResult(true);
         _pendingConnect = null;
     }
+
+    private static void Pause(bool isRetry = false) =>
+        _appRemote?.PlayerApi.Pause()?.SetErrorCallback(new CommandErrorCallback("pause", isRetry ? null : () => Pause(true)));
+
+    private static void Resume(bool isRetry = false) =>
+        _appRemote?.PlayerApi.Resume()?.SetErrorCallback(new CommandErrorCallback("resume", isRetry ? null : () => Resume(true)));
+
+    private static void SkipNext(bool isRetry = false) =>
+        _appRemote?.PlayerApi.SkipNext()?.SetErrorCallback(new CommandErrorCallback("skip next", isRetry ? null : () => SkipNext(true)));
+
+    private static void SkipPrevious(bool isRetry = false) =>
+        _appRemote?.PlayerApi.SkipPrevious()?.SetErrorCallback(new CommandErrorCallback("skip previous", isRetry ? null : () => SkipPrevious(true)));
+
+    private static void SetShuffle(bool shuffle, bool isRetry = false) =>
+        _appRemote?.PlayerApi.SetShuffle(shuffle)?.SetErrorCallback(new CommandErrorCallback("set shuffle", isRetry ? null : () => SetShuffle(shuffle, true)));
+
+    private static void ToggleRepeat(bool isRetry = false) =>
+        _appRemote?.PlayerApi.ToggleRepeat()?.SetErrorCallback(new CommandErrorCallback("toggle repeat", isRetry ? null : () => ToggleRepeat(true)));
+
+    private static void SeekTo(int positionMs, bool isRetry = false) =>
+        _appRemote?.PlayerApi.SeekTo(positionMs)?.SetErrorCallback(new CommandErrorCallback("seek", isRetry ? null : () => SeekTo(positionMs, true)));
 
     private class ConnectionListener : Java.Lang.Object, IConnector.IConnectionListener
     {
@@ -77,10 +99,22 @@ internal static class SpotifyAppRemoteConnector
     private class CommandErrorCallback : Java.Lang.Object, IErrorCallback
     {
         private readonly string _label;
-        public CommandErrorCallback(string label) => _label = label;
+        private readonly Action? _retry;
 
-        public void OnError(Java.Lang.Throwable? error) =>
+        public CommandErrorCallback(string label, Action? retry = null)
+        {
+            _label = label;
+            _retry = retry;
+        }
+
+        public void OnError(Java.Lang.Throwable? error)
+        {
             DiagnosticLog.Write($"[AppRemote] {_label} failed: {error?.Class?.Name}: {error?.Message}");
+            if (_retry == null) return;
+
+            DiagnosticLog.Write($"[AppRemote] retrying {_label}");
+            _ = Task.Delay(400).ContinueWith(_ => _retry());
+        }
     }
 
     private class PlayerStateCallback : Java.Lang.Object, Subscription.IEventCallback

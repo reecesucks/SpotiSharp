@@ -62,11 +62,13 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
         return new RadioItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>());
     }
 
-    internal static RadioItem ForPodcastSegment(RecentEpisode episode, int segmentIndex, int segmentCount, int segmentLengthMs, int startOffsetMs)
+    internal static RadioItem ForPodcastSegment(
+        RecentEpisode episode, int segmentIndex, int segmentLengthMs, int startOffsetMs,
+        int displaySegmentNumber, int displayTotalSegments)
     {
-        var pips = Enumerable.Range(0, segmentCount).Select(index => index == segmentIndex).ToList();
-        var subtitle = segmentCount > 1
-            ? $"{episode.ShowName} · Part {segmentIndex + 1} of {segmentCount}"
+        var pips = Enumerable.Range(0, displayTotalSegments).Select(index => index == displaySegmentNumber).ToList();
+        var subtitle = displayTotalSegments > 1
+            ? $"{episode.ShowName} · Part {displaySegmentNumber + 1} of {displayTotalSegments}"
             : episode.ShowName;
 
         return new RadioItem(
