@@ -14,6 +14,8 @@ namespace SpotiSharp.Keypad;
 /// Drop it into XAML in place of a <c>CollectionView</c> and bind
 /// <see cref="ActivateCommand"/>; no code-behind needed. While loaded it subscribes
 /// to <see cref="KeypadManager"/> itself, which is all a single-section page needs.
+/// Nothing is selected until the first Up/Down — that first press lands on the first
+/// (or last, for Up) item rather than activating anything.
 /// It also implements <see cref="IKeypadSection"/> so a future page-level focus scope
 /// can drive it instead (see <see cref="SelfManaged"/>).
 /// </remarks>
@@ -37,6 +39,8 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
     public bool SelfManaged { get; set; } = true;
 
     private bool _movingFocus;
+
+    private int _focusIndex = -1;
 
     public KeypadCollectionView()
     {
@@ -65,9 +69,9 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
                 MoveFocus(1);
                 return true;
             case KeypadKey.Select:
-                if (SelectedItem is { } selected)
+                if (ItemsSource is IList items && _focusIndex >= 0 && _focusIndex < items.Count)
                 {
-                    Activate(selected);
+                    Activate(items[_focusIndex]);
                     return true;
                 }
                 return false;
@@ -78,8 +82,10 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
 
     public void SetActive(bool active)
     {
-        if (!active)
-            SetSelectionSilently(null);
+        if (active) return;
+
+        _focusIndex = -1;
+        SetSelectionSilently(null);
     }
 
     private void OnKeyPressed(object? sender, KeypadKeyEventArgs e)
@@ -94,9 +100,12 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
         if (_movingFocus)
             return;
 
-        // Touch tap: activate, same as pressing Select.
+        // Touch tap: keep keypad navigation continuing from here, then activate (same as Select).
         if (e.CurrentSelection.FirstOrDefault() is { } item)
+        {
+            if (ItemsSource is IList items) _focusIndex = items.IndexOf(item);
             Activate(item);
+        }
     }
 
     private void Activate(object item)
@@ -110,12 +119,13 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
         if (ItemsSource is not IList items || items.Count == 0)
             return;
 
-        var current = SelectedItem is null ? -1 : items.IndexOf(SelectedItem);
+        var current = _focusIndex;
         var enteringFresh = current < 0;
         var next = enteringFresh
             ? (delta > 0 ? 0 : items.Count - 1)
             : (current + delta + items.Count) % items.Count;
 
+        _focusIndex = next;
         SetSelectionSilently(items[next], reaffirm: enteringFresh);
         ScrollTo(next, position: ScrollToPosition.MakeVisible, animate: false);
     }

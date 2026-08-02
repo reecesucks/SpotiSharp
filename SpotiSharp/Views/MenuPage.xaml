@@ -23,12 +23,14 @@
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="Transparent" />
                                     <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                    <Setter TargetName="ChevronPath" Property="Path.Stroke" Value="{DynamicResource TextSecondary}" />
                                 </VisualState.Setters>
                             </VisualState>
                             <VisualState x:Name="Selected">
                                 <VisualState.Setters>
                                     <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
                                     <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                    <Setter TargetName="ChevronPath" Property="Path.Stroke" Value="{DynamicResource SelectedRowText}" />
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
@@ -40,6 +42,7 @@
                            VerticalOptions="Center"
                            TextColor="{DynamicResource TextPrimary}" />
                     <Path Grid.Column="1"
+                          x:Name="ChevronPath"
                           VerticalOptions="Center"
                           HeightRequest="16"
                           WidthRequest="9"

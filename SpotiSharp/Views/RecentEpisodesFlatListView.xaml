@@ -4,24 +4,45 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:RecentEpisodesFlatViewModel"
              x:Class="SpotiSharp.Views.RecentEpisodesFlatListView">
     <Grid>
         <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-        <CollectionView ItemsSource="{Binding Episodes}">
+        <keypad:KeypadCollectionView x:Name="FlatList" SelfManaged="False"
+                        ItemsSource="{Binding Episodes}">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:RecentEpisode">
                     <Grid ColumnDefinitions="44,*" Padding="8,8">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="Transparent" />
+                                        <Setter TargetName="EpisodeNameLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                        <Setter TargetName="EpisodeMetaLabel" Property="Label.TextColor" Value="{DynamicResource TextSecondary}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                                <VisualState x:Name="Selected">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                        <Setter TargetName="EpisodeNameLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                        <Setter TargetName="EpisodeMetaLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
                         <Image Grid.Column="0"
                                Source="{Binding ShowImageUrl}"
                                Aspect="AspectFill"
                                HeightRequest="44"
                                WidthRequest="44" />
                         <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0">
-                            <Label Text="{Binding EpisodeName}"
+                            <Label x:Name="EpisodeNameLabel"
+                                   Text="{Binding EpisodeName}"
                                    FontSize="19"
                                    LineBreakMode="TailTruncation" />
-                            <Label FontSize="16" TextColor="{DynamicResource TextSecondary}">
+                            <Label x:Name="EpisodeMetaLabel" FontSize="16" TextColor="{DynamicResource TextSecondary}">
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="{Binding ShowName}" />
@@ -34,7 +55,7 @@
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-        </CollectionView>
+        </keypad:KeypadCollectionView>
         </RefreshView>
 
         <!-- Opaque cover shown while the list first populates, so the rows inflate under it

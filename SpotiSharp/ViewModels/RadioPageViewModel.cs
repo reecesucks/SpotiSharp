@@ -171,7 +171,10 @@ public class RadioPageViewModel : BaseViewModel
 
     private async Task LoadCachedRadioAsync()
     {
+        IsLoadingCache = true;
         var cached = await Task.Run(() => RadioModel.CachedRadio);
+        IsLoadingCache = false;
+
         if (IsGenerating || Items.Count > 0) return;
         if (cached != null && cached.Count > 0) Items = new ObservableCollection<RadioItem>(cached);
     }
@@ -181,8 +184,24 @@ public class RadioPageViewModel : BaseViewModel
     public bool IsGenerating
     {
         get { return _isGenerating; }
-        private set { SetProperty(ref _isGenerating, value); }
+        private set
+        {
+            if (SetProperty(ref _isGenerating, value)) OnPropertyChanged(nameof(IsBusy));
+        }
     }
+
+    private bool _isLoadingCache;
+
+    public bool IsLoadingCache
+    {
+        get { return _isLoadingCache; }
+        private set
+        {
+            if (SetProperty(ref _isLoadingCache, value)) OnPropertyChanged(nameof(IsBusy));
+        }
+    }
+
+    public bool IsBusy => IsGenerating || IsLoadingCache;
 
     private ObservableCollection<RadioItem> _items = new ObservableCollection<RadioItem>();
 
@@ -250,7 +269,7 @@ public class RadioPageViewModel : BaseViewModel
 
         DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
 
-        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting(radioItem.Title, radioItem.ImageUrl, radioItem.PlayUri);
 
         var (played, apiFailed) = await TryPlayOnActiveDeviceAsync(radioItem, songRun);
         if (played)
@@ -295,27 +314,8 @@ public class RadioPageViewModel : BaseViewModel
         return (played, false);
     }
 
-    // apiFailed distinguishes "the lookup call itself errored" from "the call succeeded and
-    // genuinely found no matching device" — only the latter should make ClickItem launch Spotify.
-    private static async Task<(string? deviceId, bool apiFailed)> ResolvePlayableDeviceAsync()
-    {
-        var selectedId = StorageHandler.SelectedDeviceId;
-
-        var (deviceId, apiFailed) = await Task.Run(() =>
-        {
-            var api = APICaller.Instance;
-            var devices = api?.GetDevices();
-            if (devices == null) return ((string?)null, true);
-            if (devices.Count == 0) return ((string?)null, false);
-
-            api!.TryGetCurrentPlaybackContext(out var context);
-            var resolved = DeviceResolver.Resolve(devices, selectedId, context?.IsPlaying == true, context?.Device?.Id);
-            return (resolved, false);
-        });
-
-        DiagnosticLog.Write($"[Radio] resolved device {deviceId}");
-        return (deviceId, apiFailed);
-    }
+    private static Task<(string? deviceId, bool apiFailed)> ResolvePlayableDeviceAsync() =>
+        Models.PlaybackDeviceLookup.ResolveAsync();
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
     {
@@ -340,6 +340,7 @@ public class RadioPageViewModel : BaseViewModel
             DiagnosticLog.Write("[Radio] no device appeared after launch, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
+            await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
             return;
         }
 

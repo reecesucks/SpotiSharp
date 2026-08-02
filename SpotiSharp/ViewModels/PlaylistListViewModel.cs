@@ -48,7 +48,7 @@ public class PlaylistListViewModel : BaseViewModel
         var cached = await Task.Run(() => PlaylistListModel.CachedPlayLists);
         if (cached.Count > 0)
         {
-            PlayLists = cached;
+            PlayLists = PlaylistListModel.OrderForDisplay(cached);
             IsLoading = false;
         }
 
@@ -60,7 +60,7 @@ public class PlaylistListViewModel : BaseViewModel
     {
         bool changed = await Task.Run(PlaylistListModel.RefreshPlayLists);
         if (changed || PlayLists.Count == 0)
-            PlayLists = PlaylistListModel.CachedPlayLists;
+            PlayLists = PlaylistListModel.OrderForDisplay(PlaylistListModel.CachedPlayLists);
     }
 
     public async void GoToPlaylistDetail()

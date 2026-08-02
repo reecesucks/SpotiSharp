@@ -13,7 +13,16 @@ public class CallBackListener
     private CallBackListener()
     {
         _httpListener.Prefixes.Add("http://127.0.0.1:5000/callback/");
-        _httpListener.Start();
+        try
+        {
+            _httpListener.Start();
+            DiagnosticLog.Write("[Auth] callback listener started on 127.0.0.1:5000");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write($"[Auth] callback listener failed to start: {ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
         var _responseThread = new Thread(ResponseThread);
         _responseThread.Start();
     }
@@ -28,8 +37,19 @@ public class CallBackListener
     
     private void ResponseThread()
     {
-        HttpListenerContext context = _httpListener.GetContext();
+        HttpListenerContext context;
+        try
+        {
+            context = _httpListener.GetContext();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write($"[Auth] callback listener stopped waiting: {ex.GetType().Name}: {ex.Message}");
+            return;
+        }
+
         var code = context.Request.QueryString["code"];
+        DiagnosticLog.Write($"[Auth] callback request received, code present={!string.IsNullOrEmpty(code)}");
 
         byte[] _responseArray;
         if (!string.IsNullOrEmpty(code))

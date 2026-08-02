@@ -73,7 +73,7 @@ public class SettingsPageViewModel : BaseViewModel
         _isLoadingDevices = true;
 
         Devices.Clear();
-        Devices.Add(new DeviceOption { Id = string.Empty, DisplayName = "Automatic (active device)" });
+        Devices.Add(new DeviceOption { Id = string.Empty, DisplayName = "This phone" });
         foreach (var device in DeviceStore.Instance.Devices)
             Devices.Add(new DeviceOption { Id = device.Id, DisplayName = FormatCached(device, activeId) });
 
@@ -85,8 +85,6 @@ public class SettingsPageViewModel : BaseViewModel
         _isLoadingDevices = false;
     }
 
-    // Pulls the live device list and merges it into the cache (adds new, keeps existing), then
-    // refreshes the picker. This is what the "Refresh devices" button runs.
     private async Task RefreshDevicesAsync()
     {
         var live = await Task.Run(() => APICaller.Instance?.GetDevices());
