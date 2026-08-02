@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿using System.Linq;
 using System.Net;
 using SpotifyAPI.Web;
 
@@ -20,7 +20,24 @@ public static class Authentication
     public static SpotifyClient? SpotifyClient { get; private set; }
 
     public static event AuthenticationComplete OnAuthenticate;
-    
+
+    private static void RaiseAuthenticated()
+    {
+        if (OnAuthenticate == null) return;
+
+        foreach (var handler in OnAuthenticate.GetInvocationList().Cast<AuthenticationComplete>())
+        {
+            try
+            {
+                handler();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write($"[Auth] OnAuthenticate subscriber threw: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
+
     static Authentication()
     {
         _clientId = StorageHandler.ClientId;
@@ -31,6 +48,7 @@ public static class Authentication
     public static void Authenticate(string clientId = "")
     {
         if (clientId != string.Empty) _clientId = clientId;
+        DiagnosticLog.Write($"[Auth] Authenticate() called, existing client={(SpotifyClient != null ? "up" : "null")}");
         if (_spotifyClient == null)
         {
             NewAuthentication();
@@ -75,7 +93,7 @@ public static class Authentication
         try
         {
             SpotifyClient = new SpotifyClient(config);
-            OnAuthenticate?.Invoke();
+            RaiseAuthenticated();
         }
         catch (APIException) { }
     }
@@ -119,6 +137,7 @@ public static class Authentication
         _ = CallBackListener.Instance;
 
         Uri uri = loginRequest.ToUri();
+        DiagnosticLog.Write($"[Auth] starting new login, clientId={(string.IsNullOrEmpty(_clientId) ? "(empty)" : _clientId[..Math.Min(4, _clientId.Length)] + "…")}");
         MauiConnector.TriggerBrowerOpen(uri);
     }
 
@@ -149,28 +168,30 @@ public static class Authentication
 
             CreateAuthenticatedClient(newResponse);
             StorageHandler.RefreshToken = newResponse.RefreshToken;
-            OnAuthenticate?.Invoke();
+            RaiseAuthenticated();
         }
         catch (APIException ex)
         {
             var statusCode = ex.Response?.StatusCode;
             if (statusCode == HttpStatusCode.BadRequest || statusCode == HttpStatusCode.Unauthorized || statusCode == HttpStatusCode.Forbidden)
             {
+                DiagnosticLog.Write($"[Auth] refresh rejected ({statusCode}), clearing stored refresh token");
                 StorageHandler.RefreshToken = string.Empty;
             }
             else
             {
-                Debug.WriteLine($"Spotify token refresh failed transiently, keeping session: {ex.Message}");
+                DiagnosticLog.Write($"[Auth] refresh failed transiently, keeping session: {statusCode} {ex.Message}");
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Spotify token refresh failed transiently, keeping session: {ex.Message}");
+            DiagnosticLog.Write($"[Auth] refresh failed transiently, keeping session: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
     internal static async Task GetCallback(string code)
     {
+        DiagnosticLog.Write($"[Auth] callback received, code len={code?.Length ?? 0}, verifier set={!string.IsNullOrEmpty(_verifier)}");
         try
         {
             _initialResponse = await new OAuthClient().RequestToken(
@@ -180,11 +201,16 @@ public static class Authentication
             CreateAuthenticatedClient(_initialResponse);
             StorageHandler.ClientId = _clientId;
             StorageHandler.RefreshToken = _initialResponse.RefreshToken;
-            OnAuthenticate?.Invoke();
+            DiagnosticLog.Write("[Auth] token exchange succeeded, SpotifyClient set, invoking OnAuthenticate");
+            RaiseAuthenticated();
+        }
+        catch (APIException ex)
+        {
+            DiagnosticLog.Write($"[Auth] token exchange failed: {ex.Response?.StatusCode} {ex.Message}");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Spotify token exchange failed: {ex}");
+            DiagnosticLog.Write($"[Auth] token exchange failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 }

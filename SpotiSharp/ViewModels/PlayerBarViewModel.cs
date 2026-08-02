@@ -245,9 +245,6 @@ public class PlayerBarViewModel : BaseViewModel
                 DiagnosticLog.Write($"[Poll] playback poll failing (client={(Authentication.SpotifyClient != null ? "up" : "null")}, cooldown={Ratelimiter.InCooldown})");
             }
 
-            // A failed poll says nothing about playback. Keep the last snapshot and UI as they
-            // are — writing an empty snapshot here reads as 30s of dead air to the radio, which
-            // then shuts itself off in the middle of a network blip.
             if (Authentication.SpotifyClient == null)
             {
                 HasCurrentSong = false;
