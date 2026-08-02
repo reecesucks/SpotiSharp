@@ -36,6 +36,7 @@ public class MainActivity : KeypadActivity
             SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
 
         Authentication.OnAuthenticate += () =>
-            SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
+            MainThread.BeginInvokeOnMainThread(() =>
+                SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback"));
     }
 }

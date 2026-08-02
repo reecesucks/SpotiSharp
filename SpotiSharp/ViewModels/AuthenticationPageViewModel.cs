@@ -56,15 +56,26 @@ public class AuthenticationPageViewModel : BaseViewModel
 
     private void OnAuthenticated()
     {
+        DiagnosticLog.Write($"[Auth] OnAuthenticated fired, client={(Authentication.SpotifyClient != null ? "up" : "null")}");
         _ = RefreshProfileAsync();
 
-        if (Authentication.SpotifyClient == null) return;
+        if (Authentication.SpotifyClient != null) NavigateToLanding();
+    }
 
+    private static void NavigateToLanding()
+    {
         MainThread.BeginInvokeOnMainThread(async () =>
         {
-            var landing = AppState.Instance.IsMobile ? "//RadioPage" : "//MainPage";
-            await Shell.Current.GoToAsync(landing);
-            Shell.Current.FlyoutIsPresented = true;
+            var landing = AppState.Instance.IsMobile ? "//MenuPage" : "//MainPage";
+            try
+            {
+                await Shell.Current.GoToAsync(landing);
+                DiagnosticLog.Write($"[Auth] navigated to {landing}");
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write($"[Auth] navigation to {landing} failed: {ex.GetType().Name}: {ex.Message}");
+            }
         });
     }
 
@@ -85,6 +96,9 @@ public class AuthenticationPageViewModel : BaseViewModel
         }
 
         await RefreshProfileAsync();
+
+        DiagnosticLog.Write($"[Auth] page appeared, client={(Authentication.SpotifyClient != null ? "up" : "null")}, hasStoredSession={Authentication.HasStoredSession}");
+        if (Authentication.SpotifyClient != null) NavigateToLanding();
     }
 
     private async Task RefreshProfileAsync()
