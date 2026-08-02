@@ -121,6 +121,25 @@ public class PlayerBarViewModel : BaseViewModel
         _pollingStopped = false;
     }
 
+    public void NotifyPlaybackStarting(string title, string imageUrl, string trackUri)
+    {
+        NotifyPlaybackStarting();
+
+        SongName = title;
+        SongImageURL = imageUrl ?? string.Empty;
+        HasCurrentSong = true;
+        IsTrackPlaying = true;
+        IsSongLiked = false;
+        _currentTrackUri = trackUri;
+        _currentTrackId = null;
+        _lastKnownUri = trackUri;
+        _lastKnownProgressMs = 0;
+
+        IsPlaying = true;
+        _expectedIsPlaying = true;
+        _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+    }
+
     private void ScheduleNextPoll(DateTime now)
     {
         if (IsPlaying)
@@ -227,6 +246,10 @@ public class PlayerBarViewModel : BaseViewModel
                 currentlyPlayingContext?.ProgressMs ?? 0,
                 currentItemDurationMs,
                 currentlyPlayingContext?.ShuffleState ?? false);
+        }
+        else
+        {
+            Models.PlaybackStateStore.Instance.UpdateActiveDeviceId(currentlyPlayingContext?.Device?.Id);
         }
 
         if (currentlyPlayingContext?.Item == null)

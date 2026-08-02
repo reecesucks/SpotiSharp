@@ -34,4 +34,10 @@ public class PlaybackStateStore
         _snapshot = new PlaybackSnapshot(isPlaying, activeDeviceId, currentItemUri, progressMs, durationMs, shuffleOn);
         Interlocked.Exchange(ref _freshAtUtcTicks, DateTime.UtcNow.Ticks);
     }
+
+    public void UpdateActiveDeviceId(string? activeDeviceId)
+    {
+        if (string.IsNullOrEmpty(activeDeviceId) || activeDeviceId == _snapshot.ActiveDeviceId) return;
+        _snapshot = _snapshot with { ActiveDeviceId = activeDeviceId };
+    }
 }

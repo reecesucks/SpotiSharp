@@ -136,11 +136,12 @@ public class DetailAlbumPageViewModel : BaseViewModel
     {
         if (sourceItem is not AlbumSong song) return;
 
-        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting(song.SongTitle, AlbumImageUrl, song.SongUri);
 
-        if (PlaybackStateStore.Instance.HasActiveDevice)
+        var (deviceId, apiFailed) = await PlaybackDeviceLookup.ResolveAsync();
+        if (!apiFailed && !string.IsNullOrEmpty(deviceId))
         {
-            bool started = await Task.Run(() => APICaller.Instance?.SetCurrentPlayingSongInAlbum(song.SongUri, AlbumId) ?? false);
+            bool started = await Task.Run(() => APICaller.Instance?.SetCurrentPlayingSongInAlbum(song.SongUri, AlbumId, deviceId) ?? false);
             if (started) return;
         }
 
