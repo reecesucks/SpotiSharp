@@ -29,6 +29,15 @@
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
+	<!-- AOT-compiles Android Release builds instead of JIT-compiling methods on first use.
+	     Without this, the first execution of any large chunk of code (e.g. Radio's row
+	     template binding/layout machinery) pays a one-time JIT tax that shows up as a real
+	     UI stall - Debug builds still JIT (fast iteration matters more there), but Release,
+	     which is what real users run, should not carry that cost into the field. -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<RunAOTCompilation>true</RunAOTCompilation>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.jpg" />

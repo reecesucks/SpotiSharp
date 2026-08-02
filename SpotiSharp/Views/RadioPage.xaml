@@ -98,30 +98,51 @@
                                   ColumnDefinitions="*,*"
                                   ColumnSpacing="6"
                                   IsVisible="{Binding IsConfirmingRemove}">
-                                <Button Grid.Column="0" Grid.ColumnSpan="2"
-                                        Text="Remove"
-                                        FontSize="14"
+                                <Border Grid.Column="0" Grid.ColumnSpan="2"
                                         BackgroundColor="{DynamicResource Danger}"
-                                        TextColor="{DynamicResource OnDanger}"
-                                        IsVisible="{Binding IsPodcastSegment, Converter={converters:BooleanConverter}}"
-                                        Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
-                                        CommandParameter="{Binding .}" />
-                                <Button Grid.Column="0"
-                                        Text="Remove section"
-                                        FontSize="12"
+                                        StrokeShape="RoundRectangle 6"
+                                        Stroke="Transparent"
+                                        IsVisible="{Binding IsPodcastSegment, Converter={converters:BooleanConverter}}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                                               CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Remove"
+                                           FontSize="14"
+                                           TextColor="{DynamicResource OnDanger}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <Border Grid.Column="0"
                                         BackgroundColor="{DynamicResource Danger}"
-                                        TextColor="{DynamicResource OnDanger}"
-                                        IsVisible="{Binding IsPodcastSegment}"
-                                        Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
-                                        CommandParameter="{Binding .}" />
-                                <Button Grid.Column="1"
-                                        Text="Remove all sections"
-                                        FontSize="12"
+                                        StrokeShape="RoundRectangle 6"
+                                        Stroke="Transparent"
+                                        IsVisible="{Binding IsPodcastSegment}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                                               CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Remove section"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource OnDanger}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <Border Grid.Column="1"
                                         BackgroundColor="{DynamicResource Danger}"
-                                        TextColor="{DynamicResource OnDanger}"
-                                        IsVisible="{Binding IsPodcastSegment}"
-                                        Command="{Binding BindingContext.RemoveAllSections, Source={x:Reference RadioPageRoot}}"
-                                        CommandParameter="{Binding .}" />
+                                        StrokeShape="RoundRectangle 6"
+                                        Stroke="Transparent"
+                                        IsVisible="{Binding IsPodcastSegment}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.RemoveAllSections, Source={x:Reference RadioPageRoot}}"
+                                                               CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Remove all sections"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource OnDanger}"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
                             </Grid>
                         </Grid>
                     </DataTemplate>
