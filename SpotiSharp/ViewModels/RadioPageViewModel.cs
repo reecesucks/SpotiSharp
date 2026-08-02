@@ -295,12 +295,8 @@ public class RadioPageViewModel : BaseViewModel
         return (played, false);
     }
 
-    private static async Task<(string? deviceId, bool apiFailed)> ResolvePlayableDeviceAsync()
-    {
-        var (deviceId, apiFailed) = await Models.PlaybackDeviceLookup.ResolveAsync();
-        DiagnosticLog.Write($"[Radio] resolved device {deviceId}");
-        return (deviceId, apiFailed);
-    }
+    private static Task<(string? deviceId, bool apiFailed)> ResolvePlayableDeviceAsync() =>
+        Models.PlaybackDeviceLookup.ResolveAsync();
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
     {

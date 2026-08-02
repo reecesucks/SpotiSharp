@@ -38,6 +38,8 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
 
     private bool _movingFocus;
 
+    private int _focusIndex = -1;
+
     public KeypadCollectionView()
     {
         SelectionMode = SelectionMode.Single;
@@ -46,6 +48,8 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
         {
             if (SelfManaged)
                 KeypadManager.Instance.KeyPressed += OnKeyPressed;
+
+            SelectFirstIfNone();
         };
         Unloaded += (_, _) =>
         {
@@ -65,9 +69,9 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
                 MoveFocus(1);
                 return true;
             case KeypadKey.Select:
-                if (SelectedItem is { } selected)
+                if (ItemsSource is IList items && _focusIndex >= 0 && _focusIndex < items.Count)
                 {
-                    Activate(selected);
+                    Activate(items[_focusIndex]);
                     return true;
                 }
                 return false;
@@ -78,8 +82,10 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
 
     public void SetActive(bool active)
     {
-        if (!active)
-            SetSelectionSilently(null);
+        if (active) return;
+
+        _focusIndex = -1;
+        SetSelectionSilently(null);
     }
 
     private void OnKeyPressed(object? sender, KeypadKeyEventArgs e)
@@ -90,13 +96,14 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        // Keypad focus move — highlight only, don't activate.
         if (_movingFocus)
             return;
 
-        // Touch tap: activate, same as pressing Select.
         if (e.CurrentSelection.FirstOrDefault() is { } item)
+        {
+            if (ItemsSource is IList items) _focusIndex = items.IndexOf(item);
             Activate(item);
+        }
     }
 
     private void Activate(object item)
@@ -105,17 +112,27 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
             ActivateCommand.Execute(item);
     }
 
+    private void SelectFirstIfNone()
+    {
+        if (_focusIndex >= 0) return;
+        if (ItemsSource is not IList { Count: > 0 } items) return;
+
+        _focusIndex = 0;
+        SetSelectionSilently(items[0], reaffirm: true);
+    }
+
     private void MoveFocus(int delta)
     {
         if (ItemsSource is not IList items || items.Count == 0)
             return;
 
-        var current = SelectedItem is null ? -1 : items.IndexOf(SelectedItem);
+        var current = _focusIndex;
         var enteringFresh = current < 0;
         var next = enteringFresh
             ? (delta > 0 ? 0 : items.Count - 1)
             : (current + delta + items.Count) % items.Count;
 
+        _focusIndex = next;
         SetSelectionSilently(items[next], reaffirm: enteringFresh);
         ScrollTo(next, position: ScrollToPosition.MakeVisible, animate: false);
     }
