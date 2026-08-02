@@ -260,6 +260,23 @@ public class RadioTickStateTests
     }
 
     [Fact]
+    public void A_final_segment_plays_past_the_nominal_boundary_instead_of_cutting_off()
+    {
+        var segment = Segment("ep1", positionMs: 0, isFinal: true);
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        const int episodeMs = 16 * 60 * 1000;
+
+        harness.Tick(Playing(segment, 5000, episodeMs));
+        harness.Wait(60).Tick(Playing(segment, RadioTuning.SEGMENT_LENGTH_MS + 1000, episodeMs));
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+
+        harness.Wait(60).Tick(Playing(segment, episodeMs, episodeMs));
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+    }
+
+    [Fact]
     public void Stops_when_the_last_item_in_the_queue_finishes()
     {
         var song = Song("a");

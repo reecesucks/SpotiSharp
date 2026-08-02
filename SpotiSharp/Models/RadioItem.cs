@@ -7,6 +7,7 @@ namespace SpotiSharp.Models;
 public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 {
     public bool IsPodcastSegment { get; }
+    public bool IsFinalPodcastSegment { get; }
     public string Title { get; }
     public string Subtitle { get; }
     public string ImageUrl { get; }
@@ -46,9 +47,10 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips)
+    public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips, bool isFinalPodcastSegment = false)
     {
         IsPodcastSegment = isPodcastSegment;
+        IsFinalPodcastSegment = isFinalPodcastSegment;
         Title = title;
         Subtitle = subtitle;
         ImageUrl = imageUrl;
@@ -64,7 +66,7 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 
     internal static RadioItem ForPodcastSegment(
         RecentEpisode episode, int segmentIndex, int segmentLengthMs, int startOffsetMs,
-        int displaySegmentNumber, int displayTotalSegments)
+        int displaySegmentNumber, int displayTotalSegments, bool isFinalSegment)
     {
         var pips = Enumerable.Range(0, displayTotalSegments).Select(index => index == displaySegmentNumber).ToList();
         var subtitle = displayTotalSegments > 1
@@ -78,6 +80,7 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
             episode.ShowImageUrl,
             $"spotify:episode:{episode.EpisodeId}",
             startOffsetMs + segmentIndex * segmentLengthMs,
-            pips);
+            pips,
+            isFinalSegment);
     }
 }

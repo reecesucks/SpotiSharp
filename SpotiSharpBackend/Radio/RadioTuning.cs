@@ -4,6 +4,8 @@ public static class RadioTuning
 {
     public const int SEGMENT_LENGTH_MS = 15 * 60 * 1000;
 
+    public const int MIN_TAIL_SEGMENT_MS = 5 * 60 * 1000;
+
     public const int END_TOLERANCE_MS = 2500;
 
     public const int RESUME_REWIND_MS = 10000;

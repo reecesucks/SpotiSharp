@@ -256,6 +256,8 @@ public sealed class RadioTickState
     {
         if (active.IsPodcastSegment)
         {
+            if (active.IsFinalPodcastSegment) return _lastObservedDurationMs;
+
             int end = active.PositionMs + RadioTuning.SEGMENT_LENGTH_MS;
             return _lastObservedDurationMs > 0 ? Math.Min(end, _lastObservedDurationMs) : end;
         }

@@ -42,9 +42,9 @@ public class RadioModel
         {
             int startMs = ResumeStartFor(episode, resumePositions);
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
-            int segmentCount = Math.Max(1, (int)Math.Ceiling(remainingMs / (double)SEGMENT_LENGTH_MS));
+            int segmentCount = SegmentCountFor(remainingMs);
 
-            int totalSegments = Math.Max(segmentCount, (int)Math.Ceiling(episode.DurationMs / (double)SEGMENT_LENGTH_MS));
+            int totalSegments = Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
             int firstSegmentNumber = totalSegments - segmentCount;
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
@@ -52,7 +52,8 @@ public class RadioModel
                 if (radio.Count > 0) AddSongs(radio, songPool, ref songIndex, SONGS_BETWEEN_SEGMENTS);
                 radio.Add(RadioItem.ForPodcastSegment(
                     episode, segmentIndex, SEGMENT_LENGTH_MS, startMs,
-                    firstSegmentNumber + segmentIndex, totalSegments));
+                    firstSegmentNumber + segmentIndex, totalSegments,
+                    isFinalSegment: segmentIndex == segmentCount - 1));
             }
         }
 
@@ -60,6 +61,18 @@ public class RadioModel
 
         SaveRadio(radio);
         return radio;
+    }
+
+    private static int SegmentCountFor(int spanMs)
+    {
+        if (spanMs <= 0) return 1;
+
+        int fullSegments = spanMs / SEGMENT_LENGTH_MS;
+        int leftoverMs = spanMs - fullSegments * SEGMENT_LENGTH_MS;
+
+        if (leftoverMs > SpotiSharpBackend.Radio.RadioTuning.MIN_TAIL_SEGMENT_MS || fullSegments == 0) fullSegments++;
+
+        return fullSegments;
     }
 
     private static void InsertAlbumSongs(List<RadioItem> radio)

@@ -12,6 +12,9 @@ internal static class SpotifyAppRemoteConnector
     private static string? _clientId;
     private static string? _redirectUri;
     private static TaskCompletionSource<bool>? _pendingConnect;
+    private static bool _pullLoopStarted;
+
+    private static readonly TimeSpan PullInterval = TimeSpan.FromSeconds(20);
 
     internal static void Connect(string clientId, string redirectUri)
     {
@@ -58,9 +61,30 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.SeekTo = positionMs => SeekTo(positionMs);
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
+        StartPeriodicPull();
 
         _pendingConnect?.TrySetResult(true);
         _pendingConnect = null;
+    }
+
+
+    private static void StartPeriodicPull()
+    {
+        if (_pullLoopStarted) return;
+        _pullLoopStarted = true;
+        _ = PullLoopAsync();
+    }
+
+    private static async Task PullLoopAsync()
+    {
+        while (true)
+        {
+            await Task.Delay(PullInterval);
+            if (_appRemote?.IsConnected == true)
+            {
+                _appRemote.PlayerApi.PlayerState?.SetResultCallback(new PlayerStatePullCallback());
+            }
+        }
     }
 
     private static void Pause(bool isRetry = false) =>
@@ -117,27 +141,59 @@ internal static class SpotifyAppRemoteConnector
         }
     }
 
+    private const double MaxPlausibleSpeedMultiplier = 8;
+    private const double JumpToleranceMs = 5000;
+
+    private static string? _lastAcceptedUri;
+    private static int _lastAcceptedProgressMs;
+    private static DateTime _lastAcceptedAtUtc;
+
+    private static void HandlePlayerState(PlayerState? state, string source)
+    {
+        if (state?.Track == null) return;
+
+        var uri = state.Track.Uri;
+        var progressMs = (int)state.PlaybackPosition;
+        var now = DateTime.UtcNow;
+
+        if (!state.IsPaused && uri == _lastAcceptedUri && _lastAcceptedAtUtc != default)
+        {
+            double elapsedMs = (now - _lastAcceptedAtUtc).TotalMilliseconds;
+            double impliedJumpMs = progressMs - _lastAcceptedProgressMs;
+            if (elapsedMs > 500 && impliedJumpMs > elapsedMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs)
+            {
+                DiagnosticLog.Write(
+                    $"[AppRemote] ({source}) ignoring implausible jump: {_lastAcceptedProgressMs}->{progressMs} over {elapsedMs:F0}ms");
+                return;
+            }
+        }
+
+        _lastAcceptedUri = uri;
+        _lastAcceptedProgressMs = progressMs;
+        _lastAcceptedAtUtc = now;
+
+        DiagnosticLog.Write(
+            $"[AppRemote] state ({source}): uri={state.Track?.Uri} isEpisode={state.Track?.IsEpisode} " +
+            $"isPaused={state.IsPaused} position={state.PlaybackPosition} duration={state.Track?.Duration}");
+
+        PlaybackStateStore.Instance.Update(
+            isPlaying: !state.IsPaused,
+            activeDeviceId: PlaybackStateStore.Instance.ActiveDeviceId,
+            currentItemUri: state.Track?.Uri,
+            progressMs: progressMs,
+            durationMs: (int)(state.Track?.Duration ?? 0),
+            shuffleOn: state.PlaybackOptions?.IsShuffling ?? PlaybackStateStore.Instance.ShuffleOn);
+
+        RadioConductor.Instance.Tick();
+    }
+
     private class PlayerStateCallback : Java.Lang.Object, Subscription.IEventCallback
     {
-        public void OnEvent(Java.Lang.Object? data)
-        {
-            if (data is not PlayerState state) return;
+        public void OnEvent(Java.Lang.Object? data) => HandlePlayerState(data as PlayerState, "push");
+    }
 
-            if (state.Track == null) return;
-
-            DiagnosticLog.Write(
-                $"[AppRemote] state: uri={state.Track?.Uri} isEpisode={state.Track?.IsEpisode} " +
-                $"isPaused={state.IsPaused} position={state.PlaybackPosition} duration={state.Track?.Duration}");
-
-            PlaybackStateStore.Instance.Update(
-                isPlaying: !state.IsPaused,
-                activeDeviceId: PlaybackStateStore.Instance.ActiveDeviceId,
-                currentItemUri: state.Track?.Uri,
-                progressMs: (int)state.PlaybackPosition,
-                durationMs: (int)(state.Track?.Duration ?? 0),
-                shuffleOn: state.PlaybackOptions?.IsShuffling ?? PlaybackStateStore.Instance.ShuffleOn);
-
-            RadioConductor.Instance.Tick();
-        }
+    private class PlayerStatePullCallback : Java.Lang.Object, CallResult.IResultCallback
+    {
+        public void OnResult(Java.Lang.Object? data) => HandlePlayerState(data as PlayerState, "pull");
     }
 }
