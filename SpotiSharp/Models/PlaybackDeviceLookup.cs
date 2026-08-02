@@ -1,3 +1,4 @@
+using System.Linq;
 using SpotiSharpBackend;
 using SpotiSharpBackend.Radio;
 
@@ -5,6 +6,8 @@ namespace SpotiSharp.Models;
 
 public static class PlaybackDeviceLookup
 {
+    public static string? LastKnownPhoneDeviceId { get; private set; }
+
     public static async Task<(string? deviceId, bool apiFailed)> ResolveAsync()
     {
         var selectedId = StorageHandler.SelectedDeviceId;
@@ -16,8 +19,14 @@ public static class PlaybackDeviceLookup
             if (devices == null) return ((string?)null, true);
             if (devices.Count == 0) return ((string?)null, false);
 
-            api!.TryGetCurrentPlaybackContext(out var context);
-            var resolved = DeviceResolver.Resolve(devices, selectedId, context?.IsPlaying == true, context?.Device?.Id);
+            var phoneId = devices.FirstOrDefault(device => device.Type == "Smartphone")?.Id;
+            if (!string.IsNullOrEmpty(phoneId)) LastKnownPhoneDeviceId = phoneId;
+
+            var resolved = DeviceResolver.Resolve(devices, selectedId);
+
+            var resolvedDevice = devices.FirstOrDefault(device => device.Id == resolved);
+            DiagnosticLog.Write($"[Device] resolved {resolved} ({resolvedDevice?.Name ?? "unknown"} / {resolvedDevice?.Type ?? "unknown"})");
+
             return (resolved, false);
         });
     }

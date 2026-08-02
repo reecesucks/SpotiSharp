@@ -313,7 +313,19 @@ public class PlayerBarViewModel : BaseViewModel
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
     }
 
-    private static bool HasAppRemote => Models.PlaybackStateStore.HasActivePushSource?.Invoke() == true;
+    private static bool HasAppRemote
+    {
+        get
+        {
+            if (Models.PlaybackStateStore.HasActivePushSource?.Invoke() != true) return false;
+
+            var activeDeviceId = Models.PlaybackStateStore.Instance.ActiveDeviceId;
+            var phoneDeviceId = Models.PlaybackDeviceLookup.LastKnownPhoneDeviceId;
+            return string.IsNullOrEmpty(activeDeviceId)
+                || string.IsNullOrEmpty(phoneDeviceId)
+                || activeDeviceId == phoneDeviceId;
+        }
+    }
 
     private void TogglePlayingFunc()
     {
