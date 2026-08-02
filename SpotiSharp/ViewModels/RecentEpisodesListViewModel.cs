@@ -1,11 +1,15 @@
+using System.Windows.Input;
 using SpotifyAPI.Web;
 using SpotiSharp.Helpers;
+using SpotiSharp.Keypad;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
 
 public class RecentEpisodesListViewModel : BaseViewModel
 {
+    public IKeypadSection? Section { get; set; }
+
     private bool _isLoading;
     public bool IsLoading
     {
@@ -20,8 +24,12 @@ public class RecentEpisodesListViewModel : BaseViewModel
         private set { SetProperty(ref _showGroups, value); }
     }
 
+    public ICommand ToggleGroupExpanded { get; }
+
     public RecentEpisodesListViewModel()
     {
+        ToggleGroupExpanded = new Command<ShowGroupViewModel>(group => group?.ToggleExpanded.Execute(null));
+
         IsLoading = true;
         Application.Current?.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(350), () => _ = LoadShowGroupsAsync());
     }

@@ -171,7 +171,10 @@ public class RadioPageViewModel : BaseViewModel
 
     private async Task LoadCachedRadioAsync()
     {
+        IsLoadingCache = true;
         var cached = await Task.Run(() => RadioModel.CachedRadio);
+        IsLoadingCache = false;
+
         if (IsGenerating || Items.Count > 0) return;
         if (cached != null && cached.Count > 0) Items = new ObservableCollection<RadioItem>(cached);
     }
@@ -181,8 +184,24 @@ public class RadioPageViewModel : BaseViewModel
     public bool IsGenerating
     {
         get { return _isGenerating; }
-        private set { SetProperty(ref _isGenerating, value); }
+        private set
+        {
+            if (SetProperty(ref _isGenerating, value)) OnPropertyChanged(nameof(IsBusy));
+        }
     }
+
+    private bool _isLoadingCache;
+
+    public bool IsLoadingCache
+    {
+        get { return _isLoadingCache; }
+        private set
+        {
+            if (SetProperty(ref _isLoadingCache, value)) OnPropertyChanged(nameof(IsBusy));
+        }
+    }
+
+    public bool IsBusy => IsGenerating || IsLoadingCache;
 
     private ObservableCollection<RadioItem> _items = new ObservableCollection<RadioItem>();
 
