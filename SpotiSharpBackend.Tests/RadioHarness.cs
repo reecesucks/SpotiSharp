@@ -3,7 +3,7 @@ using SpotiSharpBackend.Radio;
 
 namespace SpotiSharpBackend.Tests;
 
-public sealed record QueueItem(string PlayUri, bool IsPodcastSegment, int PositionMs) : IRadioQueueItem;
+public sealed record QueueItem(string PlayUri, bool IsPodcastSegment, int PositionMs, bool IsFinalPodcastSegment = false) : IRadioQueueItem;
 
 public sealed class RadioHarness
 {
@@ -75,7 +75,7 @@ public static class Radio
 {
     public static QueueItem Song(string id) => new QueueItem($"spotify:track:{id}", false, 0);
 
-    public static QueueItem Segment(string id, int positionMs = 0) => new QueueItem($"spotify:episode:{id}", true, positionMs);
+    public static QueueItem Segment(string id, int positionMs = 0, bool isFinal = false) => new QueueItem($"spotify:episode:{id}", true, positionMs, isFinal);
 
     public static PlaybackSnapshot Playing(IRadioQueueItem item, int progressMs, int durationMs) =>
         new PlaybackSnapshot(true, "device-1", item.PlayUri, progressMs, durationMs);

@@ -25,6 +25,8 @@ public class PlaybackStateStore
 
     public bool HasActiveDevice => _snapshot.HasActiveDevice;
 
+    public static Func<bool>? HasActivePushSource { get; set; }
+
     private PlaybackStateStore() { }
 
     public void Update(bool isPlaying, string? activeDeviceId, string? currentItemUri, int progressMs, int durationMs, bool shuffleOn)

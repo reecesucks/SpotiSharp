@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
+using SpotiSharpBackend.Radio;
 
 namespace SpotiSharp.ViewModels;
 
@@ -34,8 +35,6 @@ public class RadioPageViewModel : BaseViewModel
 
     private RadioItem _selectedItem;
 
-    // Bound to KeypadCollectionView.SelectedItem so keypad focus has somewhere to live;
-    // the list has no touch-selection concept of its own (tap plays, long-press removes).
     public RadioItem SelectedItem
     {
         get { return _selectedItem; }
@@ -290,6 +289,9 @@ public class RadioPageViewModel : BaseViewModel
                 ? api.PlayUrisOnDevice(new List<string> { radioItem.PlayUri }, deviceId, radioItem.PositionMs)
                 : api.PlayUrisOnDevice(songRun, deviceId);
         });
+
+        if (played && radioItem.IsPodcastSegment) Models.PlaybackCommands.SeekTo?.Invoke(radioItem.PositionMs);
+
         return (played, false);
     }
 
@@ -299,30 +301,33 @@ public class RadioPageViewModel : BaseViewModel
     {
         var selectedId = StorageHandler.SelectedDeviceId;
 
-        if (!string.IsNullOrEmpty(selectedId))
+        var (deviceId, apiFailed) = await Task.Run(() =>
         {
-            if (selectedId == PlaybackStateStore.Instance.ActiveDeviceId) return (selectedId, false);
+            var api = APICaller.Instance;
+            var devices = api?.GetDevices();
+            if (devices == null) return ((string?)null, true);
+            if (devices.Count == 0) return ((string?)null, false);
 
-            var devices = await Task.Run(() => APICaller.Instance?.GetDevices());
-            if (devices == null) return (null, true);
-            return (devices.Any(device => device.Id == selectedId) ? selectedId : null, false);
-        }
+            api!.TryGetCurrentPlaybackContext(out var context);
+            var resolved = DeviceResolver.Resolve(devices, selectedId, context?.IsPlaying == true, context?.Device?.Id);
+            return (resolved, false);
+        });
 
-        var activeId = PlaybackStateStore.Instance.ActiveDeviceId;
-        if (!string.IsNullOrEmpty(activeId)) return (activeId, false);
-
-        var ids = await Task.Run(() => APICaller.Instance?.GetDeviceIds());
-        if (ids == null) return (null, true);
-        return (ids.Value.phone ?? ids.Value.any, false);
+        DiagnosticLog.Write($"[Radio] resolved device {deviceId}");
+        return (deviceId, apiFailed);
     }
 
     private async Task LaunchAndRestoreContextAsync(RadioItem radioItem, List<string> songRun)
     {
         RadioBackgroundService.Start();
 
-        if (!await LaunchInSpotify(radioItem.PlayUri))
+        bool woke = Models.PlaybackCommands.WakeSpotify != null
+            ? await Models.PlaybackCommands.WakeSpotify()
+            : await LaunchInSpotify(radioItem.PlayUri);
+
+        if (!woke)
         {
-            DiagnosticLog.Write("[Radio] deep link into Spotify failed, aborting");
+            DiagnosticLog.Write("[Radio] could not wake Spotify, aborting");
             SetCurrentItem(null);
             RadioBackgroundService.Stop();
             await Shell.Current.DisplayAlert("Playback failed", "Couldn't start playback. Make sure Spotify is installed and you're signed in.", "OK");
@@ -341,10 +346,6 @@ public class RadioPageViewModel : BaseViewModel
         DiagnosticLog.Write($"[Radio] device {deviceId} appeared, handing over the run");
         await Task.Run(() => APICaller.Instance?.SetPlaybackShuffle(false));
 
-        // The deep link already has Spotify playing the tapped item, so a failed handover must
-        // not kill the session. Start conducting either way: if the run never reached Spotify,
-        // the conductor re-issues it at the item boundary through its usual start watchdog. The
-        // handover only buys a gapless transition into the rest of the run.
         bool handedOver = await StartRunOnDeviceAsync(radioItem, songRun, deviceId);
         DiagnosticLog.Write(handedOver
             ? "[Radio] handover succeeded"
