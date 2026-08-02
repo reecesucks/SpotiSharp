@@ -388,12 +388,13 @@ public class APICaller
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest()).Result);
     }
 
-    public bool SetCurrentPlayingSong(string songUri, string playlistId)
+    public bool SetCurrentPlayingSong(string songUri, string playlistId, string deviceId = null)
     {
         if (songUri == null) return false;
 
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
+            DeviceId = string.IsNullOrEmpty(deviceId) ? null : deviceId,
             ContextUri = $"spotify:playlist:{playlistId}",
             OffsetParam = new PlayerResumePlaybackRequest.Offset
             {
@@ -471,12 +472,13 @@ public class APICaller
         return HandleExceptions(() => Authentication.SpotifyClient.Player.SeekTo(new PlayerSeekToRequest(positionMs)).Result);
     }
 
-    public bool SetCurrentPlayingSongInAlbum(string songUri, string albumId)
+    public bool SetCurrentPlayingSongInAlbum(string songUri, string albumId, string deviceId = null)
     {
         if (songUri == null) return false;
 
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
+            DeviceId = string.IsNullOrEmpty(deviceId) ? null : deviceId,
             ContextUri = $"spotify:album:{albumId}",
             OffsetParam = new PlayerResumePlaybackRequest.Offset
             {
@@ -493,7 +495,7 @@ public class APICaller
         }).Result);
     }
 
-    public bool SetCurrentPlayingToSongInLikedPlaylist(string songId)
+    public bool SetCurrentPlayingToSongInLikedPlaylist(string songId, string deviceId = null)
     {
         var likedSongs = GetUserLikedSongs().Select(ls => ls.Track).ToList();
         var likedSongIds = likedSongs.Select(ls => ls.Id).ToList();
@@ -501,6 +503,7 @@ public class APICaller
         var songCount = likedSongIds.Count - indexOfSelectedSong;
         return HandleExceptionsNonAbstract(() => Authentication.SpotifyClient.Player.ResumePlayback(new PlayerResumePlaybackRequest
         {
+            DeviceId = string.IsNullOrEmpty(deviceId) ? null : deviceId,
             Uris = likedSongs.Select(ls => ls.Uri).ToList().GetRange(indexOfSelectedSong, songCount)
         }).Result);
     }

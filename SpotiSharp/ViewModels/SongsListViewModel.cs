@@ -57,13 +57,14 @@ public class SongsListViewModel : BaseViewModel
     {
         if (sourceItem is not Song song) return;
 
-        PlayerBarViewModel.Instance.NotifyPlaybackStarting();
+        PlayerBarViewModel.Instance.NotifyPlaybackStarting(song.SongTitle, song.SongImageURL, song.SongUri);
 
-        if (PlaybackStateStore.Instance.HasActiveDevice)
+        var (deviceId, apiFailed) = await PlaybackDeviceLookup.ResolveAsync();
+        if (!apiFailed && !string.IsNullOrEmpty(deviceId))
         {
             bool started = await Task.Run(() => song.PartOfPlayListWithId == Constants.LIKED_PLALIST_ID
-                ? APICaller.Instance?.SetCurrentPlayingToSongInLikedPlaylist(song.SongId) ?? false
-                : APICaller.Instance?.SetCurrentPlayingSong(song.SongUri, song.PartOfPlayListWithId) ?? false);
+                ? APICaller.Instance?.SetCurrentPlayingToSongInLikedPlaylist(song.SongId, deviceId) ?? false
+                : APICaller.Instance?.SetCurrentPlayingSong(song.SongUri, song.PartOfPlayListWithId, deviceId) ?? false);
 
             if (started) return;
         }
