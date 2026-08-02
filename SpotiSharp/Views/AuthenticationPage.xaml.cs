@@ -5,6 +5,8 @@ namespace SpotiSharp;
 
 public partial class AuthenticationPage : BasePage
 {
+    protected override bool ShowPlayerBar => false;
+
     public AuthenticationPage()
     {
         InitializeComponent();

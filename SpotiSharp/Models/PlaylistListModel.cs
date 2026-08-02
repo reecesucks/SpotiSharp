@@ -75,6 +75,15 @@ public class PlaylistListModel
         return tmpPlaylist;
     }
 
+    public static List<Playlist> OrderForDisplay(List<Playlist> playlists)
+    {
+        return playlists
+            .OrderBy(playlist => playlist.PlayListId == Constants.LIKED_PLALIST_ID ? 0
+                : playlist.PlayListTitle.StartsWith("#R", StringComparison.OrdinalIgnoreCase) ? 1
+                : 2)
+            .ToList();
+    }
+
     private static bool ArePlayListsEqual(List<Playlist> current, List<Playlist> fetched)
     {
         return current.Count == fetched.Count && current.Zip(fetched, (a, b) =>

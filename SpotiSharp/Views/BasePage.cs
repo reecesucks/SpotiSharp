@@ -6,6 +6,8 @@ public class BasePage : ContentPage
 {
     protected virtual double TitleTranslationX => -35;
 
+    protected virtual bool ShowPlayerBar => true;
+
     public BasePage()
     {
         ControlTemplate = new ControlTemplate(CreatePageTemplate);
@@ -70,6 +72,7 @@ public class BasePage : ContentPage
         layout.Add(contentPresenter);
 
         var playerBar = new PlayerBarView();
+        playerBar.SetBinding(IsVisibleProperty, new Binding(nameof(ShowPlayerBar), source: RelativeBindingSource.TemplatedParent));
         Grid.SetRow(playerBar, 1);
         layout.Add(playerBar);
 

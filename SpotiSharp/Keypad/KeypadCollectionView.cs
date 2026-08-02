@@ -14,6 +14,8 @@ namespace SpotiSharp.Keypad;
 /// Drop it into XAML in place of a <c>CollectionView</c> and bind
 /// <see cref="ActivateCommand"/>; no code-behind needed. While loaded it subscribes
 /// to <see cref="KeypadManager"/> itself, which is all a single-section page needs.
+/// Nothing is selected until the first Up/Down — that first press lands on the first
+/// (or last, for Up) item rather than activating anything.
 /// It also implements <see cref="IKeypadSection"/> so a future page-level focus scope
 /// can drive it instead (see <see cref="SelfManaged"/>).
 /// </remarks>
@@ -48,8 +50,6 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
         {
             if (SelfManaged)
                 KeypadManager.Instance.KeyPressed += OnKeyPressed;
-
-            SelectFirstIfNone();
         };
         Unloaded += (_, _) =>
         {
@@ -96,9 +96,11 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
 
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        // Keypad focus move — highlight only, don't activate.
         if (_movingFocus)
             return;
 
+        // Touch tap: keep keypad navigation continuing from here, then activate (same as Select).
         if (e.CurrentSelection.FirstOrDefault() is { } item)
         {
             if (ItemsSource is IList items) _focusIndex = items.IndexOf(item);
@@ -110,15 +112,6 @@ public class KeypadCollectionView : CollectionView, IKeypadSection
     {
         if (ActivateCommand?.CanExecute(item) == true)
             ActivateCommand.Execute(item);
-    }
-
-    private void SelectFirstIfNone()
-    {
-        if (_focusIndex >= 0) return;
-        if (ItemsSource is not IList { Count: > 0 } items) return;
-
-        _focusIndex = 0;
-        SetSelectionSilently(items[0], reaffirm: true);
     }
 
     private void MoveFocus(int delta)

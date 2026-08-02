@@ -42,7 +42,7 @@ public class RadioSettingsPageViewModel : BaseViewModel
 
     private static List<RadioSourceWeightViewModel> LoadPlaylistToggles()
     {
-        return PlaylistListModel.PlayLists
+        return PlaylistListModel.OrderForDisplay(PlaylistListModel.PlayLists)
             .Select(playlist => new RadioSourceWeightViewModel(
                 playlist.PlayListId,
                 playlist.PlayListTitle,

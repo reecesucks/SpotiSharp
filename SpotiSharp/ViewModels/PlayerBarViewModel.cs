@@ -138,6 +138,8 @@ public class PlayerBarViewModel : BaseViewModel
         IsPlaying = true;
         _expectedIsPlaying = true;
         _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
+        PersistLastPlayed(trackUri, title, SongImageURL, 0, isTrack: true);
     }
 
     private void ScheduleNextPoll(DateTime now)
@@ -182,6 +184,42 @@ public class PlayerBarViewModel : BaseViewModel
         RotationDown = new Command(() => ChangeRotationFunc(increase: false));
         ToggleSongLiked = new Command(ToggleSongLikedFunc);
         UiLoop.Instance.OnRefreshUi += RefreshPlayerValues;
+
+        RestoreLastPlayed();
+    }
+
+    private void RestoreLastPlayed()
+    {
+        var last = Models.LastPlayedModel.Load();
+        if (last == null || string.IsNullOrEmpty(last.Uri)) return;
+
+        SongName = last.Title;
+        SongImageURL = last.ImageUrl ?? string.Empty;
+        HasCurrentSong = true;
+        IsTrackPlaying = last.IsTrack;
+        _lastKnownUri = last.Uri;
+        _lastKnownProgressMs = last.ProgressMs;
+        _lastPersistedUri = last.Uri;
+        if (last.IsTrack) _currentTrackUri = last.Uri;
+    }
+
+    private string _lastPersistedUri;
+    private DateTime _lastPersistedAtUtc = DateTime.MinValue;
+    private static readonly TimeSpan PersistThrottle = TimeSpan.FromSeconds(10);
+
+    private void PersistLastPlayed(string uri, string title, string imageUrl, int progressMs, bool isTrack)
+    {
+        if (string.IsNullOrEmpty(uri)) return;
+
+        var now = DateTime.UtcNow;
+        var uriChanged = uri != _lastPersistedUri;
+        if (!uriChanged && now - _lastPersistedAtUtc < PersistThrottle) return;
+
+        _lastPersistedUri = uri;
+        _lastPersistedAtUtc = now;
+
+        var snapshot = new Models.LastPlayedSnapshot(uri, title, imageUrl, progressMs, isTrack);
+        Task.Run(() => Models.LastPlayedModel.Save(snapshot));
     }
 
     private bool _pollsWereFailing;
@@ -311,6 +349,8 @@ public class PlayerBarViewModel : BaseViewModel
 
         ApplyShuffle(currentlyPlayingContext.ShuffleState);
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
+
+        PersistLastPlayed(_lastKnownUri, SongName, SongImageURL, _lastKnownProgressMs, IsTrackPlaying);
     }
 
     private static bool HasAppRemote
