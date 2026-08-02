@@ -197,8 +197,7 @@ public class RadioConductor
         }
         else
         {
-            api.TryGetCurrentPlaybackContext(out var context);
-            deviceId = DeviceResolver.Resolve(devices, selectedId, context?.IsPlaying == true, context?.Device?.Id);
+            deviceId = DeviceResolver.Resolve(devices, selectedId);
         }
 
         DiagnosticLog.Write($"[Radio] resolved device {deviceId}");

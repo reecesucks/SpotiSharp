@@ -4,14 +4,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:SpotiSharp.Models"
              xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
              x:DataType="viewmodels:RecentEpisodesListViewModel"
              x:Class="SpotiSharp.Views.RecentEpisodesListView">
     <Grid>
     <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-    <CollectionView ItemsSource="{Binding ShowGroups}">
+    <keypad:KeypadCollectionView x:Name="GroupedList" SelfManaged="False"
+                    ItemsSource="{Binding ShowGroups}"
+                    ActivateCommand="{Binding ToggleGroupExpanded}">
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="viewmodels:ShowGroupViewModel">
                 <VerticalStackLayout>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                    <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                    <Setter TargetName="ChevronLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Selected">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                    <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                    <Setter TargetName="ChevronLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
                     <Grid Padding="8,8" ColumnDefinitions="56,*,Auto">
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding ToggleExpanded}" />
@@ -22,12 +43,14 @@
                                HeightRequest="56"
                                WidthRequest="56" />
                         <Label Grid.Column="1"
+                               x:Name="ShowNameLabel"
                                Text="{Binding ShowName}"
                                FontSize="22"
                                Margin="10,0,0,0"
                                VerticalOptions="Center"
                                LineBreakMode="TailTruncation" />
                         <Label Grid.Column="2"
+                               x:Name="ChevronLabel"
                                Text="▸"
                                FontSize="20"
                                VerticalOptions="Center">
@@ -60,7 +83,7 @@
                 </VerticalStackLayout>
             </DataTemplate>
         </CollectionView.ItemTemplate>
-    </CollectionView>
+    </keypad:KeypadCollectionView>
     </RefreshView>
 
     <!-- Opaque cover shown while the list first populates, so the rows inflate under it

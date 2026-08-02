@@ -10,19 +10,19 @@ public class DeviceResolverTests
     [Fact]
     public void Empty_device_list_resolves_to_nothing()
     {
-        var resolved = DeviceResolver.Resolve(Array.Empty<Device>(), selectedId: null, false, null);
+        var resolved = DeviceResolver.Resolve(Array.Empty<Device>(), selectedId: null);
 
         Assert.Null(resolved);
     }
 
     [Fact]
-    public void Selected_device_wins_even_over_something_playing_elsewhere()
+    public void Selected_device_wins_over_the_phone()
     {
         var phone = MakeDevice("phone-1", "Smartphone");
         var speaker = MakeDevice("speaker-1", "Speaker");
         var devices = new[] { phone, speaker };
 
-        var resolved = DeviceResolver.Resolve(devices, selectedId: "speaker-1", somethingIsPlayingElsewhere: true, activeElsewhereDeviceId: "phone-1");
+        var resolved = DeviceResolver.Resolve(devices, selectedId: "speaker-1");
 
         Assert.Equal("speaker-1", resolved);
     }
@@ -33,71 +33,36 @@ public class DeviceResolverTests
         var phone = MakeDevice("phone-1", "Smartphone");
         var devices = new[] { phone };
 
-        var resolved = DeviceResolver.Resolve(devices, selectedId: "unplugged-device", false, null);
+        var resolved = DeviceResolver.Resolve(devices, selectedId: "unplugged-device");
 
         Assert.Equal("phone-1", resolved);
     }
 
     [Fact]
-    public void Nothing_selected_and_nothing_playing_elsewhere_defaults_to_the_phone()
+    public void Nothing_selected_defaults_to_the_phone()
     {
         var phone = MakeDevice("phone-1", "Smartphone");
         var speaker = MakeDevice("speaker-1", "Speaker");
         var devices = new[] { speaker, phone };
 
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, somethingIsPlayingElsewhere: false, activeElsewhereDeviceId: null);
+        var resolved = DeviceResolver.Resolve(devices, selectedId: null);
 
         Assert.Equal("phone-1", resolved);
     }
 
     [Fact]
-    public void Something_genuinely_playing_on_another_device_is_not_stolen()
+    public void An_always_on_device_reported_as_active_does_not_steal_the_default()
     {
-        var phone = MakeDevice("phone-1", "Smartphone");
-        var speaker = MakeDevice("speaker-1", "Speaker");
-        var devices = new[] { phone, speaker };
-
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, somethingIsPlayingElsewhere: true, activeElsewhereDeviceId: "speaker-1");
-
-        Assert.Equal("speaker-1", resolved);
-    }
-
-    [Fact]
-    public void An_always_on_device_merely_marked_active_but_not_actually_playing_does_not_win()
-    {
-        // The regression this guards: some always-on Connect devices (smart speakers/receivers)
-        // can sit flagged active in the device list even while idle. Resolve only takes a device
-        // list plus an explicit "is something playing elsewhere" signal — it never looks at a
-        // device's own IsActive flag — so a caller correctly passing somethingIsPlayingElsewhere:
-        // false (because nothing is actually playing there) must land on the phone regardless of
-        // what the always-on device's own listing looks like.
+        // The regression this guards: Spotify's own "currently playing" state for a third-party
+        // Connect receiver can lie (stale/zombie sessions that never got a proper pause/stop).
+        // Resolve deliberately has no way to be told "something's playing elsewhere" at all, so a
+        // misbehaving always-on device sitting in the list can never redirect the default away
+        // from the phone — only an explicit Settings pin can.
         var phone = MakeDevice("phone-1", "Smartphone");
         var alwaysOnSpeaker = MakeDevice("wiim-1", "AVR");
         var devices = new[] { phone, alwaysOnSpeaker };
 
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, somethingIsPlayingElsewhere: false, activeElsewhereDeviceId: null);
-
-        Assert.Equal("phone-1", resolved);
-    }
-
-    [Fact]
-    public void Playing_elsewhere_flag_without_a_device_id_is_ignored()
-    {
-        var phone = MakeDevice("phone-1", "Smartphone");
-        var devices = new[] { phone };
-
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, somethingIsPlayingElsewhere: true, activeElsewhereDeviceId: null);
-
-        Assert.Equal("phone-1", resolved);
-    }
-
-    [Fact]
-    public void Playing_elsewhere_reported_as_the_phone_itself_still_resolves_to_the_phone()
-    {
-        var phone = MakeDevice("phone-1", "Smartphone");
-        var devices = new[] { phone };
-
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, somethingIsPlayingElsewhere: true, activeElsewhereDeviceId: "phone-1");
+        var resolved = DeviceResolver.Resolve(devices, selectedId: null);
 
         Assert.Equal("phone-1", resolved);
     }
@@ -109,7 +74,7 @@ public class DeviceResolverTests
         var speakerB = MakeDevice("speaker-b", "Speaker");
         var devices = new[] { speakerA, speakerB };
 
-        var resolved = DeviceResolver.Resolve(devices, selectedId: null, false, null);
+        var resolved = DeviceResolver.Resolve(devices, selectedId: null);
 
         Assert.Equal("speaker-a", resolved);
     }

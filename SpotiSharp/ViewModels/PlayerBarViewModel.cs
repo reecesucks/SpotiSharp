@@ -121,6 +121,27 @@ public class PlayerBarViewModel : BaseViewModel
         _pollingStopped = false;
     }
 
+    public void NotifyPlaybackStarting(string title, string imageUrl, string trackUri)
+    {
+        NotifyPlaybackStarting();
+
+        SongName = title;
+        SongImageURL = imageUrl ?? string.Empty;
+        HasCurrentSong = true;
+        IsTrackPlaying = true;
+        IsSongLiked = false;
+        _currentTrackUri = trackUri;
+        _currentTrackId = null;
+        _lastKnownUri = trackUri;
+        _lastKnownProgressMs = 0;
+
+        IsPlaying = true;
+        _expectedIsPlaying = true;
+        _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+
+        PersistLastPlayed(trackUri, title, SongImageURL, 0, isTrack: true);
+    }
+
     private void ScheduleNextPoll(DateTime now)
     {
         if (IsPlaying)
@@ -163,6 +184,42 @@ public class PlayerBarViewModel : BaseViewModel
         RotationDown = new Command(() => ChangeRotationFunc(increase: false));
         ToggleSongLiked = new Command(ToggleSongLikedFunc);
         UiLoop.Instance.OnRefreshUi += RefreshPlayerValues;
+
+        RestoreLastPlayed();
+    }
+
+    private void RestoreLastPlayed()
+    {
+        var last = Models.LastPlayedModel.Load();
+        if (last == null || string.IsNullOrEmpty(last.Uri)) return;
+
+        SongName = last.Title;
+        SongImageURL = last.ImageUrl ?? string.Empty;
+        HasCurrentSong = true;
+        IsTrackPlaying = last.IsTrack;
+        _lastKnownUri = last.Uri;
+        _lastKnownProgressMs = last.ProgressMs;
+        _lastPersistedUri = last.Uri;
+        if (last.IsTrack) _currentTrackUri = last.Uri;
+    }
+
+    private string _lastPersistedUri;
+    private DateTime _lastPersistedAtUtc = DateTime.MinValue;
+    private static readonly TimeSpan PersistThrottle = TimeSpan.FromSeconds(10);
+
+    private void PersistLastPlayed(string uri, string title, string imageUrl, int progressMs, bool isTrack)
+    {
+        if (string.IsNullOrEmpty(uri)) return;
+
+        var now = DateTime.UtcNow;
+        var uriChanged = uri != _lastPersistedUri;
+        if (!uriChanged && now - _lastPersistedAtUtc < PersistThrottle) return;
+
+        _lastPersistedUri = uri;
+        _lastPersistedAtUtc = now;
+
+        var snapshot = new Models.LastPlayedSnapshot(uri, title, imageUrl, progressMs, isTrack);
+        Task.Run(() => Models.LastPlayedModel.Save(snapshot));
     }
 
     private bool _pollsWereFailing;
@@ -188,9 +245,6 @@ public class PlayerBarViewModel : BaseViewModel
                 DiagnosticLog.Write($"[Poll] playback poll failing (client={(Authentication.SpotifyClient != null ? "up" : "null")}, cooldown={Ratelimiter.InCooldown})");
             }
 
-            // A failed poll says nothing about playback. Keep the last snapshot and UI as they
-            // are — writing an empty snapshot here reads as 30s of dead air to the radio, which
-            // then shuts itself off in the middle of a network blip.
             if (Authentication.SpotifyClient == null)
             {
                 HasCurrentSong = false;
@@ -227,6 +281,10 @@ public class PlayerBarViewModel : BaseViewModel
                 currentlyPlayingContext?.ProgressMs ?? 0,
                 currentItemDurationMs,
                 currentlyPlayingContext?.ShuffleState ?? false);
+        }
+        else
+        {
+            Models.PlaybackStateStore.Instance.UpdateActiveDeviceId(currentlyPlayingContext?.Device?.Id);
         }
 
         if (currentlyPlayingContext?.Item == null)
@@ -288,9 +346,23 @@ public class PlayerBarViewModel : BaseViewModel
 
         ApplyShuffle(currentlyPlayingContext.ShuffleState);
         IsRepeatOn = currentlyPlayingContext.RepeatState == "track" || currentlyPlayingContext.RepeatState == "context";
+
+        PersistLastPlayed(_lastKnownUri, SongName, SongImageURL, _lastKnownProgressMs, IsTrackPlaying);
     }
 
-    private static bool HasAppRemote => Models.PlaybackStateStore.HasActivePushSource?.Invoke() == true;
+    private static bool HasAppRemote
+    {
+        get
+        {
+            if (Models.PlaybackStateStore.HasActivePushSource?.Invoke() != true) return false;
+
+            var activeDeviceId = Models.PlaybackStateStore.Instance.ActiveDeviceId;
+            var phoneDeviceId = Models.PlaybackDeviceLookup.LastKnownPhoneDeviceId;
+            return string.IsNullOrEmpty(activeDeviceId)
+                || string.IsNullOrEmpty(phoneDeviceId)
+                || activeDeviceId == phoneDeviceId;
+        }
+    }
 
     private void TogglePlayingFunc()
     {

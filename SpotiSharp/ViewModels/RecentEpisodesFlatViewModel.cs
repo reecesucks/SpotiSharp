@@ -1,9 +1,12 @@
+using SpotiSharp.Keypad;
 using SpotiSharp.Models;
 
 namespace SpotiSharp.ViewModels;
 
 public class RecentEpisodesFlatViewModel : BaseViewModel
 {
+    public IKeypadSection? Section { get; set; }
+
     private bool _hasLoaded;
 
     private bool _isLoading;
