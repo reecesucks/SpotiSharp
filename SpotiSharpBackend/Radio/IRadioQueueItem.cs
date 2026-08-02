@@ -6,4 +6,6 @@ public interface IRadioQueueItem
     bool IsPodcastSegment { get; }
 
     int PositionMs { get; }
+
+    bool IsFinalPodcastSegment { get; }
 }

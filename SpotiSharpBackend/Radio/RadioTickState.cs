@@ -136,6 +136,16 @@ public sealed class RadioTickState
 
         if (state.DurationMs > 0) _lastObservedDurationMs = state.DurationMs;
 
+        if (state.IsPlaying && _lastObservedWasPlaying && active.IsPodcastSegment)
+        {
+            int projectedEndMs = ActiveEndMs(active);
+            if (projectedEndMs > 0)
+            {            
+                double projectedMs = _lastObservedProgressMs + (nowUtc - _lastObservedAtUtc).TotalMilliseconds;
+                if (projectedMs >= projectedEndMs) return Advance(nowUtc);
+            }
+        }
+
         bool wasPlaying = _lastObservedWasPlaying;
         _lastObservedWasPlaying = state.IsPlaying;
         if (state.IsPlaying)
@@ -246,6 +256,8 @@ public sealed class RadioTickState
     {
         if (active.IsPodcastSegment)
         {
+            if (active.IsFinalPodcastSegment) return _lastObservedDurationMs;
+
             int end = active.PositionMs + RadioTuning.SEGMENT_LENGTH_MS;
             return _lastObservedDurationMs > 0 ? Math.Min(end, _lastObservedDurationMs) : end;
         }

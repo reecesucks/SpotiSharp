@@ -1,0 +1,11 @@
+<metadata>
+  <!-- Spotify App Remote SDK: several Java classes have a field named the same as the
+       class (e.g. class Uri { String uri; }), which C# forbids (CS0542). Rename the bound
+       property so the binding compiles; the underlying Java field/JNI id is unaffected. -->
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='Uri']/field[@name='uri']" name="managedName">UriValue</attr>
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='Uris']/field[@name='uris']" name="managedName">UrisValue</attr>
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='Message']/field[@name='message']" name="managedName">MessageValue</attr>
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='PlaybackSpeed']/field[@name='playbackSpeed']" name="managedName">PlaybackSpeedValue</attr>
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='Repeat']/field[@name='repeat']" name="managedName">RepeatValue</attr>
+  <attr path="/api/package[@name='com.spotify.protocol.types']/class[@name='Shuffle']/field[@name='shuffle']" name="managedName">ShuffleValue</attr>
+</metadata>
