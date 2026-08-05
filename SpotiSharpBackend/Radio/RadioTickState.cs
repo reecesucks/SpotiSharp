@@ -148,7 +148,8 @@ public sealed class RadioTickState
 
         bool wasPlaying = _lastObservedWasPlaying;
         _lastObservedWasPlaying = state.IsPlaying;
-        if (state.IsPlaying)
+
+        if (state.IsPlaying && (!wasPlaying || state.ProgressMs != _lastObservedProgressMs))
         {
             _lastObservedProgressMs = state.ProgressMs;
             _lastObservedAtUtc = nowUtc;

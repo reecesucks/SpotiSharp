@@ -10,5 +10,8 @@ public class RadioConfig
     public Dictionary<string, RadioAlbumMode> AlbumModes { get; set; } = new Dictionary<string, RadioAlbumMode>();
 
     public List<string> EnabledPlaylistIds { get; set; } = new List<string>();
+   
     public List<string> EnabledShowIds { get; set; } = new List<string>();
+    
+    public HashSet<string> ExcludedEpisodeIds { get; set; } = new HashSet<string>();
 }
