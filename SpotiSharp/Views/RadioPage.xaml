@@ -99,10 +99,10 @@
 
                             <!-- revealed by a long press, replaces the row content -->
                             <Grid Grid.Column="0" Grid.ColumnSpan="2"
-                                  ColumnDefinitions="*,*"
+                                  ColumnDefinitions="*,*,*"
                                   ColumnSpacing="6"
                                   IsVisible="{Binding IsConfirmingRemove}">
-                                <Border Grid.Column="0" Grid.ColumnSpan="2"
+                                <Border Grid.Column="0" Grid.ColumnSpan="3"
                                         BackgroundColor="{DynamicResource Danger}"
                                         StrokeShape="RoundRectangle 6"
                                         Stroke="Transparent"
@@ -127,9 +127,11 @@
                                                                CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
                                     <Label Text="Remove section"
-                                           FontSize="12"
+                                           FontSize="11"
+                                           LineBreakMode="WordWrap"
                                            TextColor="{DynamicResource OnDanger}"
                                            HorizontalOptions="Center"
+                                           HorizontalTextAlignment="Center"
                                            VerticalOptions="Center" />
                                 </Border>
                                 <Border Grid.Column="1"
@@ -141,10 +143,29 @@
                                         <TapGestureRecognizer Command="{Binding BindingContext.RemoveAllSections, Source={x:Reference RadioPageRoot}}"
                                                                CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
-                                    <Label Text="Remove all sections"
-                                           FontSize="12"
+                                    <Label Text="Remove all"
+                                           FontSize="11"
+                                           LineBreakMode="WordWrap"
                                            TextColor="{DynamicResource OnDanger}"
                                            HorizontalOptions="Center"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalOptions="Center" />
+                                </Border>
+                                <Border Grid.Column="2"
+                                        BackgroundColor="{DynamicResource Danger}"
+                                        StrokeShape="RoundRectangle 6"
+                                        Stroke="Transparent"
+                                        IsVisible="{Binding IsPodcastSegment}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.NotInterested, Source={x:Reference RadioPageRoot}}"
+                                                               CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Label Text="Not interested"
+                                           FontSize="11"
+                                           LineBreakMode="WordWrap"
+                                           TextColor="{DynamicResource OnDanger}"
+                                           HorizontalOptions="Center"
+                                           HorizontalTextAlignment="Center"
                                            VerticalOptions="Center" />
                                 </Border>
                             </Grid>
