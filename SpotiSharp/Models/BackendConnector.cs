@@ -14,6 +14,7 @@ public class BackendConnector
     {
         MauiConnector.OnOpenBrowser += OpenBrowser;
         StorageHandler.OnDataChange += StoreInSecureStorage;
+        RadioContentPrefetcher.Initialize();
 
         StorageLoadTask = InitializeStorageAsync();
     }
