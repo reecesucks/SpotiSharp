@@ -17,6 +17,31 @@ public class RadioTickStateTests
         return harness;
     }
 
+    [Fact]
+    public void Advances_a_segment_across_many_stale_ticks_between_real_samples()
+    {
+        // UiLoop calls RadioConductor.Tick() every 2 real seconds regardless of whether
+        // PlaybackStateStore got a new sample -- real pushes/pulls are sparse (~20s apart during
+        // unbroken playback, per the App Remote SDK migration notes). Re-anchoring the elapsed-time
+        // baseline on every one of those replayed-stale ticks (rather than only on a fresh sample)
+        // used to cap the projected-end extrapolation at ~one tick interval forever, leaving a
+        // playing podcast segment stuck past its boundary indefinitely.
+        var segment = Segment("ep1");
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 5000, EpisodeMs)); // t=0, real sample
+
+        // Stop right as the 15-minute segment boundary is crossed, replaying the same stale
+        // snapshot every 2 seconds in between.
+        for (int i = 0; i < 448; i++)
+        {
+            harness.Wait(2).Tick(Playing(segment, 5000, EpisodeMs));
+        }
+
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+    }
+
     #region the reported bug
 
     [Fact]

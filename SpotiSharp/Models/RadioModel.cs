@@ -142,6 +142,9 @@ public class RadioModel
             : RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows();
         if (episodes == null) return null;
 
+        var excludedEpisodeIds = RadioConfigModel.Config.ExcludedEpisodeIds;
+        if (excludedEpisodeIds.Count > 0) episodes = episodes.Where(episode => !excludedEpisodeIds.Contains(episode.EpisodeId)).ToList();
+
         var configuredShowWeights = RadioConfigModel.Config.ShowWeights;
         var showWeights = ActiveWeights(configuredShowWeights);
         var bingeShowIds = RadioConfigModel.Config.BingeShows.Keys.ToList();
@@ -158,7 +161,7 @@ public class RadioModel
                 if (excluded) continue;
                 var show = savedShows.FirstOrDefault(savedShow => savedShow.Id == showId);
                 var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images));
-                if (next != null) bingeEpisodes.Add(next);
+                if (next != null && !excludedEpisodeIds.Contains(next.EpisodeId)) bingeEpisodes.Add(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
         }

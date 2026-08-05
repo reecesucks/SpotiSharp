@@ -193,7 +193,9 @@ public class RadioConductor
         string? deviceId;
         if (devices == null || devices.Count == 0)
         {
-            deviceId = !string.IsNullOrEmpty(selectedId) ? selectedId : PlaybackStateStore.Instance.ActiveDeviceId;
+            deviceId = !string.IsNullOrEmpty(selectedId)
+                ? selectedId
+                : PlaybackDeviceLookup.LastKnownPhoneDeviceId ?? PlaybackStateStore.Instance.ActiveDeviceId;
         }
         else
         {
