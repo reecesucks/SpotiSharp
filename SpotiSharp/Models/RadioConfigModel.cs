@@ -64,6 +64,12 @@ public static class RadioConfigModel
         Save();
     }
 
+    internal static void ExcludeEpisode(string episodeId)
+    {
+        if (string.IsNullOrEmpty(episodeId)) return;
+        if (Config.ExcludedEpisodeIds.Add(episodeId)) Save();
+    }
+
     internal static BingeProgress GetBinge(string showId)
     {
         return Config.BingeShows.GetValueOrDefault(showId);

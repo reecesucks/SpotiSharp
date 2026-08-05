@@ -15,6 +15,7 @@ public class RadioPageViewModel : BaseViewModel
 
     public ICommand RemoveSingle { get; }
     public ICommand RemoveAllSections { get; }
+    public ICommand NotInterested { get; }
     public ICommand SelectItem { get; }
 
     public RadioPageViewModel()
@@ -24,6 +25,7 @@ public class RadioPageViewModel : BaseViewModel
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
+        NotInterested = new Command<RadioItem>(ExcludeEpisode);
         SelectItem = new Command<RadioItem>(item =>
         {
             if (item == null) return;
@@ -158,6 +160,22 @@ public class RadioPageViewModel : BaseViewModel
         foreach (var segment in segments) Items.Remove(segment);
         RebalancePodcasts();
         FinishRemoval();
+    }
+
+    public void ExcludeEpisode(RadioItem item)
+    {
+        if (item == null || !item.IsPodcastSegment) return;
+
+        var episodeId = EpisodeIdFromUri(item.PlayUri);
+        if (!string.IsNullOrEmpty(episodeId)) RadioConfigModel.ExcludeEpisode(episodeId);
+
+        RemoveEpisode(item);
+    }
+
+    private static string EpisodeIdFromUri(string playUri)
+    {
+        const string prefix = "spotify:episode:";
+        return !string.IsNullOrEmpty(playUri) && playUri.StartsWith(prefix) ? playUri.Substring(prefix.Length) : null;
     }
 
     private void FinishRemoval()
