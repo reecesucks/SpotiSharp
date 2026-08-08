@@ -362,7 +362,8 @@ public class APICaller
         if (devices == null) return null;
         if (devices.Count == 0) return (null, null);
 
-        var phone = devices.FirstOrDefault(d => d.Type == "Smartphone")?.Id;
+        var phones = devices.Where(d => d.Type == "Smartphone").ToList();
+        var phone = (phones.FirstOrDefault(d => d.IsActive) ?? phones.FirstOrDefault())?.Id;
 
         var any = (devices.FirstOrDefault(d => d.IsActive)
                    ?? devices.FirstOrDefault(d => !d.IsRestricted)

@@ -314,6 +314,13 @@ public class RadioPageViewModel : BaseViewModel
 
         PlayerBarViewModel.Instance.NotifyPlaybackStarting(radioItem.Title, radioItem.ImageUrl, radioItem.PlayUri);
 
+        if (await TryPlayViaAppRemoteAsync(radioItem, songRun))
+        {
+            DiagnosticLog.Write("[Radio] played via App Remote (local, no Connect device needed)");
+            RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+            return;
+        }
+
         var (played, apiFailed) = await TryPlayOnActiveDeviceAsync(radioItem, songRun);
         if (played)
         {
@@ -332,6 +339,22 @@ public class RadioPageViewModel : BaseViewModel
 
         DiagnosticLog.Write("[Radio] no active device took the command, launching Spotify");
         await LaunchAndRestoreContextAsync(radioItem, songRun);
+    }
+
+    private static async Task<bool> TryPlayViaAppRemoteAsync(RadioItem radioItem, List<string> songRun)
+    {
+        if (radioItem.IsPodcastSegment)
+        {
+            if (!await Models.AppRemotePlayback.TryPlayAsync(radioItem.PlayUri)) return false;
+
+            var rewoundMs = Math.Max(0, radioItem.PositionMs - RadioTuning.RESUME_REWIND_MS);
+            if (rewoundMs > 0) Models.PlaybackCommands.SeekTo?.Invoke(rewoundMs);
+
+            return true;
+        }
+
+        if (songRun == null || songRun.Count == 0) return false;
+        return await Models.AppRemotePlayback.TryPlayAsync(songRun[0], songRun.Skip(1));
     }
 
     private static async Task<(bool played, bool apiFailed)> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
@@ -448,15 +471,14 @@ public class RadioPageViewModel : BaseViewModel
             {
                 if (!string.IsNullOrEmpty(pinnedId) && devices.Any(d => d.Id == pinnedId)) return pinnedId;
 
-                var phone = devices.FirstOrDefault(d => d.Type == "Smartphone")?.Id;
-                if (!string.IsNullOrEmpty(phone)) return phone;
+                var phones = devices.Where(d => d.Type == "Smartphone").ToList();
+                var activePhone = phones.FirstOrDefault(d => d.IsActive)?.Id;
+                if (!string.IsNullOrEmpty(activePhone)) return activePhone;
 
-                var any = (devices.FirstOrDefault(d => d.IsActive)
-                           ?? devices.FirstOrDefault(d => !d.IsRestricted)
-                           ?? devices.FirstOrDefault())?.Id;
-                if (!string.IsNullOrEmpty(any))
+                var anyPhone = phones.FirstOrDefault()?.Id;
+                if (!string.IsNullOrEmpty(anyPhone))
                 {
-                    fallback = any;
+                    fallback = anyPhone;
                     if (DateTime.UtcNow > phoneGrace) return fallback;
                 }
             }
