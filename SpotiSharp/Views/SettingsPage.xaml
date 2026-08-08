@@ -62,6 +62,9 @@
                     </Label>
                 </Grid>
 
+                <Label Text="Show segment countdown (debug)" Margin="0,12,0,0" />
+                <Switch IsToggled="{Binding ShowSegmentDebugTimer}" HorizontalOptions="Start" />
+
                 <Label Text="Playback device" Margin="0,12,0,0" />
                 <Picker ItemsSource="{Binding Devices}"
                         SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"

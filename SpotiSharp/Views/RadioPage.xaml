@@ -61,17 +61,27 @@
                                    IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}" />
                             <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="10,0,0,0" VerticalOptions="Center"
                                                  IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}">
-                                <Label x:Name="TitleLabel"
-                                       Text="{Binding Title}"
-                                       FontSize="17"
-                                       LineBreakMode="TailTruncation">
-                                    <Label.Triggers>
-                                        <DataTrigger TargetType="Label" Binding="{Binding IsCurrent}" Value="True">
-                                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
-                                            <Setter Property="FontAttributes" Value="Bold" />
-                                        </DataTrigger>
-                                    </Label.Triggers>
-                                </Label>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                    <Label x:Name="TitleLabel"
+                                           Grid.Column="0"
+                                           Text="{Binding Title}"
+                                           FontSize="17"
+                                           LineBreakMode="TailTruncation">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsCurrent}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                                                <Setter Property="FontAttributes" Value="Bold" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                    <Label Grid.Column="1"
+                                           Text="{Binding DebugSegmentRemaining}"
+                                           FontSize="11"
+                                           FontAttributes="Italic"
+                                           TextColor="{DynamicResource TextSecondary}"
+                                           VerticalOptions="Center"
+                                           IsVisible="{Binding HasDebugSegmentRemaining}" />
+                                </Grid>
                                 <Label x:Name="SubtitleLabel"
                                        Text="{Binding Subtitle}"
                                        FontSize="13"
