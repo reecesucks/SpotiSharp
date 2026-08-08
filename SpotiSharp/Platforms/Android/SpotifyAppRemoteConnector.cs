@@ -59,6 +59,8 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.SetShuffle = shuffle => SetShuffle(shuffle);
         PlaybackCommands.ToggleRepeat = () => ToggleRepeat();
         PlaybackCommands.SeekTo = positionMs => SeekTo(positionMs);
+        PlaybackCommands.PlayUri = PlayUriAsync;
+        PlaybackCommands.QueueUri = QueueUriAsync;
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
         StartPeriodicPull();
@@ -107,6 +109,61 @@ internal static class SpotifyAppRemoteConnector
 
     private static void SeekTo(int positionMs, bool isRetry = false) =>
         _appRemote?.PlayerApi.SeekTo(positionMs)?.SetErrorCallback(new CommandErrorCallback("seek", isRetry ? null : () => SeekTo(positionMs, true)));
+
+    private static Task<bool> PlayUriAsync(string uri)
+    {
+        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+
+        var tcs = new TaskCompletionSource<bool>();
+        _appRemote.PlayerApi.Play(uri)
+            ?.SetResultCallback(new PlayResultCallback(tcs))
+            ?.SetErrorCallback(new PlayErrorCallback(tcs, $"play {uri}"));
+
+        return WithTimeout(tcs.Task);
+    }
+
+    private static Task<bool> QueueUriAsync(string uri)
+    {
+        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+
+        var tcs = new TaskCompletionSource<bool>();
+        _appRemote.PlayerApi.Queue(uri)
+            ?.SetResultCallback(new PlayResultCallback(tcs))
+            ?.SetErrorCallback(new PlayErrorCallback(tcs, $"queue {uri}"));
+
+        return WithTimeout(tcs.Task);
+    }
+
+    private static async Task<bool> WithTimeout(Task<bool> task)
+    {
+        var completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(8)));
+        return completed == task && task.Result;
+    }
+
+    private class PlayResultCallback : Java.Lang.Object, CallResult.IResultCallback
+    {
+        private readonly TaskCompletionSource<bool> _tcs;
+        public PlayResultCallback(TaskCompletionSource<bool> tcs) => _tcs = tcs;
+        public void OnResult(Java.Lang.Object? data) => _tcs.TrySetResult(true);
+    }
+
+    private class PlayErrorCallback : Java.Lang.Object, IErrorCallback
+    {
+        private readonly TaskCompletionSource<bool> _tcs;
+        private readonly string _label;
+
+        public PlayErrorCallback(TaskCompletionSource<bool> tcs, string label)
+        {
+            _tcs = tcs;
+            _label = label;
+        }
+
+        public void OnError(Java.Lang.Throwable? error)
+        {
+            DiagnosticLog.Write($"[AppRemote] {_label} failed: {error?.Class?.Name}: {error?.Message}");
+            _tcs.TrySetResult(false);
+        }
+    }
 
     private class ConnectionListener : Java.Lang.Object, IConnector.IConnectionListener
     {
