@@ -1,7 +1,9 @@
 # SpotiSharp
 
 A .NET MAUI minimalist Spotify client, forked from [SpotiSharp](https://github.com/SpotiSharp) and grown well past it. Split by design: **Windows builds playlists, Android listens.**
+
 <p> <img src="https://github.com/user-attachments/assets/65414540-72d4-40ea-bfd0-03c79b4b5fce" width="220" alt="SpotiSharp screenshot 1"> <img src="https://github.com/user-attachments/assets/e0d5d5b5-d34d-42e3-86cf-189ff2acc127" width="220" alt="SpotiSharp screenshot 2"> </p>
+
 ## Features
 
 - **Playlist creation (Windows)** — build new playlists from existing ones with filtering criteria, podcast support included.
