@@ -100,7 +100,7 @@
                                 </Label>
                                 <Stepper Grid.Column="4"
                                          Minimum="0"
-                                         Maximum="3"
+                                         Maximum="7"
                                          Increment="1"
                                          Value="{Binding Weight}"
                                          VerticalOptions="Center" />

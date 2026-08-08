@@ -86,6 +86,14 @@ public class RadioConductor
         RaiseActiveItem(null);
     }
 
+    internal int? RemainingSegmentMs()
+    {
+        lock (_lock)
+        {
+            return _state?.RemainingSegmentMs(DateTime.UtcNow);
+        }
+    }
+
     internal bool AdvanceManually()
     {
         lock (_lock)
