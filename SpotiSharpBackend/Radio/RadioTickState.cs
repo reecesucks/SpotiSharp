@@ -240,6 +240,22 @@ public sealed class RadioTickState
         _silenceSinceUtc = null;
     }
 
+    public int? RemainingSegmentMs(DateTime nowUtc)
+    {
+        if (_queue == null || _activeIndex < 0) return null;
+
+        var active = _queue[_activeIndex];
+        if (!active.IsPodcastSegment) return null;
+
+        int endMs = ActiveEndMs(active);
+        if (endMs <= 0) return null;
+
+        if (!_lastObservedWasPlaying) return endMs - _lastObservedProgressMs;
+
+        double sinceLastSampleMs = Math.Max(0, (nowUtc - _lastObservedAtUtc).TotalMilliseconds);
+        return (int)(endMs - (_lastObservedProgressMs + sinceLastSampleMs));
+    }
+
     private bool ActivePlayedThrough(DateTime nowUtc)
     {
         if (!_lastObservedWasPlaying) return false;

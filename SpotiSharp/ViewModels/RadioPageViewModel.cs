@@ -49,13 +49,38 @@ public class RadioPageViewModel : BaseViewModel
     {
         base.OnAppearing();
         RadioConductor.Instance.ActiveItemChanged += SetCurrentItem;
+        UiLoop.Instance.OnRefreshUi += UpdateDebugSegmentTimer;
         SyncWithConductor();
+        UpdateDebugSegmentTimer();
     }
 
     internal override void OnDisappearing()
     {
         base.OnDisappearing();
         RadioConductor.Instance.ActiveItemChanged -= SetCurrentItem;
+        UiLoop.Instance.OnRefreshUi -= UpdateDebugSegmentTimer;
+    }
+
+    private void UpdateDebugSegmentTimer()
+    {
+        var item = _currentItem;
+        if (item == null) return;
+
+        string text = null;
+        if (DebugSettings.ShowSegmentTimer && item.IsPodcastSegment)
+        {
+            var remainingMs = RadioConductor.Instance.RemainingSegmentMs();
+            if (remainingMs.HasValue) text = FormatSegmentRemaining(remainingMs.Value);
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => item.DebugSegmentRemaining = text);
+    }
+
+    private static string FormatSegmentRemaining(int remainingMs)
+    {
+        var span = TimeSpan.FromMilliseconds(Math.Abs(remainingMs));
+        var formatted = span.TotalHours >= 1 ? span.ToString(@"h\:mm\:ss") : span.ToString(@"m\:ss");
+        return remainingMs >= 0 ? $"{formatted} left" : $"{formatted} over";
     }
 
     private void SyncWithConductor()

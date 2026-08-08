@@ -31,6 +31,18 @@ public class SettingsPageViewModel : BaseViewModel
         set { SetProperty(ref _collaborationSession, value); }
     }
 
+    private bool _showSegmentDebugTimer;
+
+    public bool ShowSegmentDebugTimer
+    {
+        get { return _showSegmentDebugTimer; }
+        set
+        {
+            if (!SetProperty(ref _showSegmentDebugTimer, value)) return;
+            DebugSettings.ShowSegmentTimer = value;
+        }
+    }
+
     public ObservableCollection<DeviceOption> Devices { get; } = new();
 
     private DeviceOption _selectedDevice;
@@ -50,6 +62,8 @@ public class SettingsPageViewModel : BaseViewModel
 
     public SettingsPageViewModel()
     {
+        _showSegmentDebugTimer = DebugSettings.ShowSegmentTimer;
+
         ApplySettings = new Command(() =>
         {
             StorageHandler.IsUsingCollaborationHost = IsUsingCollaborationHost;
