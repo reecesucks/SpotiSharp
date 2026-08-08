@@ -178,6 +178,13 @@ public class RadioConductor
 
         var deviceId = ResolveDeviceId(api);
 
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            DiagnosticLog.Write("[Radio] no phone device to target, waking Spotify and deferring");
+            _ = PlaybackCommands.WakeSpotify?.Invoke();
+            return PlaybackAttempt.Failed;
+        }
+
         if (PlaybackStateStore.Instance.ShuffleOn) api.SetPlaybackShuffle(false);
 
         if (item.IsPodcastSegment)
@@ -201,9 +208,7 @@ public class RadioConductor
         string? deviceId;
         if (devices == null || devices.Count == 0)
         {
-            deviceId = !string.IsNullOrEmpty(selectedId)
-                ? selectedId
-                : PlaybackDeviceLookup.LastKnownPhoneDeviceId ?? PlaybackStateStore.Instance.ActiveDeviceId;
+            deviceId = !string.IsNullOrEmpty(selectedId) ? selectedId : PlaybackDeviceLookup.LastKnownPhoneDeviceId;
         }
         else
         {

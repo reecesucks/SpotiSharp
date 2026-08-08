@@ -179,7 +179,7 @@ public class RadioModel
             var random = new Random();
             chosen = bingeEpisodes
                 .Concat(episodes.Where(episode => showWeights.ContainsKey(episode.ShowId)))
-                .OrderByDescending(episode => Math.Pow(random.NextDouble(), 1.0 / showWeights[episode.ShowId]))
+                .OrderByDescending(episode => Math.Pow(random.NextDouble(), 1.0 / EffectiveWeight(showWeights[episode.ShowId])))
                 .Take(EPISODE_COUNT)
                 .ToList();
         }
@@ -234,7 +234,7 @@ public class RadioModel
 
         var random = new Random();
         return songWeights.Values
-            .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / entry.Weight))
+            .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / EffectiveWeight(entry.Weight)))
             .Select(entry => entry.Item)
             .ToList();
     }
@@ -243,4 +243,6 @@ public class RadioModel
     {
         return weights.Where(entry => entry.Value > 0).ToDictionary(entry => entry.Key, entry => entry.Value);
     }
+
+    private static double EffectiveWeight(int weight) => (double)weight * weight;
 }

@@ -33,8 +33,6 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 
     private string _debugSegmentRemaining;
 
-    // Debug-only countdown text, set by RadioPageViewModel for whichever item is current. Never
-    // persisted — this is live playback state, not part of the saved radio queue.
     [JsonIgnore]
     public string DebugSegmentRemaining
     {

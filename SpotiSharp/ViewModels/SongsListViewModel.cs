@@ -59,6 +59,8 @@ public class SongsListViewModel : BaseViewModel
 
         PlayerBarViewModel.Instance.NotifyPlaybackStarting(song.SongTitle, song.SongImageURL, song.SongUri);
 
+        if (await AppRemotePlayback.TryPlayAsync(song.SongUri)) return;
+
         var (deviceId, apiFailed) = await PlaybackDeviceLookup.ResolveAsync();
         if (!apiFailed && !string.IsNullOrEmpty(deviceId))
         {
