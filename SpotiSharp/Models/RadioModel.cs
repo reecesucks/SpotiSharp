@@ -28,21 +28,18 @@ public class RadioModel
     {
         PlaylistListModel.RefreshPlayLists();
 
-        var episodes = GetEpisodes();
+        var episodes = GetEpisodes(out var liveProgress);
         if (episodes == null) return null;
 
         var songPool = BuildSongPool();
         if (songPool == null) return null;
-
-        var resumePositions = APICaller.Instance?.GetEpisodeResumePositions(
-            episodes.Select(episode => episode.EpisodeId).Where(id => !string.IsNullOrEmpty(id)).ToList());
 
         var radio = new List<RadioItem>();
         int songIndex = 0;
 
         foreach (var episode in episodes)
         {
-            int startMs = ResumeStartFor(episode, resumePositions);
+            int startMs = ResumeStartFor(episode, liveProgress);
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
             int segmentCount = SegmentCountFor(remainingMs);
 
@@ -117,12 +114,15 @@ public class RadioModel
         }
     }
 
-    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, int> livePositions)
+    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, EpisodeProgress> liveProgress)
     {
-        int resume = livePositions != null && livePositions.TryGetValue(episode.EpisodeId, out var live)
-            ? live
+        int resume = liveProgress != null && liveProgress.TryGetValue(episode.EpisodeId, out var live)
+            ? live.ResumePositionMs
             : episode.ResumePositionMs;
 
+        // Both guards mean "no useful resume point", so the episode plays from the start.
+        // Finished episodes must never reach here - Spotify reports them either reset to zero
+        // or past the end, so both would silently queue a full replay. GetEpisodes drops them.
         if (resume < RESUME_IGNORE_THRESHOLD_MS || resume >= episode.DurationMs) return 0;
         return resume;
     }
@@ -136,8 +136,16 @@ public class RadioModel
         }
     }
 
-    private static List<RecentEpisode> GetEpisodes()
+    /// <summary>
+    /// Picks the episodes for this radio. The cached "unlistened" verdict is only as fresh as
+    /// the episode cache, so what Spotify reports right now decides which are still unfinished;
+    /// <paramref name="liveProgress"/> carries that on for resume positions and is null if
+    /// the lookup failed, in which case the cached verdict is all we have.
+    /// </summary>
+    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress)
     {
+        liveProgress = null;
+
         var cached = RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows();
         var episodes = cached != null && cached.Count > 0 && cached.All(episode => episode.DurationMs > 0 && !string.IsNullOrEmpty(episode.ShowId))
             ? cached
@@ -166,6 +174,28 @@ public class RadioModel
                 if (next != null && !excludedEpisodeIds.Contains(next.EpisodeId)) bingeEpisodes.Add(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
+        }
+
+        // What Spotify reports right now, for the recent pool and the binge picks alike -
+        // it decides what is still unfinished, and feeds ResumeStartFor further down.
+        var progress = APICaller.Instance?.GetEpisodeProgress(
+            episodes.Select(episode => episode.EpisodeId)
+                .Concat(bingeEpisodes.Select(episode => episode.EpisodeId))
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList());
+        liveProgress = progress;
+
+        // Drop anything finished since the episode cache was written - otherwise a podcast
+        // completed after that point is still offered, and ResumeStartFor would restart it
+        // from zero. A failed lookup leaves the pool alone rather than emptying the radio.
+        // Binge picks are not filtered here: FindNextEpisode already checked them live.
+        if (progress != null)
+        {
+            episodes = episodes
+                .Where(episode => !EpisodeHelper.IsListened(
+                    progress.GetValueOrDefault(episode.EpisodeId), episode.DurationMs))
+                .ToList();
         }
 
         List<RecentEpisode> chosen;

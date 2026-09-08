@@ -612,20 +612,52 @@ public class APICaller
         return result;
     }
 
-    public Dictionary<string, int>? GetEpisodeResumePositions(List<string> episodeIds)
+    // Spotify caps GetSeveral at 50 ids per request
+    private const int EPISODE_BATCH_SIZE = 50;
+
+    /// <summary>Live playback progress for the given episodes, keyed by episode id.</summary>
+    public Dictionary<string, EpisodeProgress>? GetEpisodeProgress(List<string> episodeIds)
     {
-        if (episodeIds == null || episodeIds.Count == 0) return new Dictionary<string, int>();
+        var progress = new Dictionary<string, EpisodeProgress>();
+        if (episodeIds == null || episodeIds.Count == 0) return progress;
 
-        var response = HandleExceptions(() => Authentication.SpotifyClient.Episodes.GetSeveral(new EpisodesRequest(episodeIds)).Result);
-        if (response?.Episodes == null) return null;
+        var withProgress = new List<string>();
+        int missingResumePoint = 0;
 
-        var positions = new Dictionary<string, int>();
-        foreach (var episode in response.Episodes)
+        for (int start = 0; start < episodeIds.Count; start += EPISODE_BATCH_SIZE)
         {
-            if (episode?.Id == null) continue;
-            positions[episode.Id] = episode.ResumePoint?.ResumePositionMs ?? 0;
+            var batch = episodeIds.GetRange(start, Math.Min(EPISODE_BATCH_SIZE, episodeIds.Count - start));
+
+            var response = HandleExceptions(() => Authentication.SpotifyClient.Episodes.GetSeveral(new EpisodesRequest(batch)).Result);
+            if (response?.Episodes == null) return null;
+
+            foreach (var episode in response.Episodes)
+            {
+                if (episode?.Id == null) continue;
+
+                int resumeMs = episode.ResumePoint?.ResumePositionMs ?? 0;
+                bool fullyPlayed = episode.ResumePoint?.FullyPlayed ?? false;
+                progress[episode.Id] = new EpisodeProgress(resumeMs, fullyPlayed);
+
+                // a null resume point means Spotify told us nothing at all, which is a
+                // different problem from an episode simply never having been started
+                if (episode.ResumePoint == null) missingResumePoint++;
+
+                // untouched episodes are the bulk and say nothing; only log the ones
+                // carrying progress, so what Spotify reports for a finished episode is visible
+                if (fullyPlayed || resumeMs > 0)
+                {
+                    var name = episode.Name ?? string.Empty;
+                    if (name.Length > 40) name = name[..40];
+                    withProgress.Add($"{name} {resumeMs / 1000}s/{episode.DurationMs / 1000}s fullyPlayed={fullyPlayed}");
+                }
+            }
         }
-        return positions;
+
+        DiagnosticLog.Write($"[Episodes] progress for {progress.Count} episode(s): {withProgress.Count} with progress, {missingResumePoint} with no resume point");
+        foreach (var line in withProgress) DiagnosticLog.Write($"[Episodes]   {line}");
+
+        return progress;
     }
 
     public Paging<SimpleEpisode>? GetPodcastEpisodesPage(string showId, int offset, int limit)
