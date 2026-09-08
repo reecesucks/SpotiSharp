@@ -23,7 +23,7 @@ internal static class RadioContentPrefetcher
                 PlaylistListModel.RefreshSavedShows();
 
                 foreach (var playlistId in RadioModel.SourcePlaylistIds())
-                    RotationTracksModel.RefreshTracks(playlistId);
+                    RotationTracksModel.GetTracks(playlistId);
 
                 RecentEpisodesModel.RefreshRecentEpisodesAcrossAllShows();
 

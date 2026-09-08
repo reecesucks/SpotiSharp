@@ -26,6 +26,8 @@ public class RadioModel
 
     internal static List<RadioItem> Generate()
     {
+        PlaylistListModel.RefreshPlayLists();
+
         var episodes = GetEpisodes();
         if (episodes == null) return null;
 
