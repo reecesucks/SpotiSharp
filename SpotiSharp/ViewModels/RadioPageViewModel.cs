@@ -341,21 +341,8 @@ public class RadioPageViewModel : BaseViewModel
         await LaunchAndRestoreContextAsync(radioItem, songRun);
     }
 
-    private static async Task<bool> TryPlayViaAppRemoteAsync(RadioItem radioItem, List<string> songRun)
-    {
-        if (radioItem.IsPodcastSegment)
-        {
-            if (!await Models.AppRemotePlayback.TryPlayAsync(radioItem.PlayUri)) return false;
-
-            var rewoundMs = Math.Max(0, radioItem.PositionMs - RadioTuning.RESUME_REWIND_MS);
-            if (rewoundMs > 0) Models.PlaybackCommands.SeekTo?.Invoke(rewoundMs);
-
-            return true;
-        }
-
-        if (songRun == null || songRun.Count == 0) return false;
-        return await Models.AppRemotePlayback.TryPlayAsync(songRun[0], songRun.Skip(1));
-    }
+    private static Task<bool> TryPlayViaAppRemoteAsync(RadioItem radioItem, List<string> songRun) =>
+        Models.AppRemotePlayback.TryPlayItemAsync(radioItem, songRun);
 
     private static async Task<(bool played, bool apiFailed)> TryPlayOnActiveDeviceAsync(RadioItem radioItem, List<string> songRun)
     {
