@@ -1,4 +1,5 @@
 using SpotifyAPI.Web;
+using SpotiSharp.Helpers;
 using SpotiSharpBackend;
 
 namespace SpotiSharp.Models;
@@ -45,7 +46,7 @@ public class BingeProgressModel
                 if (itemIndex < searchIndex) continue;
 
                 var episode = page.Items[i];
-                if (episode == null || episode.ResumePoint?.FullyPlayed == true)
+                if (episode == null || EpisodeHelper.IsListened(episode))
                 {
                     searchIndex = itemIndex + 1;
                     continue;

@@ -6,12 +6,14 @@ public class Playlist
     public string PlayListImageURL { get; private set; }
     public string PlayListTitle { get; private set; }
     public int SongAmount { get; private set; }
+    public string SnapshotId { get; private set; }
 
-    public Playlist(string playListId, string playListImageURL, string playListTitle, int songAmount)
+    public Playlist(string playListId, string playListImageURL, string playListTitle, int songAmount, string snapshotId = "")
     {
         PlayListId = playListId;
         PlayListImageURL = playListImageURL;
         PlayListTitle = playListTitle;
         SongAmount = songAmount;
+        SnapshotId = snapshotId ?? string.Empty;
     }
 }

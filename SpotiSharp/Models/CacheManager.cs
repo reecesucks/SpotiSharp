@@ -2,13 +2,11 @@ using SpotiSharp.Helpers;
 
 namespace SpotiSharp.Models;
 
-// Coordinates wiping the content caches. Radio config (weights, binge markers,
-// album modes) is always preserved.
+
 public static class CacheManager
 {
-    // bump when a cache format changes (e.g. smaller image urls) so stale entries
-    // are dropped and re-fetched on next launch
-    private const int CACHE_VERSION = 3;
+
+    private const int CACHE_VERSION = 4;
 
     private const string VERSION_KEY = "cacheversion";
     private const string CONFIG_KEY = "radioconfig";
