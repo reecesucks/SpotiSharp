@@ -32,6 +32,8 @@ public static class PlaybackDeviceLookup
         var phoneId = (phones.FirstOrDefault(device => device.IsActive) ?? phones.FirstOrDefault())?.Id;
         if (!string.IsNullOrEmpty(phoneId)) LastKnownPhoneDeviceId = phoneId;
 
+        DiagnosticLog.Write($"[Device] devices: {Describe(devices, selectedId)}");
+
         var resolved = DeviceResolver.Resolve(devices, selectedId);
 
         var resolvedDevice = devices.FirstOrDefault(device => device.Id == resolved);
@@ -39,6 +41,12 @@ public static class PlaybackDeviceLookup
 
         return (resolved, false);
     }
+
+    internal static string Describe(IReadOnlyList<Device> devices, string? selectedId) =>
+        string.Join(", ", devices.Select(device =>
+            $"{device.Name} / {device.Type} / {device.Id}" +
+            (device.IsActive ? " [active]" : "") +
+            (device.Id == selectedId ? " [selected]" : "")));
 
     private static bool NeedsWake(IReadOnlyList<Device> devices, string? selectedId)
     {
