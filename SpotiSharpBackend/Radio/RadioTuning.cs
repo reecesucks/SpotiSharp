@@ -17,5 +17,7 @@ public static class RadioTuning
     public const int MAX_START_ATTEMPTS = 3;
     public const int MAX_UNAVAILABLE_SKIPS = 10;
 
+    public const int MAX_PLAYTHROUGH_PROJECTION_MS = 2 * 60 * 1000;
+
     public const int SNAPSHOT_STALE_MS = 10000;
 }

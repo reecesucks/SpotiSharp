@@ -39,10 +39,13 @@ public class PlaylistListModel
 
     internal static bool RefreshPlayLists()
     {
+        var previous = _playLists ?? DiskCacheHelper.Load<List<Playlist>>(PLAYLIST_CACHE_KEY);
+
         var fetched = FetchPlayLists();
         if (fetched == null) return false;
 
         bool changed = _playLists == null || !ArePlayListsEqual(_playLists, fetched);
+        DropStaleTrackCaches(previous, fetched);
         _playLists = fetched;
         if (changed) DiskCacheHelper.Save(PLAYLIST_CACHE_KEY, fetched);
 
@@ -56,6 +59,28 @@ public class PlaylistListModel
         return changed;
     }
 
+    /// <summary>
+    /// Drops the cached track list of every playlist whose contents changed since we last
+    /// looked. Without this a playlist edited elsewhere (the desktop app, or Spotify itself)
+    /// keeps serving its stale tracks to the radio - nothing else ever expires that cache.
+    /// </summary>
+    private static void DropStaleTrackCaches(List<Playlist> previous, List<Playlist> fetched)
+    {
+        if (previous == null) return;
+
+        var previousSnapshots = new Dictionary<string, string>();
+        foreach (var playlist in previous) previousSnapshots[playlist.PlayListId] = playlist.SnapshotId ?? string.Empty;
+
+        foreach (var playlist in fetched)
+        {
+            if (!previousSnapshots.TryGetValue(playlist.PlayListId, out var previousSnapshot)) continue;
+            if (previousSnapshot == (playlist.SnapshotId ?? string.Empty)) continue;
+
+            DiagnosticLog.Write($"[Cache] '{playlist.PlayListTitle}' changed, dropping its cached tracks");
+            RotationTracksModel.Invalidate(playlist.PlayListId);
+        }
+    }
+
     private static List<Playlist> FetchPlayLists()
     {
         var userPlaylists = APICaller.Instance?.GetAllUserPlaylists();
@@ -63,14 +88,12 @@ public class PlaylistListModel
 
         var tmpPlaylist = new List<Playlist>();
 
-        // liked playlist
         int? likedSongsAmount = APICaller.Instance?.GetUserLikedSongsAmount();
-        tmpPlaylist.Add(new Playlist(Constants.LIKED_PLALIST_ID, Constants.LIKED_PLALIST_IMAGE_URL, "Liked Songs", likedSongsAmount ?? 0));
+        tmpPlaylist.Add(new Playlist(Constants.LIKED_PLALIST_ID, Constants.LIKED_PLALIST_IMAGE_URL, "Liked Songs", likedSongsAmount ?? 0, $"count:{likedSongsAmount ?? 0}"));
 
-        // followed playlists
         foreach (var playlist in userPlaylists)
         {
-            tmpPlaylist.Add(new Playlist(playlist.Id, ImageHelper.Thumbnail(playlist.Images), playlist.Name, playlist.Tracks.Total ?? 0));
+            tmpPlaylist.Add(new Playlist(playlist.Id, ImageHelper.Thumbnail(playlist.Images), playlist.Name, playlist.Tracks.Total ?? 0, playlist.SnapshotId));
         }
         return tmpPlaylist;
     }
@@ -90,7 +113,8 @@ public class PlaylistListModel
             a.PlayListId == b.PlayListId &&
             a.PlayListImageURL == b.PlayListImageURL &&
             a.PlayListTitle == b.PlayListTitle &&
-            a.SongAmount == b.SongAmount).All(equal => equal);
+            a.SongAmount == b.SongAmount &&
+            a.SnapshotId == b.SnapshotId).All(equal => equal);
     }
 
     private static List<FullShow> _savedShows;

@@ -784,4 +784,93 @@ public class RadioTickStateTests
     }
 
     #endregion
+
+    #region long pauses and gaps in observation
+
+    [Fact]
+    public void Keeps_the_queue_when_playback_resumes_hours_after_a_pause()
+    {
+        var segment = Segment("ep1");
+        var harness = new RadioHarness(new[] { segment, Song("a") });
+
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+        harness.Tick(Paused(segment, 60000, EpisodeMs));
+
+        harness.Wait(TimeSpan.FromHours(3));
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Does_not_skip_ahead_when_observation_resumes_after_a_long_gap()
+    {
+        // The conductor holds while no usable snapshot is arriving, but wall-clock time keeps
+        // running. Without being told about the gap the first tick afterwards projects hours of
+        // "playback" and jumps the queue, even though the listener only paused.
+        var segment = Segment("ep1");
+        var harness = new RadioHarness(new[] { segment, Song("a") });
+
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+
+        harness.Wait(TimeSpan.FromHours(2));
+        harness.State.NotifyObservationGap(harness.Now);
+        harness.Tick(Playing(segment, 62000, EpisodeMs));
+
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+    }
+
+    [Fact]
+    public void Bows_out_when_something_else_plays_after_a_long_gap()
+    {
+        // Elapsed wall clock is not evidence our segment played through. Crediting it would
+        // make the radio grab playback back instead of letting the listener's choice stand.
+        var segment = Segment("ep1");
+        var harness = new RadioHarness(new[] { segment, Song("a") });
+
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+
+        harness.Wait(TimeSpan.FromHours(2));
+        harness.Tick(Foreign("spotify:track:user-picked-this"));
+
+        Assert.True(harness.Stopped);
+        Assert.Empty(harness.Started);
+    }
+
+
+    [Fact]
+    public void Holds_its_place_through_a_five_minute_call_and_carries_on_from_the_widget()
+    {
+        // Paused for a phone call mid-segment, resumed from Spotify's own widget. The queue
+        // position must survive, the five idle minutes must not count as listening, and the
+        // segment must still end at its real boundary rather than immediately.
+        var segment = Segment("ep1");
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { segment, song });
+
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+
+        // the call: Spotify pauses, and the 2s UiLoop keeps ticking the paused snapshot
+        for (int i = 0; i < 150; i++) harness.Wait(2).Tick(Paused(segment, 60000, EpisodeMs));
+
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+
+        // play on the widget: same item, same position
+        harness.Tick(Playing(segment, 60000, EpisodeMs));
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+
+        // and the segment still runs to its real end before the song is queued
+        harness.Wait(TimeSpan.FromMinutes(10)).Tick(Playing(segment, 660000, EpisodeMs));
+        Assert.Equal(segment.PlayUri, harness.ActiveUri);
+
+        harness.Wait(TimeSpan.FromMinutes(5)).Tick(Playing(segment, 960000, EpisodeMs));
+        Assert.Equal(song.PlayUri, harness.ActiveUri);
+    }
+
+    #endregion
 }
