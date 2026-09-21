@@ -175,8 +175,32 @@ public class RadioConductor
 
     private PlaybackAttempt IssuePlayback(RadioItem item)
     {
+        if (item == null) return PlaybackAttempt.Failed;
+
+        if (PlaybackCommands.PlayUri != null)
+        {
+            var songRun = item.IsPodcastSegment ? null : SongRunFrom(item);
+            _ = PlayViaAppRemoteAsync(item, songRun);
+            return PlaybackAttempt.Success;
+        }
+
+        return IssueViaWebApi(item, SongRunFrom(item));
+    }
+
+    private static async Task PlayViaAppRemoteAsync(RadioItem item, List<string> songRun)
+    {
+        if (PlaybackStateStore.Instance.ShuffleOn) PlaybackCommands.SetShuffle?.Invoke(false);
+
+        var played = await AppRemotePlayback.TryPlayItemAsync(item, songRun);
+        DiagnosticLog.Write(played
+            ? $"[Radio] played {item.PlayUri} via App Remote"
+            : $"[Radio] App Remote couldn't play {item.PlayUri}, leaving it to the retry window");
+    }
+
+    private static PlaybackAttempt IssueViaWebApi(RadioItem item, List<string> songRun)
+    {
         var api = APICaller.Instance;
-        if (item == null || api == null) return PlaybackAttempt.Failed;
+        if (api == null) return PlaybackAttempt.Failed;
 
         var deviceId = ResolveDeviceId(api);
 
@@ -199,7 +223,7 @@ public class RadioConductor
             return attempt;
         }
 
-        return api.PlayUris(SongRunFrom(item), deviceId);
+        return api.PlayUris(songRun, deviceId);
     }
 
     internal static string? ResolveDeviceId(APICaller api)
@@ -215,6 +239,7 @@ public class RadioConductor
         else
         {
             deviceId = DeviceResolver.Resolve(devices, selectedId);
+            DiagnosticLog.Write($"[Radio] devices: {PlaybackDeviceLookup.Describe(devices, selectedId)}");
         }
 
         DiagnosticLog.Write($"[Radio] resolved device {deviceId}");

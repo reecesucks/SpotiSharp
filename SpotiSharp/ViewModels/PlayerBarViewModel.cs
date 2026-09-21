@@ -233,6 +233,8 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void RefreshPlayerValues()
     {
+        if (Models.PlaybackStateStore.HasActivePushSource?.Invoke() == true) return;
+
         var now = DateTime.UtcNow;
         if (now < _nextPollAllowedUtc) return;
 
@@ -357,19 +359,51 @@ public class PlayerBarViewModel : BaseViewModel
         PersistLastPlayed(_lastKnownUri, SongName, SongImageURL, _lastKnownProgressMs, IsTrackPlaying);
     }
 
-    private static bool HasAppRemote
+    /// <summary>Updates the bar from an App Remote player state push. Must be called on the main thread.</summary>
+    public void ApplyPushedState(string uri, string name, bool isEpisode, bool isPlaying, int progressMs, bool shuffleOn, bool repeatOn)
     {
-        get
-        {
-            if (Models.PlaybackStateStore.HasActivePushSource?.Invoke() != true) return false;
+        if (string.IsNullOrEmpty(uri)) return;
 
-            var activeDeviceId = Models.PlaybackStateStore.Instance.ActiveDeviceId;
-            var phoneDeviceId = Models.PlaybackDeviceLookup.LastKnownPhoneDeviceId;
-            return string.IsNullOrEmpty(activeDeviceId)
-                || string.IsNullOrEmpty(phoneDeviceId)
-                || activeDeviceId == phoneDeviceId;
+        ApplyIsPlaying(isPlaying);
+        if (isPlaying) NotifyPlaybackStarting();
+
+        HasCurrentSong = true;
+        SongName = name;
+        _lastKnownUri = uri;
+        _lastKnownProgressMs = progressMs;
+
+        if (isEpisode)
+        {
+            _currentTrackUri = null;
+            _currentTrackId = null;
+            IsTrackPlaying = false;
+            IsSongLiked = false;
         }
+        else
+        {
+            _currentTrackUri = uri;
+            IsTrackPlaying = true;
+
+            var trackId = uri.Split(':').LastOrDefault();
+            if (_currentTrackId != trackId)
+            {
+                _currentTrackId = trackId;
+                IsSongLiked = false;
+                Task.Run(() =>
+                {
+                    var liked = APICaller.Instance?.IsTrackLiked(trackId);
+                    if (liked.HasValue && _currentTrackId == trackId) IsSongLiked = liked.Value;
+                });
+            }
+        }
+
+        ApplyShuffle(shuffleOn);
+        IsRepeatOn = repeatOn;
+
+        PersistLastPlayed(uri, SongName, SongImageURL, progressMs, !isEpisode);
     }
+
+    private static bool HasAppRemote => Models.PlaybackStateStore.HasActivePushSource?.Invoke() == true;
 
     private void TogglePlayingFunc()
     {

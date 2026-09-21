@@ -241,6 +241,15 @@ internal static class SpotifyAppRemoteConnector
             durationMs: (int)(state.Track?.Duration ?? 0),
             shuffleOn: state.PlaybackOptions?.IsShuffling ?? PlaybackStateStore.Instance.ShuffleOn);
 
+        ViewModels.PlayerBarViewModel.Instance.ApplyPushedState(
+            uri,
+            state.Track.Name,
+            state.Track.IsEpisode || state.Track.IsPodcast,
+            isPlaying: !state.IsPaused,
+            progressMs,
+            shuffleOn: state.PlaybackOptions?.IsShuffling ?? false,
+            repeatOn: (state.PlaybackOptions?.RepeatMode ?? 0) != 0);
+
         RadioConductor.Instance.Tick();
     }
 
