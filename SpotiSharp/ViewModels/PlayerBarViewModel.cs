@@ -106,6 +106,7 @@ public class PlayerBarViewModel : BaseViewModel
     private static readonly TimeSpan BackoffAfter = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan BackedOffInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan StopAfter = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan RadioHeartbeatInterval = TimeSpan.FromSeconds(30);
 
     private DateTime _idleSinceUtc = DateTime.UtcNow;
     private DateTime _nextPollAllowedUtc = DateTime.MinValue;
@@ -156,8 +157,14 @@ public class PlayerBarViewModel : BaseViewModel
         var idleFor = now - _idleSinceUtc;
         if (idleFor >= StopAfter)
         {
-            _nextPollAllowedUtc = DateTime.MaxValue;
-            if (!_pollingStopped) DiagnosticLog.Write("[Poll] paused 20+ minutes, stopping until playback starts again");
+            bool radioConducting = Models.RadioConductor.Instance.IsActive;
+            _nextPollAllowedUtc = radioConducting ? now + RadioHeartbeatInterval : DateTime.MaxValue;
+            if (!_pollingStopped)
+            {
+                DiagnosticLog.Write(radioConducting
+                    ? "[Poll] paused 20+ minutes, dropping to a 30s heartbeat while the radio is active"
+                    : "[Poll] paused 20+ minutes, stopping until playback starts again");
+            }
             _pollingStopped = true;
         }
         else if (idleFor >= BackoffAfter)

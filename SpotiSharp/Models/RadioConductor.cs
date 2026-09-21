@@ -129,6 +129,8 @@ public class RadioConductor
         {
             _holdingForStaleSnapshot = false;
             if (IsActive) DiagnosticLog.Write("[Radio] snapshot fresh again, radio resuming");
+
+            lock (_lock) _state?.NotifyObservationGap(DateTime.UtcNow);
         }
 
         lock (_lock)

@@ -75,9 +75,11 @@ public sealed class RadioTickState
             return RetryOrSkipActive(nowUtc);
         }
 
-        if (ActivePlayedThrough(nowUtc)) return Advance(nowUtc);
+        bool somethingElsePlaying = !string.IsNullOrEmpty(state.CurrentItemUri);
 
-        if (!string.IsNullOrEmpty(state.CurrentItemUri)) return StopResult();
+        if (ActivePlayedThrough(nowUtc, boundProjection: somethingElsePlaying)) return Advance(nowUtc);
+
+        if (somethingElsePlaying) return StopResult();
 
         _silenceSinceUtc ??= nowUtc;
         if (nowUtc >= _silenceSinceUtc.Value.AddMilliseconds(RadioTuning.DEAD_AIR_TIMEOUT_MS)) return StopResult();
@@ -117,6 +119,20 @@ public sealed class RadioTickState
 
         _queue = queue;
         _activeIndex = activeIndex;
+    }
+
+    /// <summary>
+    /// Reports a stretch during which no usable playback snapshot arrived. Wall-clock time across
+    /// such a gap is not evidence that anything was playing, so the timing baseline is reset and
+    /// elapsed-time projection stays off until a fresh sample confirms playback again.
+    /// </summary>
+    public void NotifyObservationGap(DateTime nowUtc)
+    {
+        if (_queue == null || _activeIndex < 0) return;
+
+        _lastObservedAtUtc = nowUtc;
+        _lastObservedWasPlaying = false;
+        _silenceSinceUtc = null;
     }
 
     public void Stop()
@@ -256,7 +272,7 @@ public sealed class RadioTickState
         return (int)(endMs - (_lastObservedProgressMs + sinceLastSampleMs));
     }
 
-    private bool ActivePlayedThrough(DateTime nowUtc)
+    private bool ActivePlayedThrough(DateTime nowUtc, bool boundProjection)
     {
         if (!_lastObservedWasPlaying) return false;
 
@@ -265,6 +281,12 @@ public sealed class RadioTickState
 
         double sinceLastSampleMs = (nowUtc - _lastObservedAtUtc).TotalMilliseconds;
         if (sinceLastSampleMs < 0) return false;
+
+        // Crediting an unbounded stretch of wall clock as playback would let an hours-long pause
+        // look like our item finishing, and the radio would seize playback back instead of bowing
+        // out to what the listener chose. Only bounded when something else is already playing -
+        // a silent gap says nothing was taken over, and sparse sampling there can run long.
+        if (boundProjection && sinceLastSampleMs > RadioTuning.MAX_PLAYTHROUGH_PROJECTION_MS) return false;
 
         return _lastObservedProgressMs + sinceLastSampleMs >= endMs - RadioTuning.END_TOLERANCE_MS;
     }
