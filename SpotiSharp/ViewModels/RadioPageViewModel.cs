@@ -124,7 +124,7 @@ public class RadioPageViewModel : BaseViewModel
         int songIndex = 0;
         foreach (var segment in segments)
         {
-            for (int i = 0; i < RadioModel.SONGS_BETWEEN_SEGMENTS && songIndex < songs.Count; i++)
+            for (int i = 0; i < RadioModel.SongsPerSection && songIndex < songs.Count; i++)
             {
                 rebuilt.Add(songs[songIndex]);
                 songIndex++;

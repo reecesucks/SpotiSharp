@@ -6,8 +6,8 @@ namespace SpotiSharp.Models;
 
 public class RadioModel
 {
-    internal const int SEGMENT_LENGTH_MS = SpotiSharpBackend.Radio.RadioTuning.SEGMENT_LENGTH_MS;
-    internal const int SONGS_BETWEEN_SEGMENTS = 3;
+    internal static int SegmentLengthMs => RadioConfigModel.PodcastSegmentLengthMs;
+    internal static int SongsPerSection => RadioConfigModel.GetSongsPerSection();
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
 
@@ -37,20 +37,22 @@ public class RadioModel
         var radio = new List<RadioItem>();
         int songIndex = 0;
 
+        bool fullEpisodes = RadioConfigModel.GetFullPodcastEpisodes();
+
         foreach (var episode in episodes)
         {
             int startMs = ResumeStartFor(episode, liveProgress);
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
-            int segmentCount = SegmentCountFor(remainingMs);
+            int segmentCount = fullEpisodes ? 1 : SegmentCountFor(remainingMs);
 
-            int totalSegments = Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
+            int totalSegments = fullEpisodes ? 1 : Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
             int firstSegmentNumber = totalSegments - segmentCount;
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
-                if (radio.Count > 0) AddSongs(radio, songPool, ref songIndex, SONGS_BETWEEN_SEGMENTS);
+                AddSongs(radio, songPool, ref songIndex, SongsPerSection);
                 radio.Add(RadioItem.ForPodcastSegment(
-                    episode, segmentIndex, SEGMENT_LENGTH_MS, startMs,
+                    episode, segmentIndex, SegmentLengthMs, startMs,
                     firstSegmentNumber + segmentIndex, totalSegments,
                     isFinalSegment: segmentIndex == segmentCount - 1));
             }
@@ -66,10 +68,11 @@ public class RadioModel
     {
         if (spanMs <= 0) return 1;
 
-        int fullSegments = spanMs / SEGMENT_LENGTH_MS;
-        int leftoverMs = spanMs - fullSegments * SEGMENT_LENGTH_MS;
+        int segmentLengthMs = SegmentLengthMs;
+        int fullSegments = spanMs / segmentLengthMs;
+        int leftoverMs = spanMs - fullSegments * segmentLengthMs;
 
-        if (leftoverMs > SpotiSharpBackend.Radio.RadioTuning.MIN_TAIL_SEGMENT_MS || fullSegments == 0) fullSegments++;
+        if (leftoverMs > segmentLengthMs / 3 || fullSegments == 0) fullSegments++;
 
         return fullSegments;
     }

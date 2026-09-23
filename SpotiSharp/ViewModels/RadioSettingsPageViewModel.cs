@@ -19,7 +19,8 @@ public class RadioSettingsPageViewModel : BaseViewModel
         {
             new RadioSourceListViewModel("Playlists", LoadPlaylistToggles, () => PlaylistListModel.RefreshPlayLists()),
             new RadioSourceListViewModel("Podcasts", LoadPodcastToggles, () => PlaylistListModel.RefreshSavedShows()),
-            new RadioAlbumListViewModel()
+            new RadioAlbumListViewModel(),
+            new RadioMixSettingsViewModel()
         };
     }
 

@@ -6,6 +6,11 @@ public static class RadioConfigModel
 {
     private const string RADIO_CONFIG_KEY = "radioconfig";
 
+    private const int MIN_SONGS_PER_SECTION = 1;
+    private const int MAX_SONGS_PER_SECTION = 10;
+    private const int MIN_PODCAST_SEGMENT_MINUTES = 5;
+    private const int MAX_PODCAST_SEGMENT_MINUTES = 30;
+
     private static RadioConfig _config;
 
     internal static RadioConfig Config
@@ -50,6 +55,41 @@ public static class RadioConfigModel
     internal static bool IsExplicitlyOff(Dictionary<string, int> weights, string id)
     {
         return weights.TryGetValue(id, out var weight) && weight <= 0;
+    }
+
+    internal static int GetSongsPerSection()
+    {
+        return Config.SongsPerSection;
+    }
+
+    internal static void SetSongsPerSection(int songs)
+    {
+        Config.SongsPerSection = Math.Clamp(songs, MIN_SONGS_PER_SECTION, MAX_SONGS_PER_SECTION);
+        Save();
+    }
+
+    internal static int GetPodcastSegmentMinutes()
+    {
+        return Config.PodcastSegmentMinutes;
+    }
+
+    internal static void SetPodcastSegmentMinutes(int minutes)
+    {
+        Config.PodcastSegmentMinutes = Math.Clamp(minutes, MIN_PODCAST_SEGMENT_MINUTES, MAX_PODCAST_SEGMENT_MINUTES);
+        Save();
+    }
+
+    internal static int PodcastSegmentLengthMs => Config.PodcastSegmentMinutes * 60 * 1000;
+
+    internal static bool GetFullPodcastEpisodes()
+    {
+        return Config.FullPodcastEpisodes;
+    }
+
+    internal static void SetFullPodcastEpisodes(bool full)
+    {
+        Config.FullPodcastEpisodes = full;
+        Save();
     }
 
     internal static RadioAlbumMode GetAlbumMode(string albumId)
