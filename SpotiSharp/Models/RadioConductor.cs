@@ -151,10 +151,13 @@ public class RadioConductor
             lock (_lock) _state?.NotifyObservationGap(DateTime.UtcNow);
         }
 
-        DiagnosticLog.Write("[Radio] tick: awaiting lock");
+        var lockWait = System.Diagnostics.Stopwatch.StartNew();
         lock (_lock)
         {
-            DiagnosticLog.Write("[Radio] tick: lock acquired");
+            lockWait.Stop();
+            if (lockWait.ElapsedMilliseconds > 200)
+                DiagnosticLog.Write($"[Radio] tick: waited {lockWait.ElapsedMilliseconds}ms for the lock");
+
             if (_state == null || !_state.IsActive) return;
 
             var snapshot = PlaybackStateStore.Instance.Snapshot;

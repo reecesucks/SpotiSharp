@@ -205,6 +205,10 @@ internal static class SpotifyAppRemoteConnector
     private static int _lastAcceptedProgressMs;
     private static DateTime _lastAcceptedAtUtc;
 
+    private static string? _lastSeenUri;
+    private static int _lastSeenProgressMs;
+    private static DateTime _lastSeenAtUtc;
+
     private static void HandlePlayerState(PlayerState? state, string source)
     {
         if (state?.Track == null) return;
@@ -213,16 +217,31 @@ internal static class SpotifyAppRemoteConnector
         var progressMs = (int)state.PlaybackPosition;
         var now = DateTime.UtcNow;
 
+        bool implausible = false;
         if (!state.IsPaused && uri == _lastAcceptedUri && _lastAcceptedAtUtc != default)
         {
             double elapsedMs = (now - _lastAcceptedAtUtc).TotalMilliseconds;
             double impliedJumpMs = progressMs - _lastAcceptedProgressMs;
-            if (elapsedMs > 500 && impliedJumpMs > elapsedMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs)
+            implausible = elapsedMs > 500 && impliedJumpMs > elapsedMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs;
+
+            if (implausible && uri == _lastSeenUri)
             {
-                DiagnosticLog.Write(
-                    $"[AppRemote] ({source}) ignoring implausible jump: {_lastAcceptedProgressMs}->{progressMs} over {elapsedMs:F0}ms");
-                return;
+                double sinceSeenMs = (now - _lastSeenAtUtc).TotalMilliseconds;
+                double impliedFromSeenMs = progressMs - _lastSeenProgressMs;
+                if (sinceSeenMs > 0 && impliedFromSeenMs <= sinceSeenMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs)
+                    implausible = false;
             }
+        }
+
+        _lastSeenUri = uri;
+        _lastSeenProgressMs = progressMs;
+        _lastSeenAtUtc = now;
+
+        if (implausible)
+        {
+            DiagnosticLog.Write(
+                $"[AppRemote] ({source}) ignoring implausible jump: {_lastAcceptedProgressMs}->{progressMs} over {(now - _lastAcceptedAtUtc).TotalMilliseconds:F0}ms");
+            return;
         }
 
         _lastAcceptedUri = uri;
@@ -250,8 +269,10 @@ internal static class SpotifyAppRemoteConnector
             shuffleOn: state.PlaybackOptions?.IsShuffling ?? false,
             repeatOn: (state.PlaybackOptions?.RepeatMode ?? 0) != 0);
 
+        var tickTime = System.Diagnostics.Stopwatch.StartNew();
         RadioConductor.Instance.Tick();
-        DiagnosticLog.Write($"[AppRemote] state ({source}): tick returned");
+        if (tickTime.ElapsedMilliseconds > 200)
+            DiagnosticLog.Write($"[AppRemote] state ({source}): tick took {tickTime.ElapsedMilliseconds}ms");
     }
 
     private class PlayerStateCallback : Java.Lang.Object, Subscription.IEventCallback
