@@ -251,6 +251,7 @@ internal static class SpotifyAppRemoteConnector
             repeatOn: (state.PlaybackOptions?.RepeatMode ?? 0) != 0);
 
         RadioConductor.Instance.Tick();
+        DiagnosticLog.Write($"[AppRemote] state ({source}): tick returned");
     }
 
     private class PlayerStateCallback : Java.Lang.Object, Subscription.IEventCallback

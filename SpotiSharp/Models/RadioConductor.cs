@@ -151,8 +151,10 @@ public class RadioConductor
             lock (_lock) _state?.NotifyObservationGap(DateTime.UtcNow);
         }
 
+        DiagnosticLog.Write("[Radio] tick: awaiting lock");
         lock (_lock)
         {
+            DiagnosticLog.Write("[Radio] tick: lock acquired");
             if (_state == null || !_state.IsActive) return;
 
             var snapshot = PlaybackStateStore.Instance.Snapshot;
@@ -185,6 +187,7 @@ public class RadioConductor
             switch (result.Action)
             {
                 case RadioTickAction.StartActive:
+                    DiagnosticLog.Write($"[Radio] issuing playback for {_state.ActiveItem?.PlayUri}");
                     var outcome = IssuePlayback(_state.ActiveItem as RadioItem);
                     DiagnosticLog.Write($"[Radio] issued {_state.ActiveItem?.PlayUri}: {outcome}");
                     result = _state.ReportStartOutcome(outcome, DateTime.UtcNow);
@@ -213,6 +216,7 @@ public class RadioConductor
             return PlaybackAttempt.Success;
         }
 
+        DiagnosticLog.Write("[Radio] App Remote path unavailable, falling back to Web API");
         return IssueViaWebApi(item, SongRunFrom(item));
     }
 
@@ -245,21 +249,28 @@ public class RadioConductor
         if (item.IsPodcastSegment)
         {
             var rewoundMs = Math.Max(0, item.PositionMs - RadioTuning.RESUME_REWIND_MS);
+            DiagnosticLog.Write($"[Radio] Web API calling PlayUriAtPosition {item.PlayUri}@{rewoundMs}");
             var attempt = api.PlayUriAtPosition(item.PlayUri, rewoundMs, deviceId);
+            DiagnosticLog.Write($"[Radio] Web API PlayUriAtPosition returned {attempt}");
 
             if (attempt == PlaybackAttempt.Success) PlaybackCommands.SeekTo?.Invoke(rewoundMs);
 
             return attempt;
         }
 
-        return api.PlayUris(songRun, deviceId);
+        DiagnosticLog.Write($"[Radio] Web API calling PlayUris ({songRun.Count} uris)");
+        var result = api.PlayUris(songRun, deviceId);
+        DiagnosticLog.Write($"[Radio] Web API PlayUris returned {result}");
+        return result;
     }
 
     internal static string? ResolveDeviceId(APICaller api)
     {
         var selectedId = StorageHandler.SelectedDeviceId;
 
+        DiagnosticLog.Write("[Radio] Web API calling GetDevices");
         var devices = api.GetDevices();
+        DiagnosticLog.Write($"[Radio] Web API GetDevices returned {devices?.Count.ToString() ?? "null"}");
         string? deviceId;
         if (devices == null || devices.Count == 0)
         {
