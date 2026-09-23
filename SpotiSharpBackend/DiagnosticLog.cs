@@ -1,14 +1,22 @@
+using System.Collections.Concurrent;
+
 namespace SpotiSharpBackend;
 
 public static class DiagnosticLog
 {
     private const long MAX_LOG_BYTES = 512 * 1024;
 
-    private static readonly object Lock = new object();
-
     private static string _directory = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
 
     private static bool _fileFailureReported;
+
+    private static readonly BlockingCollection<string> PendingLines = new BlockingCollection<string>();
+
+    static DiagnosticLog()
+    {
+        var writer = new Thread(WriteLoop) { IsBackground = true, Name = "DiagnosticLogWriter" };
+        writer.Start();
+    }
 
     public static void SetDirectory(string directory)
     {
@@ -20,9 +28,14 @@ public static class DiagnosticLog
         var stamped = $"{DateTime.Now:MM-dd HH:mm:ss} {line}";
         Console.WriteLine(stamped);
 
-        try
+        PendingLines.Add(stamped);
+    }
+
+    private static void WriteLoop()
+    {
+        foreach (var stamped in PendingLines.GetConsumingEnumerable())
         {
-            lock (Lock)
+            try
             {
                 var path = Path.Combine(_directory, "radio-diagnostics.log");
                 var info = new FileInfo(path);
@@ -32,12 +45,12 @@ public static class DiagnosticLog
                 }
                 File.AppendAllText(path, stamped + Environment.NewLine);
             }
-        }
-        catch (Exception ex)
-        {
-            if (_fileFailureReported) return;
-            _fileFailureReported = true;
-            Console.WriteLine($"[DiagnosticLog] file logging unavailable in '{_directory}': {ex.Message}");
+            catch (Exception ex)
+            {
+                if (_fileFailureReported) continue;
+                _fileFailureReported = true;
+                Console.WriteLine($"[DiagnosticLog] file logging unavailable in '{_directory}': {ex.Message}");
+            }
         }
     }
 }

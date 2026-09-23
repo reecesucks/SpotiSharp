@@ -28,7 +28,7 @@ public class RadioModel
     {
         PlaylistListModel.RefreshPlayLists();
 
-        var episodes = GetEpisodes(out var liveProgress);
+        var episodes = GetEpisodes(out var liveProgress, out var staleBingeEpisodeIds);
         if (episodes == null) return null;
 
         var songPool = BuildSongPool();
@@ -41,7 +41,7 @@ public class RadioModel
 
         foreach (var episode in episodes)
         {
-            int startMs = ResumeStartFor(episode, liveProgress);
+            int startMs = ResumeStartFor(episode, liveProgress, staleBingeEpisodeIds);
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
             int segmentCount = fullEpisodes ? 1 : SegmentCountFor(remainingMs);
 
@@ -117,8 +117,10 @@ public class RadioModel
         }
     }
 
-    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, EpisodeProgress> liveProgress)
+    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, EpisodeProgress> liveProgress, ISet<string> staleBingeEpisodeIds)
     {
+        if (staleBingeEpisodeIds != null && staleBingeEpisodeIds.Contains(episode.EpisodeId)) return 0;
+
         int resume = liveProgress != null && liveProgress.TryGetValue(episode.EpisodeId, out var live)
             ? live.ResumePositionMs
             : episode.ResumePositionMs;
@@ -145,9 +147,10 @@ public class RadioModel
     /// <paramref name="liveProgress"/> carries that on for resume positions and is null if
     /// the lookup failed, in which case the cached verdict is all we have.
     /// </summary>
-    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress)
+    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds)
     {
         liveProgress = null;
+        staleBingeEpisodeIds = new HashSet<string>();
 
         var cached = RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows();
         var episodes = cached != null && cached.Count > 0 && cached.All(episode => episode.DurationMs > 0 && !string.IsNullOrEmpty(episode.ShowId))
@@ -173,8 +176,8 @@ public class RadioModel
                     : RadioConfigModel.IsExplicitlyOff(configuredShowWeights, showId);
                 if (excluded) continue;
                 var show = savedShows.FirstOrDefault(savedShow => savedShow.Id == showId);
-                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images));
-                if (next != null && !excludedEpisodeIds.Contains(next.EpisodeId)) bingeEpisodes.Add(next);
+                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images), excludedEpisodeIds);
+                if (next != null) bingeEpisodes.Add(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
         }
@@ -189,10 +192,13 @@ public class RadioModel
                 .ToList());
         liveProgress = progress;
 
-        // Drop anything finished since the episode cache was written - otherwise a podcast
-        // completed after that point is still offered, and ResumeStartFor would restart it
-        // from zero. A failed lookup leaves the pool alone rather than emptying the radio.
-        // Binge picks are not filtered here: FindNextEpisode already checked them live.
+        foreach (var episode in bingeEpisodes)
+        {
+            int resumeMs = progress?.GetValueOrDefault(episode.EpisodeId)?.ResumePositionMs ?? episode.ResumePositionMs;
+            BingeProgressModel.NoteResumeProgress(episode.ShowId, episode.EpisodeId, resumeMs);
+            if (BingeProgressModel.IsStale(episode.ShowId)) staleBingeEpisodeIds.Add(episode.EpisodeId);
+        }
+
         if (progress != null)
         {
             episodes = episodes
