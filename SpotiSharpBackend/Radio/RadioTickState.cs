@@ -31,8 +31,13 @@ public sealed class RadioTickState
 
     private int _unavailableSkips;
 
-    public RadioTickState(IReadOnlyList<IRadioQueueItem> queue, int startIndex, DateTime nowUtc, bool alreadyIssued)
+    private readonly int _segmentLengthMs;
+
+    public RadioTickState(IReadOnlyList<IRadioQueueItem> queue, int startIndex, DateTime nowUtc, bool alreadyIssued,
+        int segmentLengthMs = RadioTuning.SEGMENT_LENGTH_MS)
     {
+        _segmentLengthMs = segmentLengthMs;
+
         if (queue == null || startIndex < 0 || startIndex >= queue.Count) return;
 
         _queue = queue;
@@ -297,7 +302,7 @@ public sealed class RadioTickState
         {
             if (active.IsFinalPodcastSegment) return _lastObservedDurationMs;
 
-            int end = active.PositionMs + RadioTuning.SEGMENT_LENGTH_MS;
+            int end = active.PositionMs + _segmentLengthMs;
             return _lastObservedDurationMs > 0 ? Math.Min(end, _lastObservedDurationMs) : end;
         }
         return _lastObservedDurationMs;

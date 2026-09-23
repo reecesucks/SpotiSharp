@@ -408,6 +408,7 @@ public class PlayerBarViewModel : BaseViewModel
     private void TogglePlayingFunc()
     {
         bool target = !IsPlaying;
+        DiagnosticLog.Write($"[PlayerBar] play/pause tapped: sending {(target ? "resume" : "pause")} via {(HasAppRemote ? "App Remote" : "Web API")}");
         IsPlaying = target;
         _expectedIsPlaying = target;
         _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
@@ -420,6 +421,32 @@ public class PlayerBarViewModel : BaseViewModel
             return;
         }
 
+        if (target && Models.PlaybackCommands.WakeSpotify != null)
+        {
+            _ = ResumeAfterWakeAsync();
+            return;
+        }
+
+        ToggleViaWebApi(target);
+    }
+
+    private async Task ResumeAfterWakeAsync()
+    {
+        bool woke = await Models.PlaybackCommands.WakeSpotify!();
+        DiagnosticLog.Write($"[PlayerBar] App Remote was down, woke Spotify: {woke}");
+
+        if (woke && HasAppRemote)
+        {
+            _playStatePendingUntil = DateTime.UtcNow.Add(PendingStateWindow);
+            Models.PlaybackCommands.Resume?.Invoke();
+            return;
+        }
+
+        ToggleViaWebApi(target: true);
+    }
+
+    private void ToggleViaWebApi(bool target)
+    {
         var resumeUri = _lastKnownUri;
         var resumeProgressMs = _lastKnownProgressMs;
 

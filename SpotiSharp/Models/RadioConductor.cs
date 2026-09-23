@@ -56,7 +56,7 @@ public class RadioConductor
 
         lock (_lock)
         {
-            _state = new RadioTickState(radio, startIndex, DateTime.UtcNow, alreadyIssued: true);
+            _state = new RadioTickState(radio, startIndex, DateTime.UtcNow, alreadyIssued: true, RadioConfigModel.PodcastSegmentLengthMs);
             CaptureState();
         }
 
@@ -71,6 +71,24 @@ public class RadioConductor
             _state?.Resync(radio, activeIndex);
             CaptureState();
         }
+
+        SyncSpotifyQueue(radio, activeIndex);
+    }
+
+    private static void SyncSpotifyQueue(List<RadioItem> radio, int activeIndex)
+    {
+        if (PlaybackCommands.QueueUri == null || radio == null || activeIndex < 0 || activeIndex >= radio.Count) return;
+
+        var current = radio[activeIndex];
+        if (current.IsPodcastSegment) return;
+
+        var upcomingRun = radio
+            .Skip(activeIndex + 1)
+            .TakeWhile(item => !item.IsPodcastSegment)
+            .Select(item => item.PlayUri)
+            .ToList();
+
+        _ = AppRemotePlayback.SyncQueueAsync(current.PlayUri, upcomingRun);
     }
 
     internal void Stop()
@@ -136,6 +154,17 @@ public class RadioConductor
         lock (_lock)
         {
             if (_state == null || !_state.IsActive) return;
+
+            var snapshot = PlaybackStateStore.Instance.Snapshot;
+            switch (AppRemotePlayback.CheckRemovedSong(snapshot.CurrentItemUri))
+            {
+                case AppRemotePlayback.RemovedSongCheck.SkipNow:
+                    DiagnosticLog.Write($"[Radio] skipping removed {snapshot.CurrentItemUri}");
+                    PlaybackCommands.SkipNext?.Invoke();
+                    return;
+                case AppRemotePlayback.RemovedSongCheck.SkipInFlight:
+                    return;
+            }
 
             Apply(_state.Tick(PlaybackStateStore.Instance.Snapshot, DateTime.UtcNow));
             CaptureState();
