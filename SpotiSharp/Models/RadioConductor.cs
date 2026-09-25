@@ -196,6 +196,11 @@ public class RadioConductor
                     result = _state.ReportStartOutcome(outcome, DateTime.UtcNow);
                     continue;
 
+                case RadioTickAction.SkipUnexpected:
+                    DiagnosticLog.Write($"[Radio] {_state.SkippingUri} is a radio item playing out of turn, skipping it");
+                    PlaybackCommands.SkipNext?.Invoke();
+                    return;
+
                 case RadioTickAction.Stop:
                     DiagnosticLog.Write("[Radio] stopping");
                     RadioBackgroundService.Stop();

@@ -569,6 +569,167 @@ public class RadioTickStateTests
         Assert.Equal(1, harness.State.ActiveIndex);
     }
 
+    [Fact]
+    public void Starts_the_podcast_when_a_leftover_queue_replays_an_earlier_song_after_the_run()
+    {
+        // captured on device 2026-09-24 15:04: the run played through, then Spotify reached a
+        // leftover copy of its first song queued by an earlier Play. The radio followed it back
+        // up the run and kept cycling instead of starting the podcast.
+        var a = Song("a");
+        var b = Song("b");
+        var c = Song("c");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, c, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        PlayThrough(harness.Wait(180), c, SongMs, stopShortMs: 1000);
+
+        harness.Wait(3).Tick(Playing(a, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+        Assert.Empty(harness.Skipped);
+    }
+
+    [Fact]
+    public void Skips_an_earlier_radio_song_that_plays_out_of_turn_instead_of_moving_back()
+    {
+        var a = Song("a");
+        var b = Song("b");
+        var c = Song("c");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, c, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        harness.Wait(20).Tick(Playing(b, 20000, SongMs));
+
+        harness.Wait(2).Tick(Playing(a, 0, SongMs));
+
+        Assert.Equal(b.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { a.PlayUri }, harness.Skipped);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Sends_one_skip_while_it_lands_then_tries_again_if_it_never_did()
+    {
+        var a = Song("a");
+        var b = Song("b");
+        var harness = new RadioHarness(new[] { a, b, Segment("ep1") });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        harness.Wait(20).Tick(Playing(b, 20000, SongMs));
+
+        harness.Wait(1).Tick(Playing(a, 0, SongMs));
+        harness.Wait(2).Tick(Playing(a, 2000, SongMs));
+        Assert.Single(harness.Skipped);
+
+        harness.Wait(4).Tick(Playing(a, 6000, SongMs));
+        Assert.Equal(2, harness.Skipped.Count);
+    }
+
+    [Fact]
+    public void Stays_in_radio_mode_while_paused_on_an_earlier_radio_song()
+    {
+        var a = Song("a");
+        var b = Song("b");
+        var harness = new RadioHarness(new[] { a, b, Segment("ep1") });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        harness.Wait(20).Tick(Paused(b, 20000, SongMs));
+
+        harness.Wait(2).Tick(Paused(a, 30000, SongMs));
+
+        Assert.Equal(b.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Skipped);
+        Assert.Empty(harness.Started);
+        Assert.False(harness.Stopped);
+    }
+
+    [Fact]
+    public void Moves_on_when_Spotify_replays_the_song_that_just_finished()
+    {
+        // captured on device 2026-09-24 10:30: a leftover queued copy of the finishing song
+        // started straight after it, and the radio sat through the whole song again
+        var a = Song("a");
+        var b = Song("b");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, b, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(180).Tick(Playing(b, 1000, SongMs));
+        PlayThrough(harness.Wait(1), b, SongMs, stopShortMs: 300);
+
+        harness.Wait(1).Tick(Playing(b, 0, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { podcast.PlayUri }, harness.Started);
+    }
+
+    [Fact]
+    public void Catches_a_replay_when_the_last_sample_before_it_was_well_short_of_the_end()
+    {
+        var a = Song("a");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, podcast });
+
+        harness.Tick(Playing(a, 1000, SongMs));
+        harness.Wait(TimeSpan.FromMilliseconds(SongMs - 21000)).Tick(Playing(a, SongMs - 20000, SongMs));
+
+        // the next sample lands 23s later, already a few seconds into the replay
+        harness.Wait(23).Tick(Playing(a, 3000, SongMs));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+    }
+
+    [Fact]
+    public void Follows_a_song_the_radio_really_plays_twice_in_a_row_without_restarting_it()
+    {
+        var a = Song("a");
+        var aAgain = Song("a");
+        var harness = new RadioHarness(new[] { a, aAgain, Segment("ep1") });
+
+        PlayThrough(harness, a, SongMs, stopShortMs: 300);
+        harness.Wait(1).Tick(Playing(aAgain, 0, SongMs));
+
+        Assert.Equal(1, harness.State.ActiveIndex);
+        Assert.Empty(harness.Started);
+    }
+
+    [Fact]
+    public void Dragging_a_song_back_to_the_start_mid_way_is_not_a_replay()
+    {
+        var a = Song("a");
+        var harness = new RadioHarness(new[] { a, Segment("ep1") });
+
+        harness.Tick(Playing(a, 60000, SongMs));
+        harness.Wait(2).Tick(Playing(a, 0, SongMs));
+
+        Assert.Equal(a.PlayUri, harness.ActiveUri);
+        Assert.Empty(harness.Started);
+    }
+
+    [Fact]
+    public void Skips_a_later_radio_item_outside_the_current_run()
+    {
+        var a = Song("a");
+        var podcast = Segment("ep1");
+        var later = Song("z");
+        var harness = new RadioHarness(new[] { a, podcast, later });
+
+        harness.Tick(Playing(a, 20000, SongMs));
+        harness.Wait(2).Tick(Playing(later, 0, SongMs));
+
+        Assert.Equal(a.PlayUri, harness.ActiveUri);
+        Assert.Equal(new[] { later.PlayUri }, harness.Skipped);
+        Assert.False(harness.Stopped);
+    }
+
     #endregion
 
     #region editing the queue while it plays

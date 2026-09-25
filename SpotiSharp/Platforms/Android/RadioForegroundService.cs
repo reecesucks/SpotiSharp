@@ -17,7 +17,34 @@ public class RadioForegroundService : Service
     private const int NotificationId = 7301;
     private const string ChannelId = "spotisharp_radio";
 
+    private NoisyAudioReceiver _noisyReceiver;
+
     public override IBinder OnBind(Intent intent) => null;
+
+    public override void OnCreate()
+    {
+        base.OnCreate();
+
+        _noisyReceiver = new NoisyAudioReceiver();
+        var filter = new IntentFilter(global::Android.Media.AudioManager.ActionAudioBecomingNoisy);
+        if (AndroidOS.Build.VERSION.SdkInt >= AndroidOS.BuildVersionCodes.Tiramisu)
+            RegisterReceiver(_noisyReceiver, filter, ReceiverFlags.NotExported);
+        else
+            RegisterReceiver(_noisyReceiver, filter);
+    }
+
+    public override void OnDestroy()
+    {
+        if (_noisyReceiver != null) UnregisterReceiver(_noisyReceiver);
+        _noisyReceiver = null;
+        base.OnDestroy();
+    }
+
+    private class NoisyAudioReceiver : BroadcastReceiver
+    {
+        public override void OnReceive(Context context, Intent intent) =>
+            SpotiSharpBackend.DiagnosticLog.Write("[System] audio output disconnected (headphones/Bluetooth), Spotify will pause");
+    }
 
     public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
     {
