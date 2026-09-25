@@ -34,7 +34,7 @@ public class BackendConnector
         CacheManager.MigrateIfNeeded();
 
         StorageHandler.ClientId = await SecureStorage.Default.GetAsync("clientId") ?? string.Empty;
-        if (string.IsNullOrEmpty(StorageHandler.ClientId)) StorageHandler.ClientId = "1"; // paste key here for simplified debugging
+        if (string.IsNullOrEmpty(StorageHandler.ClientId)) StorageHandler.ClientId = "01013c50fb5440dbb6a745cf50828535"; // paste key here for simplified debugging
         StorageHandler.RefreshToken = await SecureStorage.Default.GetAsync("refreshToken") ?? string.Empty;
         StorageHandler.SelectedDeviceId = await SecureStorage.Default.GetAsync("selectedDeviceId") ?? string.Empty;
         StorageHandler.CachedDevices = await SecureStorage.Default.GetAsync("cachedDevices") ?? string.Empty;
