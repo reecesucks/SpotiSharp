@@ -47,9 +47,19 @@ public class RadioPageViewModel : BaseViewModel
 
     private RadioItem _currentItem;
 
+    private bool _showSongSources;
+
+    public bool ShowSongSources
+    {
+        get { return _showSongSources; }
+        private set { SetProperty(ref _showSongSources, value); }
+    }
+
     internal override void OnAppearing()
     {
         base.OnAppearing();
+        // re-read on every visit, since the toggle lives on the settings page
+        ShowSongSources = DebugSettings.ShowSongSource;
         RadioConductor.Instance.ActiveItemChanged += SetCurrentItem;
         UiLoop.Instance.OnRefreshUi += UpdateDebugSegmentTimer;
         SyncWithConductor();

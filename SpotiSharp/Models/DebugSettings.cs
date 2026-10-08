@@ -9,4 +9,12 @@ public static class DebugSettings
         get => Preferences.Default.Get(ShowSegmentTimerKey, false);
         set => Preferences.Default.Set(ShowSegmentTimerKey, value);
     }
+
+    private const string ShowSongSourceKey = "show_song_source";
+
+    public static bool ShowSongSource
+    {
+        get => Preferences.Default.Get(ShowSongSourceKey, false);
+        set => Preferences.Default.Set(ShowSongSourceKey, value);
+    }
 }

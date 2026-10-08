@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using SpotiSharp.Helpers;
 using SpotiSharpBackend;
+using Constants = SpotiSharp.Consts.Constants;
 
 namespace SpotiSharp.Models;
 
@@ -10,6 +11,9 @@ public class RadioModel
     internal static int SongsPerSection => RadioConfigModel.GetSongsPerSection();
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
+
+    // longest playlist/album name shown as a song's source before it's shortened
+    private const int SOURCE_LABEL_MAX_CHARS = 9;
 
     private const int RESUME_IGNORE_THRESHOLD_MS = 30 * 1000;
 
@@ -100,7 +104,7 @@ public class RadioModel
                 .OrderBy(_ => random.Next())
                 .Take(ALBUM_SONG_COUNT)
                 .OrderBy(song => songs.IndexOf(song))
-                .Select(song => RadioItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri))
+                .Select(song => RadioItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri, ShortSourceName(album.AlbumName)))
                 .ToList();
 
             if (mode == RadioAlbumMode.Consecutive)
@@ -260,7 +264,12 @@ public class RadioModel
     {
         var playlistWeights = SourcePlaylistWeights();
 
-        var songWeights = new Dictionary<string, (RadioItem Item, int Weight)>();
+        var playlistTitles = new Dictionary<string, string>();
+        foreach (var playlist in PlaylistListModel.PlayLists) playlistTitles[playlist.PlayListId] = playlist.PlayListTitle;
+
+        // a song in several playlists keeps the highest-weighted one; SourceIds are every
+        // playlist it's in at that weight, for labelling where it came from
+        var songWeights = new Dictionary<string, (RadioSong Track, int Weight, List<string> SourceIds)>();
         foreach (var (playlistId, weight) in playlistWeights)
         {
             var tracks = RotationTracksModel.GetTracks(playlistId);
@@ -268,16 +277,51 @@ public class RadioModel
 
             foreach (var track in tracks)
             {
-                if (songWeights.TryGetValue(track.SongUri, out var existing) && existing.Weight >= weight) continue;
-                songWeights[track.SongUri] = (RadioItem.ForSong(track.SongTitle, track.SongArtists, track.SongImageUrl, track.SongUri), weight);
+                if (songWeights.TryGetValue(track.SongUri, out var existing))
+                {
+                    if (existing.Weight > weight) continue;
+                    if (existing.Weight == weight)
+                    {
+                        existing.SourceIds.Add(playlistId);
+                        continue;
+                    }
+                }
+                songWeights[track.SongUri] = (track, weight, new List<string> { playlistId });
             }
         }
 
         var random = new Random();
         return songWeights.Values
             .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / EffectiveWeight(entry.Weight)))
-            .Select(entry => entry.Item)
+            .Select(entry => RadioItem.ForSong(entry.Track.SongTitle, entry.Track.SongArtists, entry.Track.SongImageUrl, entry.Track.SongUri,
+                SongSourceLabel(entry.SourceIds, playlistTitles)))
             .ToList();
+    }
+
+    /// <summary>
+    /// "R3" for a rotation song (membership is cumulative, so the highest level is the song's
+    /// level), else "Liked", else the playlist's name shortened.
+    /// </summary>
+    private static string SongSourceLabel(List<string> playlistIds, Dictionary<string, string> playlistTitles)
+    {
+        int rotationLevel = -1;
+        foreach (var playlistId in playlistIds)
+        {
+            var match = RotationTag.Match(playlistTitles.GetValueOrDefault(playlistId) ?? string.Empty);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var level)) rotationLevel = Math.Max(rotationLevel, level);
+        }
+
+        if (rotationLevel >= 0) return $"R{rotationLevel}";
+        if (playlistIds.Contains(Constants.LIKED_PLALIST_ID)) return "Liked";
+        return ShortSourceName(playlistTitles.GetValueOrDefault(playlistIds[0]));
+    }
+
+    private static string ShortSourceName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        name = name.Trim();
+        return name.Length <= SOURCE_LABEL_MAX_CHARS ? name : name.Substring(0, SOURCE_LABEL_MAX_CHARS - 1).TrimEnd() + "…";
     }
 
     private static Dictionary<string, int> ActiveWeights(Dictionary<string, int> weights)
