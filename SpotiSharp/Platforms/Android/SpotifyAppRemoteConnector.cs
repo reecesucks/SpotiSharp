@@ -67,7 +67,7 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.ToggleRepeat = () => { LogCommand("toggle repeat"); ToggleRepeat(); };
         PlaybackCommands.SeekTo = positionMs => { LogCommand($"seek {positionMs}"); SeekTo(positionMs); };
         PlaybackCommands.PlayUri = uri => { LogCommand($"play {uri}"); return PlayUriAsync(uri); };
-        PlaybackCommands.QueueUri = QueueUriAsync;
+        PlaybackCommands.QueueUri = uri => { LogCommand($"queue {uri}"); return QueueUriAsync(uri); };
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
         StartPeriodicPull();
@@ -89,8 +89,22 @@ internal static class SpotifyAppRemoteConnector
         while (true)
         {
             await Task.Delay(PlaybackStateStore.Instance.IsPlaying ? PlayingPullInterval : PausedPullInterval);
+            LogConnectionChange();
             RequestPull();
         }
+    }
+
+    private static bool _lastSeenConnected = true;
+
+    // The SDK can drop the connection without calling anything back, so this is the only place a
+    // silent drop shows up in the log. Nothing reconnects automatically.
+    private static void LogConnectionChange()
+    {
+        bool connected = _appRemote?.IsConnected == true;
+        if (connected == _lastSeenConnected) return;
+
+        _lastSeenConnected = connected;
+        DiagnosticLog.Write(connected ? "[AppRemote] connection is back" : "[AppRemote] connection dropped (IsConnected=false)");
     }
 
     private static void RequestPull()
@@ -144,32 +158,47 @@ internal static class SpotifyAppRemoteConnector
 
     private static Task<bool> PlayUriAsync(string uri)
     {
-        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+        if (_appRemote?.IsConnected != true)
+        {
+            DiagnosticLog.Write($"[AppRemote] play {uri} not sent: not connected");
+            return Task.FromResult(false);
+        }
 
         var tcs = new TaskCompletionSource<bool>();
         _appRemote.PlayerApi.Play(uri)
             ?.SetResultCallback(new PlayResultCallback(tcs))
             ?.SetErrorCallback(new PlayErrorCallback(tcs, $"play {uri}"));
 
-        return WithTimeout(tcs.Task);
+        return WithTimeout(tcs.Task, $"play {uri}");
     }
 
     private static Task<bool> QueueUriAsync(string uri)
     {
-        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+        if (_appRemote?.IsConnected != true)
+        {
+            DiagnosticLog.Write($"[AppRemote] queue {uri} not sent: not connected");
+            return Task.FromResult(false);
+        }
 
         var tcs = new TaskCompletionSource<bool>();
         _appRemote.PlayerApi.Queue(uri)
             ?.SetResultCallback(new PlayResultCallback(tcs))
             ?.SetErrorCallback(new PlayErrorCallback(tcs, $"queue {uri}"));
 
-        return WithTimeout(tcs.Task);
+        return WithTimeout(tcs.Task, $"queue {uri}");
     }
 
-    private static async Task<bool> WithTimeout(Task<bool> task)
+    private static async Task<bool> WithTimeout(Task<bool> task, string label)
     {
         var completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(8)));
-        return completed == task && task.Result;
+        if (completed == task) return task.Result;
+
+        // A command that times out can still land afterwards, e.g. a queue add that shows up
+        // in Spotify after we'd already given up on it.
+        DiagnosticLog.Write($"[AppRemote] {label} got no answer in 8s");
+        _ = task.ContinueWith(late => DiagnosticLog.Write($"[AppRemote] {label} answered late: {(late.Result ? "ok" : "failed")}"),
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+        return false;
     }
 
     private class PlayResultCallback : Java.Lang.Object, CallResult.IResultCallback
@@ -203,7 +232,8 @@ internal static class SpotifyAppRemoteConnector
 
         public void OnFailure(Java.Lang.Throwable? error)
         {
-            DiagnosticLog.Write($"[AppRemote] connect failed: {error?.Message}");
+            // The SDK also reports a lost connection here, not just a failed connect.
+            DiagnosticLog.Write($"[AppRemote] connect failed or connection lost: {error?.Class?.Name}: {error?.Message}");
             _pendingConnect?.TrySetResult(false);
             _pendingConnect = null;
         }
@@ -300,7 +330,7 @@ internal static class SpotifyAppRemoteConnector
         if (source != "pull" || PullWorthLogging(uri, state.IsPaused, progressMs, now))
         {
             DiagnosticLog.Write(
-                $"[AppRemote] state ({source}): uri={state.Track?.Uri} isEpisode={state.Track?.IsEpisode} " +
+                $"[AppRemote] state ({source}): uri={state.Track?.Uri} \"{state.Track?.Name}\" isEpisode={state.Track?.IsEpisode} " +
                 $"isPaused={state.IsPaused} position={state.PlaybackPosition} duration={state.Track?.Duration}");
             _lastLoggedUri = uri;
             _lastLoggedPaused = state.IsPaused;
@@ -328,6 +358,8 @@ internal static class SpotifyAppRemoteConnector
             progressMs,
             shuffleOn: state.PlaybackOptions?.IsShuffling ?? false,
             repeatOn: (state.PlaybackOptions?.RepeatMode ?? 0) != 0);
+
+        AppRemotePlayback.NoteNowPlaying(uri);
 
         var tickTime = System.Diagnostics.Stopwatch.StartNew();
         RadioConductor.Instance.Tick();

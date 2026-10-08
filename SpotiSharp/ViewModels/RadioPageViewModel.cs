@@ -12,6 +12,7 @@ public class RadioPageViewModel : BaseViewModel
     public ICommand GenerateRadio { get; }
     public ICommand GenerateMoreRadio { get; }
     public ICommand OpenSettings { get; }
+    public ICommand OpenDebugMenu { get; }
 
     public ICommand RemoveSingle { get; }
     public ICommand RemoveAllSections { get; }
@@ -23,6 +24,7 @@ public class RadioPageViewModel : BaseViewModel
         GenerateRadio = new Command(async () => await GenerateAsync());
         GenerateMoreRadio = new Command(async () => await GenerateMoreAsync());
         OpenSettings = new Command(async () => await Shell.Current.GoToAsync("RadioSettingsPage"));
+        OpenDebugMenu = new Command(async () => await OpenDebugMenuAsync());
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
         NotInterested = new Command<RadioItem>(ExcludeEpisode);
@@ -140,12 +142,12 @@ public class RadioPageViewModel : BaseViewModel
         Items = new ObservableCollection<RadioItem>(Items.Take(keep).Concat(rebuilt));
     }
 
-    private void ResyncConductor()
+    private void ResyncConductor(string why)
     {
         if (_currentItem == null || !RadioConductor.Instance.IsActive) return;
 
         int index = Items.IndexOf(_currentItem);
-        if (index >= 0) RadioConductor.Instance.Resync(Items.ToList(), index);
+        if (index >= 0) RadioConductor.Instance.Resync(Items.ToList(), index, why);
     }
 
     private void TrimPlayed(RadioItem current)
@@ -172,7 +174,7 @@ public class RadioPageViewModel : BaseViewModel
     public void RemoveSingleItem(RadioItem item)
     {
         if (item == null || !Items.Remove(item)) return;
-        FinishRemoval();
+        FinishRemoval($"removing {item.PlayUri} \"{item.Title}\"");
     }
 
     public void RemoveEpisode(RadioItem item)
@@ -184,7 +186,7 @@ public class RadioPageViewModel : BaseViewModel
 
         foreach (var segment in segments) Items.Remove(segment);
         RebalancePodcasts();
-        FinishRemoval();
+        FinishRemoval($"removing all {segments.Count} segments of {item.PlayUri} \"{item.Title}\" and rebalancing");
     }
 
     public void ExcludeEpisode(RadioItem item)
@@ -203,10 +205,11 @@ public class RadioPageViewModel : BaseViewModel
         return !string.IsNullOrEmpty(playUri) && playUri.StartsWith(prefix) ? playUri.Substring(prefix.Length) : null;
     }
 
-    private void FinishRemoval()
+    private void FinishRemoval(string why)
     {
+        DiagnosticLog.Write($"[Radio] {why}");
         ClearRemoveOptions();
-        ResyncConductor();
+        ResyncConductor(why);
 
         var snapshot = Items.ToList();
         Task.Run(() => RadioModel.SaveRadio(snapshot));
@@ -258,9 +261,12 @@ public class RadioPageViewModel : BaseViewModel
     {
         if (IsGenerating) return;
         IsGenerating = true;
-        RadioConductor.Instance.Stop();
+        DiagnosticLog.Write("[Radio] Generate pressed");
+        RadioConductor.Instance.Stop("Generate pressed");
+        AppRemotePlayback.LogQueueMirror("Generate pressed");
 
         var items = await Task.Run(RadioModel.Generate);
+        DiagnosticLog.Write($"[Radio] generated {items?.Count.ToString() ?? "nothing (failed)"} items");
         if (items != null) Items = new ObservableCollection<RadioItem>(items);
 
         IsGenerating = false;
@@ -272,17 +278,67 @@ public class RadioPageViewModel : BaseViewModel
         IsGenerating = true;
 
         var items = await Task.Run(RadioModel.Generate);
+        DiagnosticLog.Write($"[Radio] Generate more added {items?.Count.ToString() ?? "nothing (failed)"} items");
         if (items != null)
         {
             foreach (var item in items) Items.Add(item);
 
-            ResyncConductor();
+            ResyncConductor("Generate more");
 
             var snapshot = Items.ToList();
             Task.Run(() => RadioModel.SaveRadio(snapshot));
         }
 
         IsGenerating = false;
+    }
+
+    private const string DebugSaveLog = "Save log";
+    private const string DebugCheckQueue = "Check queue";
+
+    private bool _debugMenuOpen;
+
+    private async Task OpenDebugMenuAsync()
+    {
+        if (_debugMenuOpen) return;
+        _debugMenuOpen = true;
+        try
+        {
+            var choice = await Shell.Current.DisplayActionSheet("Debug", "Cancel", null, DebugSaveLog, DebugCheckQueue);
+            if (choice == DebugSaveLog) await SaveBugReportAsync();
+            else if (choice == DebugCheckQueue) await CheckQueueAsync();
+        }
+        finally
+        {
+            _debugMenuOpen = false;
+        }
+    }
+
+    private static async Task SaveBugReportAsync()
+    {
+        // capture straight away, before the note prompt, so the state matches the moment of the tap
+        var tappedAt = DateTime.Now;
+        DiagnosticLog.Write("[Mark] Save log tapped");
+        var stateAtTap = await Task.Run(RadioDiagnostics.DescribeLocalState);
+
+        var note = await Shell.Current.DisplayPromptAsync("Save log", "What just happened? (optional)", "Save", "Cancel");
+        if (note == null)
+        {
+            DiagnosticLog.Write("[Mark] Save log cancelled");
+            return;
+        }
+
+        var savedTo = await RadioDiagnostics.SaveBugReportAsync(tappedAt, stateAtTap, note);
+        await Shell.Current.DisplayAlert(
+            savedTo != null ? "Log saved" : "Save failed",
+            savedTo ?? "Couldn't write the file. The reason is in the diagnostics log.",
+            "OK");
+    }
+
+    private static async Task CheckQueueAsync()
+    {
+        var report = await Task.Run(RadioDiagnostics.DescribeQueues);
+        DiagnosticLog.Write($"[Queue] queue check:{Environment.NewLine}{report}");
+        await Shell.Current.DisplayAlert("Queue check", report, "OK");
     }
 
     private RadioItem _lastClickedItem;
@@ -310,7 +366,7 @@ public class RadioPageViewModel : BaseViewModel
                 .ToList();
 
 
-        DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} (run of {songRun?.Count.ToString() ?? "podcast"})");
+        DiagnosticLog.Write($"[Radio] tapped {radioItem.PlayUri} \"{radioItem.Title}\" (run of {songRun?.Count.ToString() ?? "podcast"})");
 
         PlayerBarViewModel.Instance.NotifyPlaybackStarting(radioItem.Title, radioItem.ImageUrl, radioItem.PlayUri);
 

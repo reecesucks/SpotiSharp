@@ -35,6 +35,7 @@ public class RadioForegroundService : Service
 
     public override void OnDestroy()
     {
+        SpotiSharpBackend.DiagnosticLog.Write("[System] radio foreground service stopped");
         if (_noisyReceiver != null) UnregisterReceiver(_noisyReceiver);
         _noisyReceiver = null;
         base.OnDestroy();
@@ -48,6 +49,10 @@ public class RadioForegroundService : Service
 
     public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
     {
+        // a sticky service restarted by Android after it killed the process gets a null intent
+        SpotiSharpBackend.DiagnosticLog.Write(intent == null
+            ? "[System] radio foreground service restarted by Android (the process had been killed)"
+            : "[System] radio foreground service started");
         StartForeground(NotificationId, BuildNotification());
         return StartCommandResult.Sticky;
     }
