@@ -32,6 +32,8 @@ public class MainActivity : KeypadActivity
             context.StopService(new Intent(context, typeof(RadioForegroundService)));
         };
 
+        RadioDiagnostics.SavePublicFile = PublicDownloads.Save;
+
         if (Authentication.HasStoredSession)
             SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
 

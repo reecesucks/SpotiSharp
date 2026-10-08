@@ -1,15 +1,19 @@
 using System.Text.RegularExpressions;
 using SpotiSharp.Helpers;
 using SpotiSharpBackend;
+using Constants = SpotiSharp.Consts.Constants;
 
 namespace SpotiSharp.Models;
 
 public class RadioModel
 {
-    internal const int SEGMENT_LENGTH_MS = SpotiSharpBackend.Radio.RadioTuning.SEGMENT_LENGTH_MS;
-    internal const int SONGS_BETWEEN_SEGMENTS = 3;
+    internal static int SegmentLengthMs => RadioConfigModel.PodcastSegmentLengthMs;
+    internal static int SongsPerSection => RadioConfigModel.GetSongsPerSection();
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
+
+    // longest playlist/album name shown as a song's source before it's shortened
+    private const int SOURCE_LABEL_MAX_CHARS = 9;
 
     private const int RESUME_IGNORE_THRESHOLD_MS = 30 * 1000;
 
@@ -28,7 +32,7 @@ public class RadioModel
     {
         PlaylistListModel.RefreshPlayLists();
 
-        var episodes = GetEpisodes(out var liveProgress);
+        var episodes = GetEpisodes(out var liveProgress, out var staleBingeEpisodeIds);
         if (episodes == null) return null;
 
         var songPool = BuildSongPool();
@@ -37,20 +41,22 @@ public class RadioModel
         var radio = new List<RadioItem>();
         int songIndex = 0;
 
+        bool fullEpisodes = RadioConfigModel.GetFullPodcastEpisodes();
+
         foreach (var episode in episodes)
         {
-            int startMs = ResumeStartFor(episode, liveProgress);
+            int startMs = ResumeStartFor(episode, liveProgress, staleBingeEpisodeIds);
             int remainingMs = Math.Max(0, episode.DurationMs - startMs);
-            int segmentCount = SegmentCountFor(remainingMs);
+            int segmentCount = fullEpisodes ? 1 : SegmentCountFor(remainingMs);
 
-            int totalSegments = Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
+            int totalSegments = fullEpisodes ? 1 : Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
             int firstSegmentNumber = totalSegments - segmentCount;
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
-                if (radio.Count > 0) AddSongs(radio, songPool, ref songIndex, SONGS_BETWEEN_SEGMENTS);
+                AddSongs(radio, songPool, ref songIndex, SongsPerSection);
                 radio.Add(RadioItem.ForPodcastSegment(
-                    episode, segmentIndex, SEGMENT_LENGTH_MS, startMs,
+                    episode, segmentIndex, SegmentLengthMs, startMs,
                     firstSegmentNumber + segmentIndex, totalSegments,
                     isFinalSegment: segmentIndex == segmentCount - 1));
             }
@@ -66,10 +72,11 @@ public class RadioModel
     {
         if (spanMs <= 0) return 1;
 
-        int fullSegments = spanMs / SEGMENT_LENGTH_MS;
-        int leftoverMs = spanMs - fullSegments * SEGMENT_LENGTH_MS;
+        int segmentLengthMs = SegmentLengthMs;
+        int fullSegments = spanMs / segmentLengthMs;
+        int leftoverMs = spanMs - fullSegments * segmentLengthMs;
 
-        if (leftoverMs > SpotiSharpBackend.Radio.RadioTuning.MIN_TAIL_SEGMENT_MS || fullSegments == 0) fullSegments++;
+        if (leftoverMs > segmentLengthMs / 3 || fullSegments == 0) fullSegments++;
 
         return fullSegments;
     }
@@ -97,7 +104,7 @@ public class RadioModel
                 .OrderBy(_ => random.Next())
                 .Take(ALBUM_SONG_COUNT)
                 .OrderBy(song => songs.IndexOf(song))
-                .Select(song => RadioItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri))
+                .Select(song => RadioItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri, ShortSourceName(album.AlbumName)))
                 .ToList();
 
             if (mode == RadioAlbumMode.Consecutive)
@@ -114,8 +121,10 @@ public class RadioModel
         }
     }
 
-    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, EpisodeProgress> liveProgress)
+    private static int ResumeStartFor(RecentEpisode episode, Dictionary<string, EpisodeProgress> liveProgress, ISet<string> staleBingeEpisodeIds)
     {
+        if (staleBingeEpisodeIds != null && staleBingeEpisodeIds.Contains(episode.EpisodeId)) return 0;
+
         int resume = liveProgress != null && liveProgress.TryGetValue(episode.EpisodeId, out var live)
             ? live.ResumePositionMs
             : episode.ResumePositionMs;
@@ -142,9 +151,10 @@ public class RadioModel
     /// <paramref name="liveProgress"/> carries that on for resume positions and is null if
     /// the lookup failed, in which case the cached verdict is all we have.
     /// </summary>
-    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress)
+    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds)
     {
         liveProgress = null;
+        staleBingeEpisodeIds = new HashSet<string>();
 
         var cached = RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows();
         var episodes = cached != null && cached.Count > 0 && cached.All(episode => episode.DurationMs > 0 && !string.IsNullOrEmpty(episode.ShowId))
@@ -170,8 +180,8 @@ public class RadioModel
                     : RadioConfigModel.IsExplicitlyOff(configuredShowWeights, showId);
                 if (excluded) continue;
                 var show = savedShows.FirstOrDefault(savedShow => savedShow.Id == showId);
-                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images));
-                if (next != null && !excludedEpisodeIds.Contains(next.EpisodeId)) bingeEpisodes.Add(next);
+                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images), excludedEpisodeIds);
+                if (next != null) bingeEpisodes.Add(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
         }
@@ -186,10 +196,13 @@ public class RadioModel
                 .ToList());
         liveProgress = progress;
 
-        // Drop anything finished since the episode cache was written - otherwise a podcast
-        // completed after that point is still offered, and ResumeStartFor would restart it
-        // from zero. A failed lookup leaves the pool alone rather than emptying the radio.
-        // Binge picks are not filtered here: FindNextEpisode already checked them live.
+        foreach (var episode in bingeEpisodes)
+        {
+            int resumeMs = progress?.GetValueOrDefault(episode.EpisodeId)?.ResumePositionMs ?? episode.ResumePositionMs;
+            BingeProgressModel.NoteResumeProgress(episode.ShowId, episode.EpisodeId, resumeMs);
+            if (BingeProgressModel.IsStale(episode.ShowId)) staleBingeEpisodeIds.Add(episode.EpisodeId);
+        }
+
         if (progress != null)
         {
             episodes = episodes
@@ -251,7 +264,12 @@ public class RadioModel
     {
         var playlistWeights = SourcePlaylistWeights();
 
-        var songWeights = new Dictionary<string, (RadioItem Item, int Weight)>();
+        var playlistTitles = new Dictionary<string, string>();
+        foreach (var playlist in PlaylistListModel.PlayLists) playlistTitles[playlist.PlayListId] = playlist.PlayListTitle;
+
+        // a song in several playlists keeps the highest-weighted one; SourceIds are every
+        // playlist it's in at that weight, for labelling where it came from
+        var songWeights = new Dictionary<string, (RadioSong Track, int Weight, List<string> SourceIds)>();
         foreach (var (playlistId, weight) in playlistWeights)
         {
             var tracks = RotationTracksModel.GetTracks(playlistId);
@@ -259,16 +277,51 @@ public class RadioModel
 
             foreach (var track in tracks)
             {
-                if (songWeights.TryGetValue(track.SongUri, out var existing) && existing.Weight >= weight) continue;
-                songWeights[track.SongUri] = (RadioItem.ForSong(track.SongTitle, track.SongArtists, track.SongImageUrl, track.SongUri), weight);
+                if (songWeights.TryGetValue(track.SongUri, out var existing))
+                {
+                    if (existing.Weight > weight) continue;
+                    if (existing.Weight == weight)
+                    {
+                        existing.SourceIds.Add(playlistId);
+                        continue;
+                    }
+                }
+                songWeights[track.SongUri] = (track, weight, new List<string> { playlistId });
             }
         }
 
         var random = new Random();
         return songWeights.Values
             .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / EffectiveWeight(entry.Weight)))
-            .Select(entry => entry.Item)
+            .Select(entry => RadioItem.ForSong(entry.Track.SongTitle, entry.Track.SongArtists, entry.Track.SongImageUrl, entry.Track.SongUri,
+                SongSourceLabel(entry.SourceIds, playlistTitles)))
             .ToList();
+    }
+
+    /// <summary>
+    /// "R3" for a rotation song (membership is cumulative, so the highest level is the song's
+    /// level), else "Liked", else the playlist's name shortened.
+    /// </summary>
+    private static string SongSourceLabel(List<string> playlistIds, Dictionary<string, string> playlistTitles)
+    {
+        int rotationLevel = -1;
+        foreach (var playlistId in playlistIds)
+        {
+            var match = RotationTag.Match(playlistTitles.GetValueOrDefault(playlistId) ?? string.Empty);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var level)) rotationLevel = Math.Max(rotationLevel, level);
+        }
+
+        if (rotationLevel >= 0) return $"R{rotationLevel}";
+        if (playlistIds.Contains(Constants.LIKED_PLALIST_ID)) return "Liked";
+        return ShortSourceName(playlistTitles.GetValueOrDefault(playlistIds[0]));
+    }
+
+    private static string ShortSourceName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        name = name.Trim();
+        return name.Length <= SOURCE_LABEL_MAX_CHARS ? name : name.Substring(0, SOURCE_LABEL_MAX_CHARS - 1).TrimEnd() + "…";
     }
 
     private static Dictionary<string, int> ActiveWeights(Dictionary<string, int> weights)

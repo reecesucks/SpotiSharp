@@ -4,8 +4,6 @@ public static class RadioTuning
 {
     public const int SEGMENT_LENGTH_MS = 15 * 60 * 1000;
 
-    public const int MIN_TAIL_SEGMENT_MS = 5 * 60 * 1000;
-
     public const int END_TOLERANCE_MS = 2500;
 
     public const int RESUME_REWIND_MS = 10000;
@@ -20,4 +18,6 @@ public static class RadioTuning
     public const int MAX_PLAYTHROUGH_PROJECTION_MS = 2 * 60 * 1000;
 
     public const int SNAPSHOT_STALE_MS = 10000;
+
+    public const int SKIP_LANDING_MS = 5000;
 }

@@ -22,6 +22,7 @@ public sealed class RadioHarness
 
     public List<string> Started { get; } = new List<string>();
     public bool Stopped { get; private set; }
+    public List<string> Skipped { get; } = new List<string>();
 
     public List<PlaybackAttempt> Outcomes { get; } = new List<PlaybackAttempt>();
     public PlaybackAttempt DefaultOutcome { get; set; } = PlaybackAttempt.Success;
@@ -59,6 +60,10 @@ public sealed class RadioHarness
                     var outcome = _outcomeIndex < Outcomes.Count ? Outcomes[_outcomeIndex++] : DefaultOutcome;
                     result = _state.ReportStartOutcome(outcome, Now);
                     continue;
+
+                case RadioTickAction.SkipUnexpected:
+                    Skipped.Add(_state.SkippingUri!);
+                    return;
 
                 case RadioTickAction.Stop:
                     Stopped = true;

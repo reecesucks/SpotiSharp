@@ -17,6 +17,10 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 
     public List<bool> SegmentPips { get; }
 
+    // Short label for where a song came from ("R3", "Liked", a shortened playlist or album name).
+    // Null for podcasts, and for radios cached before this existed.
+    public string Source { get; }
+
     private bool _isCurrent;
 
     [JsonIgnore]
@@ -65,7 +69,7 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
 
     public event PropertyChangedEventHandler PropertyChanged;
 
-    public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips, bool isFinalPodcastSegment = false)
+    public RadioItem(bool isPodcastSegment, string title, string subtitle, string imageUrl, string playUri, int positionMs, List<bool> segmentPips, bool isFinalPodcastSegment = false, string source = null)
     {
         IsPodcastSegment = isPodcastSegment;
         IsFinalPodcastSegment = isFinalPodcastSegment;
@@ -75,11 +79,12 @@ public class RadioItem : INotifyPropertyChanged, IRadioQueueItem
         PlayUri = playUri;
         PositionMs = positionMs;
         SegmentPips = segmentPips;
+        Source = source;
     }
 
-    internal static RadioItem ForSong(string title, string artists, string imageUrl, string trackUri)
+    internal static RadioItem ForSong(string title, string artists, string imageUrl, string trackUri, string source)
     {
-        return new RadioItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>());
+        return new RadioItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>(), source: source);
     }
 
     internal static RadioItem ForPodcastSegment(

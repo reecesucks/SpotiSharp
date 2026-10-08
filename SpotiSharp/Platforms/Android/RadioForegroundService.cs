@@ -17,10 +17,42 @@ public class RadioForegroundService : Service
     private const int NotificationId = 7301;
     private const string ChannelId = "spotisharp_radio";
 
+    private NoisyAudioReceiver _noisyReceiver;
+
     public override IBinder OnBind(Intent intent) => null;
+
+    public override void OnCreate()
+    {
+        base.OnCreate();
+
+        _noisyReceiver = new NoisyAudioReceiver();
+        var filter = new IntentFilter(global::Android.Media.AudioManager.ActionAudioBecomingNoisy);
+        if (AndroidOS.Build.VERSION.SdkInt >= AndroidOS.BuildVersionCodes.Tiramisu)
+            RegisterReceiver(_noisyReceiver, filter, ReceiverFlags.NotExported);
+        else
+            RegisterReceiver(_noisyReceiver, filter);
+    }
+
+    public override void OnDestroy()
+    {
+        SpotiSharpBackend.DiagnosticLog.Write("[System] radio foreground service stopped");
+        if (_noisyReceiver != null) UnregisterReceiver(_noisyReceiver);
+        _noisyReceiver = null;
+        base.OnDestroy();
+    }
+
+    private class NoisyAudioReceiver : BroadcastReceiver
+    {
+        public override void OnReceive(Context context, Intent intent) =>
+            SpotiSharpBackend.DiagnosticLog.Write("[System] audio output disconnected (headphones/Bluetooth), Spotify will pause");
+    }
 
     public override StartCommandResult OnStartCommand(Intent intent, StartCommandFlags flags, int startId)
     {
+        // a sticky service restarted by Android after it killed the process gets a null intent
+        SpotiSharpBackend.DiagnosticLog.Write(intent == null
+            ? "[System] radio foreground service restarted by Android (the process had been killed)"
+            : "[System] radio foreground service started");
         StartForeground(NotificationId, BuildNotification());
         return StartCommandResult.Sticky;
     }

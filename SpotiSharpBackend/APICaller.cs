@@ -350,6 +350,12 @@ public class APICaller
         return result != null;
     }
 
+    /// <summary>Spotify's own view of what plays next. Null when the call fails.</summary>
+    public QueueResponse? GetQueue()
+    {
+        return HandleExceptions(() => Authentication.SpotifyClient.Player.GetQueue().Result);
+    }
+
     public List<Device>? GetDevices()
     {
         var response = HandleExceptions(() => Authentication.SpotifyClient.Player.GetAvailableDevices().Result);

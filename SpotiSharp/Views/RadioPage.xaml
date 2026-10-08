@@ -44,6 +44,7 @@
                                             <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
                                             <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                             <Setter TargetName="SubtitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                            <Setter TargetName="SourceLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>
@@ -81,6 +82,14 @@
                                            TextColor="{DynamicResource TextSecondary}"
                                            VerticalOptions="Center"
                                            IsVisible="{Binding HasDebugSegmentRemaining}" />
+                                    <!-- shares the timer's cell: only songs have a source, only podcasts have a timer -->
+                                    <Label x:Name="SourceLabel"
+                                           Grid.Column="1"
+                                           Text="{Binding Source}"
+                                           FontSize="11"
+                                           TextColor="{DynamicResource TextSecondary}"
+                                           VerticalOptions="Center"
+                                           IsVisible="{Binding BindingContext.ShowSongSources, Source={x:Reference RadioPageRoot}}" />
                                 </Grid>
                                 <Label x:Name="SubtitleLabel"
                                        Text="{Binding Subtitle}"
