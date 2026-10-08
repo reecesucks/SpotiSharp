@@ -1034,4 +1034,74 @@ public class RadioTickStateTests
     }
 
     #endregion
+
+    #region decision reasons for the diagnostics log
+
+    [Fact]
+    public void Names_the_foreign_song_when_bowing_out()
+    {
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { song, Segment("ep1") });
+
+        harness.Tick(Playing(song, 20000, SongMs));
+        harness.Wait(9).Tick(Foreign("spotify:track:user-picked-this"));
+
+        Assert.True(harness.Stopped);
+        Assert.Contains("spotify:track:user-picked-this", harness.State.LastReason);
+        Assert.Contains("isn't in the radio", harness.State.LastReason);
+    }
+
+    [Fact]
+    public void Says_why_it_stopped_after_silence()
+    {
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { song, Segment("ep1") });
+
+        harness.Tick(Playing(song, 20000, SongMs));
+        harness.Wait(9).Tick(Silent);
+        harness.Wait(TimeSpan.FromMilliseconds(RadioTuning.DEAD_AIR_TIMEOUT_MS + 1000)).Tick(Silent);
+
+        Assert.True(harness.Stopped);
+        Assert.Contains("nothing playing", harness.State.LastReason);
+    }
+
+    [Fact]
+    public void Says_an_item_played_through_when_Spotify_moves_on_past_the_run()
+    {
+        var song = Song("a");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { song, podcast });
+
+        PlayThrough(harness, song, SongMs, stopShortMs: 4000);
+        harness.Wait(5).Tick(Foreign("spotify:track:spotify-picked-this"));
+
+        Assert.Equal(podcast.PlayUri, harness.ActiveUri);
+        Assert.Contains("played through", harness.State.LastReason);
+        Assert.Contains("spotify:track:spotify-picked-this", harness.State.LastReason);
+    }
+
+    [Fact]
+    public void Says_Next_was_pressed_on_a_manual_skip()
+    {
+        var harness = new RadioHarness(new[] { Song("a"), Song("b") });
+
+        harness.Skip();
+
+        Assert.Equal("Next pressed", harness.State.LastReason);
+    }
+
+    [Fact]
+    public void Says_the_radio_ran_out()
+    {
+        var song = Song("a");
+        var harness = new RadioHarness(new[] { song });
+
+        PlayThrough(harness, song, SongMs, stopShortMs: 1000);
+        harness.Wait(2).Tick(Paused(song, SongMs, SongMs));
+
+        Assert.True(harness.Stopped);
+        Assert.Contains("end of the radio", harness.State.LastReason);
+    }
+
+    #endregion
 }

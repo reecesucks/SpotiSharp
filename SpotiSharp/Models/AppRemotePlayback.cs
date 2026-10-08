@@ -11,27 +11,125 @@ public static class AppRemotePlayback
 
     private static readonly List<string> _skipWhenReached = new List<string>();
 
+    // Diagnostics only: everything queued into Spotify that hasn't been seen playing since, oldest
+    // first. Play() doesn't clear Spotify's queue, so this is our best guess at its "Next in queue".
+    private static readonly List<string> _notYetPlayed = new List<string>();
+    private static string? _playedDirectlyUri;
+    private static string? _lastNotedUri;
+
     public static async Task<bool> TryPlayAsync(string uri, IEnumerable<string>? queueAfter = null)
     {
         if (string.IsNullOrEmpty(uri) || PlaybackCommands.PlayUri == null) return false;
 
-        if (PlaybackCommands.WakeSpotify != null && !await PlaybackCommands.WakeSpotify()) return false;
+        if (PlaybackCommands.WakeSpotify != null && !await PlaybackCommands.WakeSpotify())
+        {
+            DiagnosticLog.Write($"[Queue] couldn't wake Spotify to play {RadioConductor.Label(uri)}");
+            return false;
+        }
+
+        var toQueue = queueAfter?.Where(queuedUri => !string.IsNullOrEmpty(queuedUri)).ToList() ?? new List<string>();
+        lock (QueueLock)
+        {
+            _playedDirectlyUri = uri;
+            DiagnosticLog.Write(
+                $"[Queue] playing {RadioConductor.Label(uri)} then queueing {toQueue.Count}; " +
+                $"Spotify should still hold {_notYetPlayed.Count} from before: {Describe(_notYetPlayed)}");
+        }
 
         if (!await PlaybackCommands.PlayUri(uri)) return false;
 
-        var toQueue = queueAfter?.Where(queuedUri => !string.IsNullOrEmpty(queuedUri)).ToList() ?? new List<string>();
         lock (QueueLock)
         {
             _queuedUris = new List<string>(toQueue);
             _skipWhenReached.Clear();
         }
 
-        if (PlaybackCommands.QueueUri != null)
+        if (PlaybackCommands.QueueUri != null && toQueue.Count > 0)
         {
-            foreach (var queuedUri in toQueue) await PlaybackCommands.QueueUri(queuedUri);
+            int queued = 0;
+            foreach (var queuedUri in toQueue)
+            {
+                if (await PlaybackCommands.QueueUri(queuedUri))
+                {
+                    queued++;
+                    NoteQueued(queuedUri);
+                }
+                else
+                {
+                    DiagnosticLog.Write($"[Queue] queueing {RadioConductor.Label(queuedUri)} failed or timed out");
+                }
+            }
+
+            lock (QueueLock) DiagnosticLog.Write($"[Queue] queued {queued}/{toQueue.Count}; Spotify should now hold: {Describe(_notYetPlayed)}");
         }
 
         return true;
+    }
+
+    private static void NoteQueued(string uri)
+    {
+        lock (QueueLock) _notYetPlayed.Add(uri);
+    }
+
+    /// <summary>
+    /// Called on every track change Spotify reports. Spotify's queue is first in, first out, so
+    /// reaching a queued uri means everything queued ahead of it was played or skipped.
+    /// </summary>
+    public static void NoteNowPlaying(string? uri)
+    {
+        if (string.IsNullOrEmpty(uri) || uri == _lastNotedUri) return;
+        _lastNotedUri = uri;
+
+        lock (QueueLock)
+        {
+            if (uri == _playedDirectlyUri)
+            {
+                _playedDirectlyUri = null;
+                return;
+            }
+            _playedDirectlyUri = null;
+
+            int index = _notYetPlayed.IndexOf(uri);
+            if (index < 0)
+            {
+                DiagnosticLog.Write($"[Queue] Spotify is on {RadioConductor.Label(uri)}, which SpotiSharp didn't queue or just play; " +
+                                    $"still queued: {Describe(_notYetPlayed)}");
+                return;
+            }
+
+            _notYetPlayed.RemoveRange(0, index + 1);
+            DiagnosticLog.Write($"[Queue] Spotify is on {RadioConductor.Label(uri)} from our queue" +
+                                (index > 0 ? $", past {index} queued ahead of it" : "") +
+                                $"; still queued: {Describe(_notYetPlayed)}");
+        }
+    }
+
+    public sealed record QueueView(List<string> NotYetPlayed, List<string> RadioMirror, List<string> ToSkip);
+
+    public static QueueView SnapshotQueues()
+    {
+        lock (QueueLock)
+        {
+            return new QueueView(new List<string>(_notYetPlayed), new List<string>(_queuedUris), new List<string>(_skipWhenReached));
+        }
+    }
+
+    public static void LogQueueMirror(string when)
+    {
+        lock (QueueLock)
+        {
+            DiagnosticLog.Write($"[Queue] at {when}: Spotify should still hold {Describe(_notYetPlayed)}; " +
+                                $"radio mirror {Describe(_queuedUris)}; to skip {Describe(_skipWhenReached)}");
+        }
+    }
+
+    private static string Describe(List<string> uris)
+    {
+        if (uris.Count == 0) return "[]";
+
+        const int shown = 12;
+        var listed = string.Join(", ", uris.Take(shown).Select(RadioConductor.Label));
+        return uris.Count > shown ? $"[{listed}, ... {uris.Count - shown} more]" : $"[{listed}]";
     }
 
     /// <summary>Plays a radio item locally: a podcast segment from its rewound start, or a song followed by the rest of its run.</summary>
@@ -78,8 +176,9 @@ public static class AppRemotePlayback
         if (PlaybackCommands.QueueUri == null) return;
         foreach (var uri in toAppend)
         {
-            DiagnosticLog.Write($"[Queue] appending {uri} to match the radio");
-            await PlaybackCommands.QueueUri(uri);
+            DiagnosticLog.Write($"[Queue] appending {RadioConductor.Label(uri)} to match the radio");
+            if (await PlaybackCommands.QueueUri(uri)) NoteQueued(uri);
+            else DiagnosticLog.Write($"[Queue] appending {uri} failed or timed out");
         }
     }
 
