@@ -9,7 +9,7 @@
     <!-- Lives in the native title bar (see BasePage.CreateTitleAccessory), so its
          BindingContext comes from the page, not from being nested in page content. -->
     <keypad:KeypadButtonRow x:Name="HeaderRow" SelfManaged="False"
-                             ColumnDefinitions="Auto,Auto" ColumnSpacing="6"
+                             ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6"
                              VerticalOptions="Center">
         <Button Grid.Column="0" Text="Generate" Command="{Binding GenerateRadio}"
                 FontSize="12" Padding="10,0" CornerRadius="14" HeightRequest="30">
@@ -31,6 +31,26 @@
             </VisualStateManager.VisualStateGroups>
         </Button>
         <Button Grid.Column="1" Text="Settings" Command="{Binding OpenSettings}"
+                FontSize="12" Padding="10,0" CornerRadius="14" HeightRequest="30">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="KeypadStates">
+                    <VisualState x:Name="Unfocused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                            <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Focused">
+                        <VisualState.Setters>
+                            <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SelectedRowText}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+        </Button>
+        <!-- radio debugging tools: save a bug report, compare Spotify's queue with ours -->
+        <Button Grid.Column="2" Text="Debug" Command="{Binding OpenDebugMenu}"
                 FontSize="12" Padding="10,0" CornerRadius="14" HeightRequest="30">
             <VisualStateManager.VisualStateGroups>
                 <VisualStateGroup x:Name="KeypadStates">

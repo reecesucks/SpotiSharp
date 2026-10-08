@@ -36,6 +36,10 @@
 	     which is what real users run, should not carry that cost into the field. -->
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
 		<RunAOTCompilation>true</RunAOTCompilation>
+		<!-- Release defaults to an .aab, and deploying an .aab from Visual Studio uninstalls the app
+		     first, wiping radio settings and the "not interested" list. An .apk deploys with
+		     `adb install -r`, which keeps app data. -->
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
 	</PropertyGroup>
 
 	<ItemGroup>

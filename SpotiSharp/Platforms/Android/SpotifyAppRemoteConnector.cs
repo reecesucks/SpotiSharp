@@ -14,7 +14,14 @@ internal static class SpotifyAppRemoteConnector
     private static TaskCompletionSource<bool>? _pendingConnect;
     private static bool _pullLoopStarted;
 
-    private static readonly TimeSpan PullInterval = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan PlayingPullInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan PausedPullInterval = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan PullStallThreshold = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan JumpConfirmDelay = TimeSpan.FromSeconds(1);
+
+    private static DateTime _pullRequestedAtUtc;
+    private static DateTime _pullAnsweredAtUtc;
+    private static bool _pullStallReported;
 
     internal static void Connect(string clientId, string redirectUri)
     {
@@ -52,15 +59,15 @@ internal static class SpotifyAppRemoteConnector
         DiagnosticLog.Write("[AppRemote] connected");
 
         PlaybackStateStore.HasActivePushSource = () => _appRemote?.IsConnected == true;
-        PlaybackCommands.Pause = () => Pause();
-        PlaybackCommands.Resume = () => Resume();
-        PlaybackCommands.SkipNext = () => SkipNext();
-        PlaybackCommands.SkipPrevious = () => SkipPrevious();
-        PlaybackCommands.SetShuffle = shuffle => SetShuffle(shuffle);
-        PlaybackCommands.ToggleRepeat = () => ToggleRepeat();
-        PlaybackCommands.SeekTo = positionMs => SeekTo(positionMs);
-        PlaybackCommands.PlayUri = PlayUriAsync;
-        PlaybackCommands.QueueUri = QueueUriAsync;
+        PlaybackCommands.Pause = () => { LogCommand("pause"); Pause(); };
+        PlaybackCommands.Resume = () => { LogCommand("resume"); Resume(); };
+        PlaybackCommands.SkipNext = () => { LogCommand("skip next"); SkipNext(); };
+        PlaybackCommands.SkipPrevious = () => { LogCommand("skip previous"); SkipPrevious(); };
+        PlaybackCommands.SetShuffle = shuffle => { LogCommand($"set shuffle {shuffle}"); SetShuffle(shuffle); };
+        PlaybackCommands.ToggleRepeat = () => { LogCommand("toggle repeat"); ToggleRepeat(); };
+        PlaybackCommands.SeekTo = positionMs => { LogCommand($"seek {positionMs}"); SeekTo(positionMs); };
+        PlaybackCommands.PlayUri = uri => { LogCommand($"play {uri}"); return PlayUriAsync(uri); };
+        PlaybackCommands.QueueUri = uri => { LogCommand($"queue {uri}"); return QueueUriAsync(uri); };
 
         _appRemote.PlayerApi.SubscribeToPlayerState().SetEventCallback(new PlayerStateCallback());
         StartPeriodicPull();
@@ -81,13 +88,52 @@ internal static class SpotifyAppRemoteConnector
     {
         while (true)
         {
-            await Task.Delay(PullInterval);
-            if (_appRemote?.IsConnected == true)
-            {
-                _appRemote.PlayerApi.PlayerState?.SetResultCallback(new PlayerStatePullCallback());
-            }
+            await Task.Delay(PlaybackStateStore.Instance.IsPlaying ? PlayingPullInterval : PausedPullInterval);
+            LogConnectionChange();
+            RequestPull();
         }
     }
+
+    private static bool _lastSeenConnected = true;
+
+    // The SDK can drop the connection without calling anything back, so this is the only place a
+    // silent drop shows up in the log. Nothing reconnects automatically.
+    private static void LogConnectionChange()
+    {
+        bool connected = _appRemote?.IsConnected == true;
+        if (connected == _lastSeenConnected) return;
+
+        _lastSeenConnected = connected;
+        DiagnosticLog.Write(connected ? "[AppRemote] connection is back" : "[AppRemote] connection dropped (IsConnected=false)");
+    }
+
+    private static void RequestPull()
+    {
+        if (_appRemote?.IsConnected != true) return;
+
+        var now = DateTime.UtcNow;
+        if (!_pullStallReported && _pullRequestedAtUtc > _pullAnsweredAtUtc && now - _pullRequestedAtUtc > PullStallThreshold)
+        {
+            _pullStallReported = true;
+            DiagnosticLog.Write($"[AppRemote] pull unanswered for {(now - _pullRequestedAtUtc).TotalSeconds:F0}s");
+        }
+
+        if (_pullRequestedAtUtc <= _pullAnsweredAtUtc) _pullRequestedAtUtc = now;
+        _appRemote.PlayerApi.PlayerState
+            ?.SetResultCallback(new PlayerStatePullCallback())
+            ?.SetErrorCallback(new CommandErrorCallback("pull"));
+    }
+
+    private static void OnPullAnswered()
+    {
+        _pullAnsweredAtUtc = DateTime.UtcNow;
+        if (!_pullStallReported) return;
+
+        _pullStallReported = false;
+        DiagnosticLog.Write($"[AppRemote] pull answered again after {(_pullAnsweredAtUtc - _pullRequestedAtUtc).TotalSeconds:F0}s");
+    }
+
+    private static void LogCommand(string command) => DiagnosticLog.Write($"[Cmd] {command}");
 
     private static void Pause(bool isRetry = false) =>
         _appRemote?.PlayerApi.Pause()?.SetErrorCallback(new CommandErrorCallback("pause", isRetry ? null : () => Pause(true)));
@@ -112,32 +158,47 @@ internal static class SpotifyAppRemoteConnector
 
     private static Task<bool> PlayUriAsync(string uri)
     {
-        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+        if (_appRemote?.IsConnected != true)
+        {
+            DiagnosticLog.Write($"[AppRemote] play {uri} not sent: not connected");
+            return Task.FromResult(false);
+        }
 
         var tcs = new TaskCompletionSource<bool>();
         _appRemote.PlayerApi.Play(uri)
             ?.SetResultCallback(new PlayResultCallback(tcs))
             ?.SetErrorCallback(new PlayErrorCallback(tcs, $"play {uri}"));
 
-        return WithTimeout(tcs.Task);
+        return WithTimeout(tcs.Task, $"play {uri}");
     }
 
     private static Task<bool> QueueUriAsync(string uri)
     {
-        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+        if (_appRemote?.IsConnected != true)
+        {
+            DiagnosticLog.Write($"[AppRemote] queue {uri} not sent: not connected");
+            return Task.FromResult(false);
+        }
 
         var tcs = new TaskCompletionSource<bool>();
         _appRemote.PlayerApi.Queue(uri)
             ?.SetResultCallback(new PlayResultCallback(tcs))
             ?.SetErrorCallback(new PlayErrorCallback(tcs, $"queue {uri}"));
 
-        return WithTimeout(tcs.Task);
+        return WithTimeout(tcs.Task, $"queue {uri}");
     }
 
-    private static async Task<bool> WithTimeout(Task<bool> task)
+    private static async Task<bool> WithTimeout(Task<bool> task, string label)
     {
         var completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(8)));
-        return completed == task && task.Result;
+        if (completed == task) return task.Result;
+
+        // A command that times out can still land afterwards, e.g. a queue add that shows up
+        // in Spotify after we'd already given up on it.
+        DiagnosticLog.Write($"[AppRemote] {label} got no answer in 8s");
+        _ = task.ContinueWith(late => DiagnosticLog.Write($"[AppRemote] {label} answered late: {(late.Result ? "ok" : "failed")}"),
+            TaskContinuationOptions.OnlyOnRanToCompletion);
+        return false;
     }
 
     private class PlayResultCallback : Java.Lang.Object, CallResult.IResultCallback
@@ -171,7 +232,8 @@ internal static class SpotifyAppRemoteConnector
 
         public void OnFailure(Java.Lang.Throwable? error)
         {
-            DiagnosticLog.Write($"[AppRemote] connect failed: {error?.Message}");
+            // The SDK also reports a lost connection here, not just a failed connect.
+            DiagnosticLog.Write($"[AppRemote] connect failed or connection lost: {error?.Class?.Name}: {error?.Message}");
             _pendingConnect?.TrySetResult(false);
             _pendingConnect = null;
         }
@@ -205,6 +267,29 @@ internal static class SpotifyAppRemoteConnector
     private static int _lastAcceptedProgressMs;
     private static DateTime _lastAcceptedAtUtc;
 
+    private static bool _lastAcceptedPaused;
+
+    private static readonly TimeSpan PullLogInterval = TimeSpan.FromSeconds(20);
+    private const double PullDriftLogMs = 3000;
+
+    private static string? _lastLoggedUri;
+    private static bool _lastLoggedPaused;
+    private static DateTime _lastLoggedAtUtc;
+
+    private static bool PullWorthLogging(string uri, bool isPaused, int progressMs, DateTime now)
+    {
+        if (uri != _lastLoggedUri || isPaused != _lastLoggedPaused) return true;
+        if (now - _lastLoggedAtUtc >= PullLogInterval) return true;
+
+        if (uri != _lastAcceptedUri) return true;
+        double expectedMs = _lastAcceptedProgressMs + (_lastAcceptedPaused ? 0 : (now - _lastAcceptedAtUtc).TotalMilliseconds);
+        return Math.Abs(progressMs - expectedMs) > PullDriftLogMs;
+    }
+
+    private static string? _lastSeenUri;
+    private static int _lastSeenProgressMs;
+    private static DateTime _lastSeenAtUtc;
+
     private static void HandlePlayerState(PlayerState? state, string source)
     {
         if (state?.Track == null) return;
@@ -213,25 +298,49 @@ internal static class SpotifyAppRemoteConnector
         var progressMs = (int)state.PlaybackPosition;
         var now = DateTime.UtcNow;
 
+        bool implausible = false;
         if (!state.IsPaused && uri == _lastAcceptedUri && _lastAcceptedAtUtc != default)
         {
             double elapsedMs = (now - _lastAcceptedAtUtc).TotalMilliseconds;
             double impliedJumpMs = progressMs - _lastAcceptedProgressMs;
-            if (elapsedMs > 500 && impliedJumpMs > elapsedMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs)
+            implausible = elapsedMs > 500 && impliedJumpMs > elapsedMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs;
+
+            if (implausible && uri == _lastSeenUri)
             {
-                DiagnosticLog.Write(
-                    $"[AppRemote] ({source}) ignoring implausible jump: {_lastAcceptedProgressMs}->{progressMs} over {elapsedMs:F0}ms");
-                return;
+                double sinceSeenMs = (now - _lastSeenAtUtc).TotalMilliseconds;
+                double impliedFromSeenMs = progressMs - _lastSeenProgressMs;
+                if (sinceSeenMs > 0 && impliedFromSeenMs <= sinceSeenMs * MaxPlausibleSpeedMultiplier + JumpToleranceMs)
+                    implausible = false;
             }
+        }
+
+        _lastSeenUri = uri;
+        _lastSeenProgressMs = progressMs;
+        _lastSeenAtUtc = now;
+
+        if (implausible)
+        {
+            DiagnosticLog.Write(
+                $"[AppRemote] ({source}) jump pending confirmation: {_lastAcceptedProgressMs}->{progressMs} over {(now - _lastAcceptedAtUtc).TotalMilliseconds:F0}ms");
+
+            _ = Task.Delay(JumpConfirmDelay).ContinueWith(_ => RequestPull());
+            return;
+        }
+
+        if (source != "pull" || PullWorthLogging(uri, state.IsPaused, progressMs, now))
+        {
+            DiagnosticLog.Write(
+                $"[AppRemote] state ({source}): uri={state.Track?.Uri} \"{state.Track?.Name}\" isEpisode={state.Track?.IsEpisode} " +
+                $"isPaused={state.IsPaused} position={state.PlaybackPosition} duration={state.Track?.Duration}");
+            _lastLoggedUri = uri;
+            _lastLoggedPaused = state.IsPaused;
+            _lastLoggedAtUtc = now;
         }
 
         _lastAcceptedUri = uri;
         _lastAcceptedProgressMs = progressMs;
         _lastAcceptedAtUtc = now;
-
-        DiagnosticLog.Write(
-            $"[AppRemote] state ({source}): uri={state.Track?.Uri} isEpisode={state.Track?.IsEpisode} " +
-            $"isPaused={state.IsPaused} position={state.PlaybackPosition} duration={state.Track?.Duration}");
+        _lastAcceptedPaused = state.IsPaused;
 
         PlaybackStateStore.Instance.Update(
             isPlaying: !state.IsPaused,
@@ -250,7 +359,12 @@ internal static class SpotifyAppRemoteConnector
             shuffleOn: state.PlaybackOptions?.IsShuffling ?? false,
             repeatOn: (state.PlaybackOptions?.RepeatMode ?? 0) != 0);
 
+        AppRemotePlayback.NoteNowPlaying(uri);
+
+        var tickTime = System.Diagnostics.Stopwatch.StartNew();
         RadioConductor.Instance.Tick();
+        if (tickTime.ElapsedMilliseconds > 200)
+            DiagnosticLog.Write($"[AppRemote] state ({source}): tick took {tickTime.ElapsedMilliseconds}ms");
     }
 
     private class PlayerStateCallback : Java.Lang.Object, Subscription.IEventCallback
@@ -260,6 +374,10 @@ internal static class SpotifyAppRemoteConnector
 
     private class PlayerStatePullCallback : Java.Lang.Object, CallResult.IResultCallback
     {
-        public void OnResult(Java.Lang.Object? data) => HandlePlayerState(data as PlayerState, "pull");
+        public void OnResult(Java.Lang.Object? data)
+        {
+            OnPullAnswered();
+            HandlePlayerState(data as PlayerState, "pull");
+        }
     }
 }

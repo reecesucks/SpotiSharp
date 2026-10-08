@@ -4,6 +4,7 @@ public enum RadioTickAction
 {
     None,
     StartActive,
+    SkipUnexpected,
     Stop
 }
 
@@ -13,6 +14,8 @@ public readonly record struct RadioTickResult(RadioTickAction Action, bool Activ
     public static readonly RadioTickResult Moved = new RadioTickResult(RadioTickAction.None, true);
 
     public static RadioTickResult Start(bool activeItemChanged) => new RadioTickResult(RadioTickAction.StartActive, activeItemChanged);
+
+    public static readonly RadioTickResult Skip = new RadioTickResult(RadioTickAction.SkipUnexpected, false);
 }
 public sealed class RadioTickState
 {
@@ -31,8 +34,16 @@ public sealed class RadioTickState
 
     private int _unavailableSkips;
 
-    public RadioTickState(IReadOnlyList<IRadioQueueItem> queue, int startIndex, DateTime nowUtc, bool alreadyIssued)
+    private string? _skippingUri;
+    private DateTime _skipSentAtUtc;
+
+    private readonly int _segmentLengthMs;
+
+    public RadioTickState(IReadOnlyList<IRadioQueueItem> queue, int startIndex, DateTime nowUtc, bool alreadyIssued,
+        int segmentLengthMs = RadioTuning.SEGMENT_LENGTH_MS)
     {
+        _segmentLengthMs = segmentLengthMs;
+
         if (queue == null || startIndex < 0 || startIndex >= queue.Count) return;
 
         _queue = queue;
@@ -43,6 +54,10 @@ public sealed class RadioTickState
     public bool IsActive => _queue != null;
     public int ActiveIndex => _activeIndex;
     public IRadioQueueItem? ActiveItem => _queue != null && _activeIndex >= 0 ? _queue[_activeIndex] : null;
+    public string? SkippingUri => _skippingUri;
+
+    /// <summary>Why the last advance, retry, skip or stop was decided, for the diagnostics log.</summary>
+    public string? LastReason { get; private set; }
 
     public IReadOnlyList<IRadioQueueItem> RemainingItems
     {
@@ -59,30 +74,31 @@ public sealed class RadioTickState
 
         if (state.CurrentItemUri == _queue[_activeIndex].PlayUri) return HandleActiveItem(state, nowUtc);
 
-        int runIndex = IndexInActiveSongRun(state.CurrentItemUri);
-        if (runIndex >= 0)
-        {
+        int aheadIndex = IndexAheadInActiveSongRun(state.CurrentItemUri);
+        if (aheadIndex >= 0) return MoveWithinRun(aheadIndex, state, nowUtc, $"Spotify moved ahead in the run to {state.CurrentItemUri}");
 
-            if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying && runIndex <= _activeIndex)
-                return AdvancePastRun(nowUtc);
-
-            return MoveWithinRun(runIndex, state, nowUtc);
-        }
+        if (!state.IsPlaying && state.ProgressMs == 0 && _lastObservedWasPlaying && IsEarlierInActiveSongRun(state.CurrentItemUri))
+            return AdvancePastRun(nowUtc, $"Spotify is back on earlier run song {state.CurrentItemUri} paused at 0, so the run finished");
 
         if (!_startConfirmed)
         {
             if (nowUtc < _startIssuedAtUtc.AddMilliseconds(RadioTuning.START_GRACE_MS)) return RadioTickResult.Nothing;
-            return RetryOrSkipActive(nowUtc);
+            return RetryOrSkipActive(state, nowUtc);
         }
 
         bool somethingElsePlaying = !string.IsNullOrEmpty(state.CurrentItemUri);
 
-        if (ActivePlayedThrough(nowUtc, boundProjection: somethingElsePlaying)) return Advance(nowUtc);
+        if (ActivePlayedThrough(nowUtc, boundProjection: somethingElsePlaying))
+            return Advance(nowUtc, $"active item played through ({DescribeObservation(nowUtc)}), Spotify now on {state.CurrentItemUri ?? "nothing"}");
 
-        if (somethingElsePlaying) return StopResult();
+        if (somethingElsePlaying && IsInQueue(state.CurrentItemUri)) return SkipUnexpected(state, nowUtc);
+
+        if (somethingElsePlaying)
+            return StopResult($"{state.CurrentItemUri} isn't in the radio and the active item hadn't finished ({DescribeObservation(nowUtc)})");
 
         _silenceSinceUtc ??= nowUtc;
-        if (nowUtc >= _silenceSinceUtc.Value.AddMilliseconds(RadioTuning.DEAD_AIR_TIMEOUT_MS)) return StopResult();
+        if (nowUtc >= _silenceSinceUtc.Value.AddMilliseconds(RadioTuning.DEAD_AIR_TIMEOUT_MS))
+            return StopResult($"nothing playing for {RadioTuning.DEAD_AIR_TIMEOUT_MS / 1000}s");
 
         return RadioTickResult.Nothing;
     }
@@ -100,9 +116,10 @@ public sealed class RadioTickState
             return RadioTickResult.Nothing;
         }
 
-        if (++_unavailableSkips > RadioTuning.MAX_UNAVAILABLE_SKIPS) return StopResult();
+        if (++_unavailableSkips > RadioTuning.MAX_UNAVAILABLE_SKIPS)
+            return StopResult($"{_unavailableSkips} items in a row were unavailable");
 
-        return Advance(nowUtc);
+        return Advance(nowUtc, $"{ActiveItem?.PlayUri} is unavailable");
     }
 
     public RadioTickResult AdvanceManually(DateTime nowUtc)
@@ -110,7 +127,7 @@ public sealed class RadioTickState
         if (_queue == null || _activeIndex < 0) return RadioTickResult.Nothing;
 
         _unavailableSkips = 0;
-        return Advance(nowUtc);
+        return Advance(nowUtc, "Next pressed");
     }
 
     public void Resync(IReadOnlyList<IRadioQueueItem> queue, int activeIndex)
@@ -158,9 +175,14 @@ public sealed class RadioTickState
             if (projectedEndMs > 0)
             {            
                 double projectedMs = _lastObservedProgressMs + (nowUtc - _lastObservedAtUtc).TotalMilliseconds;
-                if (projectedMs >= projectedEndMs) return Advance(nowUtc);
+                if (projectedMs >= projectedEndMs)
+                    return Advance(nowUtc, $"segment end projected ({projectedMs:F0} of {projectedEndMs}ms)");
             }
         }
+
+        if (state.IsPlaying && !active.IsPodcastSegment && state.ProgressMs < _lastObservedProgressMs
+            && ActivePlayedThrough(nowUtc, boundProjection: true))
+            return AdvancePastReplay(state, nowUtc);
 
         bool wasPlaying = _lastObservedWasPlaying;
         _lastObservedWasPlaying = state.IsPlaying;
@@ -174,24 +196,27 @@ public sealed class RadioTickState
         int endMs = ActiveEndMs(active);
         if (endMs <= 0) return RadioTickResult.Nothing;
 
-        if (state.IsPlaying && active.IsPodcastSegment && state.ProgressMs >= endMs) return Advance(nowUtc);
+        if (state.IsPlaying && active.IsPodcastSegment && state.ProgressMs >= endMs)
+            return Advance(nowUtc, $"segment reached its end ({state.ProgressMs} of {endMs}ms)");
 
         if (!state.IsPlaying)
         {
             if (Math.Max(state.ProgressMs, _lastObservedProgressMs) >= endMs - RadioTuning.END_TOLERANCE_MS)
             {
-                return Advance(nowUtc);
+                return Advance(nowUtc, $"paused at the end ({Math.Max(state.ProgressMs, _lastObservedProgressMs)} of {endMs}ms)");
             }
 
-            if (wasPlaying && state.ProgressMs == 0 && _lastObservedProgressMs > 0) return Advance(nowUtc);
+            if (wasPlaying && state.ProgressMs == 0 && _lastObservedProgressMs > 0)
+                return Advance(nowUtc, $"paused at 0 after playing to {_lastObservedProgressMs}ms, so it finished");
         }
 
         return RadioTickResult.Nothing;
     }
 
-    private RadioTickResult MoveWithinRun(int runIndex, PlaybackSnapshot state, DateTime nowUtc)
+    private RadioTickResult MoveWithinRun(int runIndex, PlaybackSnapshot state, DateTime nowUtc, string reason)
     {
         bool moved = runIndex != _activeIndex;
+        if (moved) LastReason = reason;
         _activeIndex = runIndex;
 
         _startConfirmed = true;
@@ -207,39 +232,73 @@ public sealed class RadioTickState
         return moved ? RadioTickResult.Moved : RadioTickResult.Nothing;
     }
 
-    private RadioTickResult RetryOrSkipActive(DateTime nowUtc)
-    {
-        if (_startAttempts < RadioTuning.MAX_START_ATTEMPTS) return RadioTickResult.Start(false);
-
-        return Advance(nowUtc);
-    }
-
-    private RadioTickResult Advance(DateTime nowUtc)
+    private RadioTickResult AdvancePastReplay(PlaybackSnapshot state, DateTime nowUtc)
     {
         int nextIndex = _activeIndex + 1;
-        if (nextIndex >= _queue!.Count) return StopResult();
+        if (nextIndex < _queue!.Count && !_queue[nextIndex].IsPodcastSegment && _queue[nextIndex].PlayUri == state.CurrentItemUri)
+            return MoveWithinRun(nextIndex, state, nowUtc, "song finished and Spotify is already on the next run song");
 
+        return Advance(nowUtc, $"song jumped back to {state.ProgressMs}ms after playing through, so it finished");
+    }
+
+    private RadioTickResult SkipUnexpected(PlaybackSnapshot state, DateTime nowUtc)
+    {
+        if (!state.IsPlaying) return RadioTickResult.Nothing;
+
+        if (state.CurrentItemUri == _skippingUri && nowUtc < _skipSentAtUtc.AddMilliseconds(RadioTuning.SKIP_LANDING_MS))
+            return RadioTickResult.Nothing;
+
+        _skippingUri = state.CurrentItemUri;
+        _skipSentAtUtc = nowUtc;
+        LastReason = $"{state.CurrentItemUri} is a radio item playing out of turn";
+        return RadioTickResult.Skip;
+    }
+
+    private RadioTickResult RetryOrSkipActive(PlaybackSnapshot state, DateTime nowUtc)
+    {
+        if (_startAttempts < RadioTuning.MAX_START_ATTEMPTS)
+        {
+            LastReason = $"start not confirmed after {RadioTuning.START_GRACE_MS / 1000}s (Spotify on {state.CurrentItemUri ?? "nothing"}), " +
+                         $"retrying (attempt {_startAttempts + 1} of {RadioTuning.MAX_START_ATTEMPTS})";
+            return RadioTickResult.Start(false);
+        }
+
+        return Advance(nowUtc, $"gave up after {RadioTuning.MAX_START_ATTEMPTS} start attempts");
+    }
+
+    private RadioTickResult Advance(DateTime nowUtc, string reason)
+    {
+        int nextIndex = _activeIndex + 1;
+        if (nextIndex >= _queue!.Count) return StopResult($"{reason}, and that was the end of the radio");
+
+        LastReason = reason;
         SetActive(nextIndex, nowUtc);
         return RadioTickResult.Start(activeItemChanged: true);
     }
 
-    private RadioTickResult AdvancePastRun(DateTime nowUtc)
+    private RadioTickResult AdvancePastRun(DateTime nowUtc, string reason)
     {
         int runEnd = _activeIndex;
         while (runEnd + 1 < _queue!.Count && !_queue[runEnd + 1].IsPodcastSegment) runEnd++;
 
         int nextIndex = runEnd + 1;
-        if (nextIndex >= _queue.Count) return StopResult();
+        if (nextIndex >= _queue.Count) return StopResult($"{reason}, and that was the end of the radio");
 
+        LastReason = reason;
         SetActive(nextIndex, nowUtc);
         return RadioTickResult.Start(activeItemChanged: true);
     }
 
-    private RadioTickResult StopResult()
+    private RadioTickResult StopResult(string reason)
     {
+        LastReason = reason;
         Stop();
         return new RadioTickResult(RadioTickAction.Stop, false);
     }
+
+    private string DescribeObservation(DateTime nowUtc) =>
+        $"last seen {(_lastObservedWasPlaying ? "playing" : "not playing")} at {_lastObservedProgressMs} of {ActiveEndMs(_queue![_activeIndex])}ms, " +
+        $"{(nowUtc - _lastObservedAtUtc).TotalSeconds:F0}s ago";
 
     private void SetActive(int index, DateTime nowUtc)
     {
@@ -297,31 +356,36 @@ public sealed class RadioTickState
         {
             if (active.IsFinalPodcastSegment) return _lastObservedDurationMs;
 
-            int end = active.PositionMs + RadioTuning.SEGMENT_LENGTH_MS;
+            int end = active.PositionMs + _segmentLengthMs;
             return _lastObservedDurationMs > 0 ? Math.Min(end, _lastObservedDurationMs) : end;
         }
         return _lastObservedDurationMs;
     }
 
-    private int IndexInActiveSongRun(string? uri)
+    private int IndexAheadInActiveSongRun(string? uri)
     {
         if (string.IsNullOrEmpty(uri)) return -1;
         if (_queue![_activeIndex].IsPodcastSegment) return -1;
 
-        int runStart = _activeIndex;
-        while (runStart > 0 && !_queue[runStart - 1].IsPodcastSegment) runStart--;
-
-        int runEnd = _activeIndex;
-        while (runEnd + 1 < _queue.Count && !_queue[runEnd + 1].IsPodcastSegment) runEnd++;
-
-        for (int i = _activeIndex + 1; i <= runEnd; i++)
-        {
-            if (_queue[i].PlayUri == uri) return i;
-        }
-        for (int i = runStart; i < _activeIndex; i++)
+        for (int i = _activeIndex + 1; i < _queue.Count && !_queue[i].IsPodcastSegment; i++)
         {
             if (_queue[i].PlayUri == uri) return i;
         }
         return -1;
     }
+
+    private bool IsEarlierInActiveSongRun(string? uri)
+    {
+        if (string.IsNullOrEmpty(uri)) return false;
+        if (_queue![_activeIndex].IsPodcastSegment) return false;
+
+        for (int i = _activeIndex - 1; i >= 0 && !_queue[i].IsPodcastSegment; i--)
+        {
+            if (_queue[i].PlayUri == uri) return true;
+        }
+        return false;
+    }
+
+    private bool IsInQueue(string? uri) =>
+        !string.IsNullOrEmpty(uri) && _queue!.Any(item => item.PlayUri == uri);
 }

@@ -191,9 +191,41 @@
             </Grid>
         </DataTemplate>
 
+        <DataTemplate x:Key="MixTemplate" x:DataType="viewmodels:RadioMixSettingsViewModel">
+            <VerticalStackLayout Margin="10,0,10,6" Spacing="24">
+                <VerticalStackLayout Spacing="0">
+                    <Label Text="{Binding Title}" FontSize="16" />
+                    <Label Text="how the radio mixes music with podcasts" FontSize="12" TextColor="{DynamicResource TextSecondary}" />
+                </VerticalStackLayout>
+
+                <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+                    <Label Grid.Row="0" Grid.Column="0" Text="Songs per section" FontSize="16" VerticalOptions="Center" />
+                    <Label Grid.Row="0" Grid.Column="1" Text="{Binding SongsPerSection}"
+                           FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource Primary}"
+                           VerticalOptions="Center" Margin="0,0,10,0" />
+                    <Stepper Grid.Row="0" Grid.Column="2" Minimum="1" Maximum="10" Increment="1"
+                             Value="{Binding SongsPerSection}" VerticalOptions="Center" />
+
+                    <Label Grid.Row="1" Grid.Column="0" Text="Play full episodes" FontSize="16" VerticalOptions="Center" />
+                    <Switch Grid.Row="1" Grid.Column="2" IsToggled="{Binding FullPodcastEpisodes}" VerticalOptions="Center" />
+
+                    <Label Grid.Row="2" Grid.Column="0" Text="Podcast section length (min)" FontSize="16" VerticalOptions="Center" />
+                    <Label Grid.Row="2" Grid.Column="1" Text="{Binding PodcastSegmentMinutes}"
+                           FontSize="16" FontAttributes="Bold" TextColor="{DynamicResource Primary}"
+                           VerticalOptions="Center" Margin="0,0,10,0" />
+                    <Stepper Grid.Row="2" Grid.Column="2" Minimum="5" Maximum="30" Increment="5"
+                             Value="{Binding PodcastSegmentMinutes}" VerticalOptions="Center"
+                             IsEnabled="{Binding SegmentLengthApplies}" />
+                </Grid>
+
+                <Label Text="Changes apply the next time the radio is generated." FontSize="12" TextColor="{DynamicResource TextSecondary}" />
+            </VerticalStackLayout>
+        </DataTemplate>
+
         <selectors:RadioSettingsTemplateSelector x:Key="SettingsTemplateSelector"
                                                  SourceTemplate="{StaticResource SourceTemplate}"
-                                                 AlbumTemplate="{StaticResource AlbumTemplate}" />
+                                                 AlbumTemplate="{StaticResource AlbumTemplate}"
+                                                 MixTemplate="{StaticResource MixTemplate}" />
     </views:BasePage.Resources>
     <views:BasePage.Content>
         <Grid>

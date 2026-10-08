@@ -8,4 +8,8 @@ public class BingeProgress
 
     // shown in the radio settings so the current binge position is visible
     public string NextEpisodeName { get; set; }
+
+    public string LastTrackedEpisodeId { get; set; }
+    public int LastTrackedResumePositionMs { get; set; }
+    public DateTime? LastActivityUtc { get; set; }
 }

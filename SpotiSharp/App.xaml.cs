@@ -16,6 +16,9 @@ public partial class App : Application
 		var window = base.CreateWindow(activationState);
 
 		window.Created += (_, _) => AppState.Instance.RefreshDisplayMetrics();
+		window.Stopped += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] went to the background");
+		window.Resumed += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] back in the foreground");
+		window.Destroying += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] window destroyed");
 
 		return window;
 	}

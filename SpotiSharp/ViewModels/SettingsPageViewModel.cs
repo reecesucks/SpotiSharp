@@ -43,6 +43,18 @@ public class SettingsPageViewModel : BaseViewModel
         }
     }
 
+    private bool _showSongSource;
+
+    public bool ShowSongSource
+    {
+        get { return _showSongSource; }
+        set
+        {
+            if (!SetProperty(ref _showSongSource, value)) return;
+            DebugSettings.ShowSongSource = value;
+        }
+    }
+
     public ObservableCollection<DeviceOption> Devices { get; } = new();
 
     private DeviceOption _selectedDevice;
@@ -63,6 +75,7 @@ public class SettingsPageViewModel : BaseViewModel
     public SettingsPageViewModel()
     {
         _showSegmentDebugTimer = DebugSettings.ShowSegmentTimer;
+        _showSongSource = DebugSettings.ShowSongSource;
 
         ApplySettings = new Command(() =>
         {
