@@ -267,41 +267,44 @@ public class RadioModel
         var playlistTitles = new Dictionary<string, string>();
         foreach (var playlist in PlaylistListModel.PlayLists) playlistTitles[playlist.PlayListId] = playlist.PlayListTitle;
 
-        // a song in several playlists keeps the highest-weighted one; SourceIds are every
-        // playlist it's in at that weight, for labelling where it came from
-        var songWeights = new Dictionary<string, (RadioSong Track, int Weight, List<string> SourceIds)>();
+        var songPulls = new Dictionary<string, (RadioSong Track, double Pull, List<string> SourceIds)>();
         foreach (var (playlistId, weight) in playlistWeights)
         {
             var tracks = RotationTracksModel.GetTracks(playlistId);
             if (tracks == null) return null;
 
+            double pull = EffectiveWeight(weight) * RotationMultiplier(playlistTitles.GetValueOrDefault(playlistId));
+
             foreach (var track in tracks)
             {
-                if (songWeights.TryGetValue(track.SongUri, out var existing))
+                if (songPulls.TryGetValue(track.SongUri, out var existing))
                 {
-                    if (existing.Weight > weight) continue;
-                    if (existing.Weight == weight)
+                    if (existing.Pull > pull) continue;
+                    if (existing.Pull == pull)
                     {
                         existing.SourceIds.Add(playlistId);
                         continue;
                     }
                 }
-                songWeights[track.SongUri] = (track, weight, new List<string> { playlistId });
+                songPulls[track.SongUri] = (track, pull, new List<string> { playlistId });
             }
         }
 
         var random = new Random();
-        return songWeights.Values
-            .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / EffectiveWeight(entry.Weight)))
+        return songPulls.Values
+            .OrderByDescending(entry => Math.Pow(random.NextDouble(), 1.0 / entry.Pull))
             .Select(entry => RadioItem.ForSong(entry.Track.SongTitle, entry.Track.SongArtists, entry.Track.SongImageUrl, entry.Track.SongUri,
                 SongSourceLabel(entry.SourceIds, playlistTitles)))
             .ToList();
     }
 
-    /// <summary>
-    /// "R3" for a rotation song (membership is cumulative, so the highest level is the song's
-    /// level), else "Liked", else the playlist's name shortened.
-    /// </summary>
+    private static int RotationMultiplier(string playlistTitle)
+    {
+        var match = RotationTag.Match(playlistTitle ?? string.Empty);
+        return match.Success && int.TryParse(match.Groups[1].Value, out var level) ? level + 1 : 1;
+    }
+
+
     private static string SongSourceLabel(List<string> playlistIds, Dictionary<string, string> playlistTitles)
     {
         int rotationLevel = -1;
