@@ -193,11 +193,11 @@ public class RadioConductor
 
             switch (AppRemotePlayback.CheckRemovedSong(snapshot.CurrentItemUri))
             {
-                case AppRemotePlayback.RemovedSongCheck.SkipNow:
+                case RemovedSongCheck.SkipNow:
                     DiagnosticLog.Write($"[Radio] skipping removed {Label(snapshot.CurrentItemUri)}");
                     PlaybackCommands.SkipNext?.Invoke();
                     return;
-                case AppRemotePlayback.RemovedSongCheck.SkipInFlight:
+                case RemovedSongCheck.SkipInFlight:
                     return;
             }
 
