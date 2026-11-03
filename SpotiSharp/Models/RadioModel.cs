@@ -12,6 +12,9 @@ public class RadioModel
     private const int EPISODE_COUNT = 3;
     private const int ALBUM_SONG_COUNT = 4;
 
+    // how many of a binge's upcoming episodes the podcasts view offers
+    private const int BINGE_LOOKAHEAD = 2;
+
     // longest playlist/album name shown as a song's source before it's shortened
     private const int SOURCE_LABEL_MAX_CHARS = 9;
 
@@ -32,7 +35,7 @@ public class RadioModel
     {
         PlaylistListModel.RefreshPlayLists();
 
-        var episodes = GetEpisodes(out var liveProgress, out var staleBingeEpisodeIds);
+        var episodes = GetEpisodes(out var liveProgress, out var staleBingeEpisodeIds, out var moreEpisodes);
         if (episodes == null) return null;
 
         var songPool = BuildSongPool();
@@ -63,6 +66,10 @@ public class RadioModel
         }
 
         InsertAlbumSongs(radio);
+
+        // Up next has done its job once it's in a radio.
+        RadioConfigModel.ClearUpNext();
+        DiskCacheHelper.Save(MORE_EPISODES_CACHE_KEY, moreEpisodes);
 
         SaveRadio(radio);
         return radio;
@@ -151,10 +158,12 @@ public class RadioModel
     /// <paramref name="liveProgress"/> carries that on for resume positions and is null if
     /// the lookup failed, in which case the cached verdict is all we have.
     /// </summary>
-    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds)
+    private static List<RecentEpisode> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds,
+        out List<RecentEpisode> moreEpisodes)
     {
         liveProgress = null;
         staleBingeEpisodeIds = new HashSet<string>();
+        moreEpisodes = new List<RecentEpisode>();
 
         var cached = RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows();
         var episodes = cached != null && cached.Count > 0 && cached.All(episode => episode.DurationMs > 0 && !string.IsNullOrEmpty(episode.ShowId))
@@ -170,6 +179,7 @@ public class RadioModel
         var bingeShowIds = RadioConfigModel.Config.BingeShows.Keys.ToList();
 
         var bingeEpisodes = new List<RecentEpisode>();
+        var bingeLookahead = new List<RecentEpisode>();
         if (bingeShowIds.Count > 0)
         {
             var savedShows = PlaylistListModel.SavedShows;
@@ -180,17 +190,29 @@ public class RadioModel
                     : RadioConfigModel.IsExplicitlyOff(configuredShowWeights, showId);
                 if (excluded) continue;
                 var show = savedShows.FirstOrDefault(savedShow => savedShow.Id == showId);
-                var next = BingeProgressModel.FindNextEpisode(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images), excludedEpisodeIds);
-                if (next != null) bingeEpisodes.Add(next);
+                var next = BingeProgressModel.FindNextEpisodes(showId, show?.Name ?? string.Empty, ImageHelper.Thumbnail(show?.Images),
+                    BINGE_LOOKAHEAD, excludedEpisodeIds);
+                if (next.Count > 0) bingeEpisodes.Add(next[0]);
+                bingeLookahead.AddRange(next);
             }
             episodes = episodes.Where(episode => !bingeShowIds.Contains(episode.ShowId)).ToList();
         }
+
+        // Picked by the listener to lead this radio; they stand outside the normal pick so the
+        // pool below can't hand them out a second time.
+        var upNext = RadioConfigModel.GetUpNext()
+            .Where(episode => !excludedEpisodeIds.Contains(episode.EpisodeId))
+            .ToList();
+        var upNextIds = upNext.Select(episode => episode.EpisodeId).ToHashSet();
+        episodes = episodes.Where(episode => !upNextIds.Contains(episode.EpisodeId)).ToList();
+        bingeEpisodes = bingeEpisodes.Where(episode => !upNextIds.Contains(episode.EpisodeId)).ToList();
 
         // What Spotify reports right now, for the recent pool and the binge picks alike -
         // it decides what is still unfinished, and feeds ResumeStartFor further down.
         var progress = APICaller.Instance?.GetEpisodeProgress(
             episodes.Select(episode => episode.EpisodeId)
-                .Concat(bingeEpisodes.Select(episode => episode.EpisodeId))
+                .Concat(bingeLookahead.Select(episode => episode.EpisodeId))
+                .Concat(upNextIds)
                 .Where(id => !string.IsNullOrEmpty(id))
                 .Distinct()
                 .ToList());
@@ -205,10 +227,11 @@ public class RadioModel
 
         if (progress != null)
         {
-            episodes = episodes
-                .Where(episode => !EpisodeHelper.IsListened(
-                    progress.GetValueOrDefault(episode.EpisodeId), episode.DurationMs))
-                .ToList();
+            bool Unfinished(RecentEpisode episode) =>
+                !EpisodeHelper.IsListened(progress.GetValueOrDefault(episode.EpisodeId), episode.DurationMs);
+
+            episodes = episodes.Where(Unfinished).ToList();
+            upNext = upNext.Where(Unfinished).ToList();
         }
 
         List<RecentEpisode> chosen;
@@ -229,11 +252,28 @@ public class RadioModel
                 .ToList();
         }
 
-        return chosen
+        var ordered = chosen
             .OrderByDescending(episode => bingeShowIds.Contains(episode.ShowId))
-            .ThenByDescending(episode => episode.ReleaseDate)
+            .ThenByDescending(episode => episode.ReleaseDate);
+        var radioEpisodes = upNext.Concat(ordered).ToList();
+
+        // Everything that could have gone in but didn't, for the podcasts view to offer: each
+        // binge's next couple in listening order, then the rest newest first.
+        var inRadio = radioEpisodes.Select(episode => episode.EpisodeId).ToHashSet();
+        moreEpisodes = bingeLookahead
+            .Concat(episodes.OrderByDescending(episode => episode.ReleaseDate))
+            .Where(episode => !inRadio.Contains(episode.EpisodeId))
+            .GroupBy(episode => episode.EpisodeId)
+            .Select(group => group.First())
             .ToList();
+
+        return radioEpisodes;
     }
+
+    private const string MORE_EPISODES_CACHE_KEY = "radio_more_episodes";
+
+    /// <summary>The episodes the last generation left out, for the podcasts view's "More episodes".</summary>
+    internal static List<RecentEpisode> CachedMoreEpisodes => DiskCacheHelper.Load<List<RecentEpisode>>(MORE_EPISODES_CACHE_KEY);
 
     // the playlists currently feeding the radio's song pool
     internal static List<string> SourcePlaylistIds()

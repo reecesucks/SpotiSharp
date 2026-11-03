@@ -14,7 +14,7 @@ namespace SpotiSharp.Keypad;
 /// </remarks>
 public class KeypadFocusScope
 {
-    private readonly IKeypadSection _horizontal;
+    private IKeypadSection _horizontal;
     private readonly IKeypadSection _vertical;
     private IKeypadSection? _active;
 
@@ -22,6 +22,23 @@ public class KeypadFocusScope
     {
         _horizontal = horizontal;
         _vertical = vertical;
+    }
+
+    /// <summary>
+    /// Hands the Left/Right axis to a different section — for a page where a row appears and
+    /// takes over that axis while it is on screen. Only two axes exist, so the section being
+    /// replaced loses its focus visuals rather than keeping a highlight nothing can reach.
+    /// </summary>
+    public void SetHorizontal(IKeypadSection section)
+    {
+        if (ReferenceEquals(_horizontal, section)) return;
+
+        if (ReferenceEquals(_active, _horizontal))
+        {
+            _horizontal.SetActive(false);
+            _active = null;
+        }
+        _horizontal = section;
     }
 
     public void Attach() => KeypadManager.Instance.KeyPressed += OnKeyPressed;

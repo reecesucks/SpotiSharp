@@ -20,4 +20,11 @@ public static class RadioTuning
     public const int SNAPSHOT_STALE_MS = 10000;
 
     public const int SKIP_LANDING_MS = 5000;
+
+    /// <summary>
+    /// How long Spotify has to stay on another radio song, after leaving ours part way through,
+    /// before the radio takes it as the listener's choice and stops. One stray stale report
+    /// shouldn't end the radio.
+    /// </summary>
+    public const int TAKEOVER_CONFIRM_MS = 3000;
 }

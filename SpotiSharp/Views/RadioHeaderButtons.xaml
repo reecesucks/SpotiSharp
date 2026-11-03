@@ -11,7 +11,9 @@
     <keypad:KeypadButtonRow x:Name="HeaderRow" SelfManaged="False"
                              ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6"
                              VerticalOptions="Center">
+        <!-- a long press here reveals the listen mode strip; wired natively in code behind -->
         <Button Grid.Column="0" Text="Generate" Command="{Binding GenerateRadio}"
+                HandlerChanged="OnGenerateHandlerChanged"
                 FontSize="12" Padding="10,0" CornerRadius="14" HeightRequest="30">
             <VisualStateManager.VisualStateGroups>
                 <VisualStateGroup x:Name="KeypadStates">

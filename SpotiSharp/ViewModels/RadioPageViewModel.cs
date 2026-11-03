@@ -17,7 +17,13 @@ public class RadioPageViewModel : BaseViewModel
     public ICommand RemoveSingle { get; }
     public ICommand RemoveAllSections { get; }
     public ICommand NotInterested { get; }
+    public ICommand HideMoreEpisode { get; }
     public ICommand SelectItem { get; }
+
+    public ICommand ShowMix { get; }
+    public ICommand ShowMusic { get; }
+    public ICommand ShowPodcasts { get; }
+    public ICommand HideModeStrip { get; }
 
     public RadioPageViewModel()
     {
@@ -28,13 +34,73 @@ public class RadioPageViewModel : BaseViewModel
         RemoveSingle = new Command<RadioItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioItem>(RemoveEpisode);
         NotInterested = new Command<RadioItem>(ExcludeEpisode);
+        HideMoreEpisode = new Command<RadioItem>(HideMoreEpisodeRow);
         SelectItem = new Command<RadioItem>(item =>
         {
             if (item == null) return;
             if (item.IsConfirmingRemove) ClearRemoveOptions();
             else ClickItem(item);
         });
+
+        ShowMix = new Command(() => ApplyMode(RadioListenMode.Mix));
+        ShowMusic = new Command(() => ApplyMode(RadioListenMode.Music));
+        ShowPodcasts = new Command(() => ApplyMode(RadioListenMode.Podcasts));
+        HideModeStrip = new Command(() => IsModeStripVisible = false);
+
+        _mode = RadioConfigModel.GetListenMode();
+        // Never arrive on a filtered list with nothing on screen saying so.
+        _isModeStripVisible = _mode != RadioListenMode.Mix;
+
         _ = LoadCachedRadioAsync();
+    }
+
+    private RadioListenMode _mode;
+
+    public RadioListenMode Mode
+    {
+        get { return _mode; }
+        private set
+        {
+            if (!SetProperty(ref _mode, value)) return;
+            OnPropertyChanged(nameof(IsMixMode));
+            OnPropertyChanged(nameof(IsMusicMode));
+            OnPropertyChanged(nameof(IsPodcastsMode));
+        }
+    }
+
+    public bool IsMixMode => Mode == RadioListenMode.Mix;
+    public bool IsMusicMode => Mode == RadioListenMode.Music;
+    public bool IsPodcastsMode => Mode == RadioListenMode.Podcasts;
+
+    private bool _isModeStripVisible;
+
+    public bool IsModeStripVisible
+    {
+        get { return _isModeStripVisible; }
+        set { SetProperty(ref _isModeStripVisible, value); }
+    }
+
+    public void ToggleModeStrip() => IsModeStripVisible = !IsModeStripVisible;
+
+    private void ApplyMode(RadioListenMode mode)
+    {
+        if (Mode == mode) return;
+
+        Mode = mode;
+        RadioConfigModel.SetListenMode(mode);
+        Project();
+
+        // Back in the mix, whichever kind was hidden has bunched up wherever the listener got
+        // to - spread it out again so consecutive podcast segments don't play back to back.
+        if (mode == RadioListenMode.Mix)
+        {
+            Reinterleave();
+            Project();
+        }
+
+        DiagnosticLog.Write($"[Radio] listen mode {mode}: showing {Items.Count} of {_allItems.Count}");
+        ResyncConductor($"listen mode {mode}");
+        SaveRadio();
     }
 
     private RadioItem _selectedItem;
@@ -100,14 +166,14 @@ public class RadioPageViewModel : BaseViewModel
         var remaining = RadioConductor.Instance.RemainingItems;
         if (remaining == null || remaining.Count == 0) return;
 
-        if (!Items.SequenceEqual(remaining)) Items = new ObservableCollection<RadioItem>(remaining);
-
+        // The conductor knows how far the radio got while the page was away. Its items are this
+        // view's rows, so take its active item and reproject around it rather than adopting its
+        // list - which in a filtered mode would be missing everything this mode hides.
         if (_currentItem != null && !ReferenceEquals(_currentItem, remaining[0])) _currentItem.IsCurrent = false;
         _currentItem = remaining[0];
-        _currentItem.IsCurrent = true;
 
-        var snapshot = Items.ToList();
-        Task.Run(() => RadioModel.SaveRadio(snapshot));
+        Project();
+        TrimPlayed(_currentItem);
     }
 
     private void SetCurrentItem(RadioItem item)
@@ -122,15 +188,16 @@ public class RadioPageViewModel : BaseViewModel
         TrimPlayed(_currentItem);
     }
 
-    private void RebalancePodcasts()
+    /// <summary>
+    /// Lays <see cref="RadioModel.SongsPerSection"/> songs in front of every podcast segment,
+    /// which is what makes the mix a mix. Nothing is added or dropped, only re-ordered.
+    /// </summary>
+    private static List<RadioItem> Interleave(List<RadioItem> items)
     {
-        int keep = _currentItem != null && Items.Count > 0 && ReferenceEquals(Items[0], _currentItem) ? 1 : 0;
+        var segments = items.Where(radioItem => radioItem.IsPodcastSegment).ToList();
+        if (segments.Count == 0) return items;
 
-        var upcoming = Items.Skip(keep).ToList();
-        var segments = upcoming.Where(radioItem => radioItem.IsPodcastSegment).ToList();
-        if (segments.Count == 0) return;
-
-        var songs = upcoming.Where(radioItem => !radioItem.IsPodcastSegment).ToList();
+        var songs = items.Where(radioItem => !radioItem.IsPodcastSegment).ToList();
 
         var rebuilt = new List<RadioItem>();
         int songIndex = 0;
@@ -148,16 +215,30 @@ public class RadioPageViewModel : BaseViewModel
             rebuilt.Add(songs[songIndex]);
             songIndex++;
         }
+        return rebuilt;
+    }
 
-        Items = new ObservableCollection<RadioItem>(Items.Take(keep).Concat(rebuilt));
+    // Re-lays the radio behind whatever is playing. What's playing, and anything still sitting
+    // in front of it, is left where it is.
+    private void Reinterleave()
+    {
+        int keep = _currentItem == null ? 0 : _allItems.IndexOf(_currentItem) + 1;
+        _allItems = _allItems.Take(keep).Concat(Interleave(_allItems.Skip(keep).ToList())).ToList();
+    }
+
+    private void RebalancePodcasts()
+    {
+        Reinterleave();
+        Project();
     }
 
     private void ResyncConductor(string why)
     {
         if (_currentItem == null || !RadioConductor.Instance.IsActive) return;
 
-        int index = Items.IndexOf(_currentItem);
-        if (index >= 0) RadioConductor.Instance.Resync(Items.ToList(), index, why);
+        var rows = RadioRows;
+        int index = rows.IndexOf(_currentItem);
+        if (index >= 0) RadioConductor.Instance.Resync(rows, index, why);
     }
 
     private void TrimPlayed(RadioItem current)
@@ -165,14 +246,194 @@ public class RadioPageViewModel : BaseViewModel
         int index = Items.IndexOf(current);
         if (index <= 0) return;
 
+        // Rows the listener has gone past in this view are done with. Entries of the kind this
+        // mode hides are not - they were never heard, so they move ahead of the frontier rather
+        // than being dropped, which also stops them stranding above the current row in the mix.
+        var played = new HashSet<RadioItem>();
+        for (int i = 0; i < index; i++)
+        {
+            foreach (var source in SourcesOf(Items[i])) played.Add(source);
+        }
+
+        int frontier = FirstSourceIndex(current);
+        if (frontier < 0) frontier = _allItems.Count;
+
+        var skipped = _allItems.Take(frontier).Where(item => !played.Contains(item)).ToList();
+        _allItems = _allItems.Skip(frontier).ToList();
+        _allItems.InsertRange(Math.Min(1, _allItems.Count), skipped);
+
         for (int i = 0; i < index; i++) Items.RemoveAt(0);
 
-        var snapshot = Items.ToList();
+        SaveRadio();
+    }
+
+    // Everything that was generated, always fully segmented and in mix order. Items is a view
+    // over this, so switching mode hides things rather than losing them.
+    private List<RadioItem> _allItems = new List<RadioItem>();
+
+    // Each row in Items mapped back to the _allItems entries it stands for: itself for a song or
+    // a single segment, every segment of the episode for a collapsed podcasts-only row.
+    private Dictionary<RadioItem, List<RadioItem>> _backing = new Dictionary<RadioItem, List<RadioItem>>();
+
+    private List<RadioItem> SourcesOf(RadioItem row)
+    {
+        return _backing.TryGetValue(row, out var sources) ? sources : new List<RadioItem> { row };
+    }
+
+    private int FirstSourceIndex(RadioItem row)
+    {
+        int best = -1;
+        foreach (var source in SourcesOf(row))
+        {
+            int at = _allItems.IndexOf(source);
+            if (at >= 0 && (best < 0 || at < best)) best = at;
+        }
+        return best;
+    }
+
+    private void DropFromAll(RadioItem row)
+    {
+        foreach (var source in SourcesOf(row)) _allItems.Remove(source);
+        _backing.Remove(row);
+    }
+
+    /// <summary>Rebuilds <see cref="Items"/> from the full radio according to <see cref="Mode"/>.</summary>
+    private void Project()
+    {
+        var projected = new List<RadioItem>();
+        var backing = new Dictionary<RadioItem, List<RadioItem>>();
+
+        switch (Mode)
+        {
+            case RadioListenMode.Music:
+                foreach (var item in _allItems.Where(item => !item.IsPodcastSegment))
+                {
+                    projected.Add(item);
+                    backing[item] = new List<RadioItem> { item };
+                }
+                break;
+
+            case RadioListenMode.Podcasts:
+                // One row per episode, standing for all of its segments: with no songs between
+                // them the segment boundaries would only make the conductor re-issue the same
+                // episode at a new offset every few minutes.
+                foreach (var episode in _allItems.Where(item => item.IsPodcastSegment).GroupBy(item => item.PlayUri))
+                {
+                    var segments = episode.ToList();
+                    var earliest = segments.OrderBy(segment => segment.PositionMs).First();
+
+                    var collapsed = RadioItem.ForWholeEpisode(earliest);
+                    projected.Add(collapsed);
+                    backing[collapsed] = segments;
+                }
+                break;
+
+            default:
+                foreach (var item in _allItems)
+                {
+                    projected.Add(item);
+                    backing[item] = new List<RadioItem> { item };
+                }
+                break;
+        }
+
+        _backing = backing;
+
+        // A reprojection mints new objects for collapsed rows, so the "currently playing" row has
+        // to be re-pinned rather than compared by identity alone.
+        var row = ResolveCurrentRow(projected);
+        if (row != null)
+        {
+            if (!ReferenceEquals(row, _currentItem)) _currentItem.IsCurrent = false;
+            _currentItem = row;
+            _currentItem.IsCurrent = true;
+        }
+        else if (_currentItem != null)
+        {
+            // This mode hides what's playing. It stays at the head anyway: the mode decides what
+            // comes next, it doesn't interrupt.
+            projected.Insert(0, _currentItem);
+            _backing[_currentItem] = new List<RadioItem> { _currentItem };
+            _currentItem.IsCurrent = true;
+        }
+
+        if (Mode == RadioListenMode.Podcasts) projected.AddRange(MoreEpisodeRows());
+
+        Items = new ObservableCollection<RadioItem>(projected);
+        RefreshUpNextLabels();
+    }
+
+    // What the last generation left out, shown under the radio in the podcasts view.
+    private List<RecentEpisode> _moreEpisodes = new List<RecentEpisode>();
+
+    private List<RadioItem> MoreEpisodeRows()
+    {
+        var inRadio = _allItems.Where(item => item.IsPodcastSegment).Select(item => item.PlayUri).ToHashSet();
+        var excluded = RadioConfigModel.Config.ExcludedEpisodeIds;
+
+        var rows = _moreEpisodes
+            .Where(episode => !inRadio.Contains($"spotify:episode:{episode.EpisodeId}") && !excluded.Contains(episode.EpisodeId))
+            .Select(RadioItem.ForMoreEpisode)
+            .ToList();
+
+        if (rows.Count > 0) rows.Insert(0, RadioItem.ForMoreHeader());
+        return rows;
+    }
+
+    private void RefreshUpNextLabels()
+    {
+        var upNext = RadioConfigModel.GetUpNext();
+        foreach (var row in Items.Where(item => item.MoreEpisode != null))
+        {
+            int at = -1;
+            for (int i = 0; i < upNext.Count; i++)
+            {
+                if (upNext[i].EpisodeId == row.MoreEpisode.EpisodeId) at = i;
+            }
+
+            row.UpNextLabel = at < 0 ? null : upNext.Count == 1 ? "Up next" : $"Up next {at + 1}";
+        }
+    }
+
+    private void ToggleUpNext(RadioItem row)
+    {
+        if (row?.MoreEpisode == null) return;
+
+        RadioConfigModel.ToggleUpNext(row.MoreEpisode);
+        DiagnosticLog.Write($"[Radio] up next toggled for {row.PlayUri} \"{row.Title}\": {RadioConfigModel.GetUpNext().Count} picked");
+        RefreshUpNextLabels();
+    }
+
+    // The rows that are the radio itself, without the "More episodes" section under it. This is
+    // all the conductor may ever be handed.
+    private List<RadioItem> RadioRows => Items.Where(item => !item.IsMoreRow).ToList();
+
+    private RadioItem ResolveCurrentRow(List<RadioItem> projected)
+    {
+        if (_currentItem == null) return null;
+
+        foreach (var row in projected)
+        {
+            if (_backing.TryGetValue(row, out var sources) && sources.Any(source => ReferenceEquals(source, _currentItem))) return row;
+        }
+
+        // Coming back to the page the radio was rebuilt from the cache, so the conductor's item
+        // is a different object: match the segment itself before settling for its episode, or
+        // part three of an episode would be mistaken for part one.
+        return projected.FirstOrDefault(row => row.PlayUri == _currentItem.PlayUri && row.PositionMs == _currentItem.PositionMs)
+            ?? projected.FirstOrDefault(row => row.PlayUri == _currentItem.PlayUri);
+    }
+
+    private void SaveRadio()
+    {
+        var snapshot = _allItems.ToList();
         Task.Run(() => RadioModel.SaveRadio(snapshot));
     }
 
     public void ShowRemoveOptions(RadioItem item)
     {
+        // the header has nothing to act on; an episode under it can only be hidden
+        if (item?.IsMoreHeader == true) item = null;
         foreach (var current in Items) current.IsConfirmingRemove = ReferenceEquals(current, item);
     }
 
@@ -183,7 +444,10 @@ public class RadioPageViewModel : BaseViewModel
 
     public void RemoveSingleItem(RadioItem item)
     {
-        if (item == null || !Items.Remove(item)) return;
+        if (item == null || !Items.Contains(item)) return;
+
+        DropFromAll(item);
+        Items.Remove(item);
         FinishRemoval($"removing {item.PlayUri} \"{item.Title}\"");
     }
 
@@ -191,12 +455,21 @@ public class RadioPageViewModel : BaseViewModel
     {
         if (item == null || !item.IsPodcastSegment) return;
 
-        var segments = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
-        if (segments.Count == 0) return;
+        var rows = Items.Where(current => current.IsPodcastSegment && current.PlayUri == item.PlayUri).ToList();
+        if (rows.Count == 0) return;
 
-        foreach (var segment in segments) Items.Remove(segment);
+        foreach (var row in rows)
+        {
+            DropFromAll(row);
+            Items.Remove(row);
+        }
+
+        // A collapsed row already stood for every segment; in the mix there may be segments of
+        // this episode that no visible row covered.
+        int dropped = _allItems.RemoveAll(entry => entry.IsPodcastSegment && entry.PlayUri == item.PlayUri);
+
         RebalancePodcasts();
-        FinishRemoval($"removing all {segments.Count} segments of {item.PlayUri} \"{item.Title}\" and rebalancing");
+        FinishRemoval($"removing every segment of {item.PlayUri} \"{item.Title}\" ({rows.Count} rows, {dropped} stragglers) and rebalancing");
     }
 
     public void ExcludeEpisode(RadioItem item)
@@ -207,6 +480,29 @@ public class RadioPageViewModel : BaseViewModel
         if (!string.IsNullOrEmpty(episodeId)) RadioConfigModel.ExcludeEpisode(episodeId);
 
         RemoveEpisode(item);
+    }
+
+    /// <summary>
+    /// Keeps a "More episodes" episode out of every future radio - the same list "Not interested"
+    /// adds to - and drops it from the section, and from up next if it was picked.
+    /// </summary>
+    public void HideMoreEpisodeRow(RadioItem row)
+    {
+        if (row?.MoreEpisode == null) return;
+
+        var episode = row.MoreEpisode;
+        RadioConfigModel.ExcludeEpisode(episode.EpisodeId);
+        if (RadioConfigModel.GetUpNext().Any(picked => picked.EpisodeId == episode.EpisodeId)) RadioConfigModel.ToggleUpNext(episode);
+
+        Items.Remove(row);
+        if (!Items.Any(item => item.IsMoreEpisode))
+        {
+            foreach (var header in Items.Where(item => item.IsMoreHeader).ToList()) Items.Remove(header);
+        }
+
+        DiagnosticLog.Write($"[Radio] hid {row.PlayUri} \"{row.Title}\" from future radios");
+        ClearRemoveOptions();
+        RefreshUpNextLabels();
     }
 
     private static string EpisodeIdFromUri(string playUri)
@@ -220,19 +516,21 @@ public class RadioPageViewModel : BaseViewModel
         DiagnosticLog.Write($"[Radio] {why}");
         ClearRemoveOptions();
         ResyncConductor(why);
-
-        var snapshot = Items.ToList();
-        Task.Run(() => RadioModel.SaveRadio(snapshot));
+        SaveRadio();
     }
 
     private async Task LoadCachedRadioAsync()
     {
         IsLoadingCache = true;
-        var cached = await Task.Run(() => RadioModel.CachedRadio);
+        var (cached, more) = await Task.Run(() => (RadioModel.CachedRadio, RadioModel.CachedMoreEpisodes));
         IsLoadingCache = false;
 
         if (IsGenerating || Items.Count > 0) return;
-        if (cached != null && cached.Count > 0) Items = new ObservableCollection<RadioItem>(cached);
+        if (cached == null || cached.Count == 0) return;
+
+        _moreEpisodes = more ?? new List<RecentEpisode>();
+        _allItems = cached;
+        Project();
     }
 
     private bool _isGenerating;
@@ -275,9 +573,14 @@ public class RadioPageViewModel : BaseViewModel
         RadioConductor.Instance.Stop("Generate pressed");
         AppRemotePlayback.LogQueueMirror("Generate pressed");
 
-        var items = await Task.Run(RadioModel.Generate);
+        var (items, more) = await Task.Run(() => (RadioModel.Generate(), RadioModel.CachedMoreEpisodes));
         DiagnosticLog.Write($"[Radio] generated {items?.Count.ToString() ?? "nothing (failed)"} items");
-        if (items != null) Items = new ObservableCollection<RadioItem>(items);
+        if (items != null)
+        {
+            _moreEpisodes = more ?? new List<RecentEpisode>();
+            _allItems = items;
+            Project();
+        }
 
         IsGenerating = false;
     }
@@ -287,16 +590,16 @@ public class RadioPageViewModel : BaseViewModel
         if (IsGenerating) return;
         IsGenerating = true;
 
-        var items = await Task.Run(RadioModel.Generate);
+        var (items, more) = await Task.Run(() => (RadioModel.Generate(), RadioModel.CachedMoreEpisodes));
         DiagnosticLog.Write($"[Radio] Generate more added {items?.Count.ToString() ?? "nothing (failed)"} items");
         if (items != null)
         {
-            foreach (var item in items) Items.Add(item);
+            _moreEpisodes = more ?? new List<RecentEpisode>();
+            _allItems.AddRange(items);
+            Project();
 
             ResyncConductor("Generate more");
-
-            var snapshot = Items.ToList();
-            Task.Run(() => RadioModel.SaveRadio(snapshot));
+            SaveRadio();
         }
 
         IsGenerating = false;
@@ -358,6 +661,13 @@ public class RadioPageViewModel : BaseViewModel
     {
         if (sourceItem is not RadioItem radioItem) return;
 
+        if (radioItem.IsMoreRow)
+        {
+            ClearRemoveOptions();
+            ToggleUpNext(radioItem);
+            return;
+        }
+
         var now = DateTime.UtcNow;
         if (ReferenceEquals(_lastClickedItem, radioItem) && now - _lastClickedAt < TimeSpan.FromMilliseconds(400)) return;
         _lastClickedItem = radioItem;
@@ -369,9 +679,10 @@ public class RadioPageViewModel : BaseViewModel
 
         var songRun = radioItem.IsPodcastSegment
             ? null
-            : Items
+            : RadioRows
                 .SkipWhile(item => item != radioItem)
                 .TakeWhile(item => !item.IsPodcastSegment)
+                .Take(RadioConductor.MAX_SONG_RUN)
                 .Select(item => item.PlayUri)
                 .ToList();
 
@@ -383,7 +694,7 @@ public class RadioPageViewModel : BaseViewModel
         if (await TryPlayViaAppRemoteAsync(radioItem, songRun))
         {
             DiagnosticLog.Write("[Radio] played via App Remote (local, no Connect device needed)");
-            RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+            StartConductorAt(radioItem);
             return;
         }
 
@@ -391,7 +702,7 @@ public class RadioPageViewModel : BaseViewModel
         if (played)
         {
             DiagnosticLog.Write("[Radio] direct play on active device succeeded");
-            RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+            StartConductorAt(radioItem);
             return;
         }
 
@@ -405,6 +716,12 @@ public class RadioPageViewModel : BaseViewModel
 
         DiagnosticLog.Write("[Radio] no active device took the command, launching Spotify");
         await LaunchAndRestoreContextAsync(radioItem, songRun);
+    }
+
+    private void StartConductorAt(RadioItem radioItem)
+    {
+        var rows = RadioRows;
+        RadioConductor.Instance.Start(rows, rows.IndexOf(radioItem));
     }
 
     private static Task<bool> TryPlayViaAppRemoteAsync(RadioItem radioItem, List<string> songRun) =>
@@ -471,7 +788,7 @@ public class RadioPageViewModel : BaseViewModel
             ? "[Radio] handover succeeded"
             : "[Radio] launch handover failed; conductor will re-issue at the item boundary");
 
-        RadioConductor.Instance.Start(Items.ToList(), Items.IndexOf(radioItem));
+        StartConductorAt(radioItem);
     }
 
     private static async Task<bool> StartRunOnDeviceAsync(RadioItem radioItem, List<string> songRun, string deviceId)

@@ -34,10 +34,26 @@ internal static class SpotifyAppRemoteConnector
             .ShowAuthView(true)
             .Build();
 
-        SpotifyAppRemote.Connect(
-            global::Android.App.Application.Context,
-            connectionParams,
-            new ConnectionListener());
+        // The SDK creates an Android Handler, which only works on a thread with a Looper,
+        // so a reconnect from a background thread (WakeAsync) has to hop to the main thread.
+        void ConnectNow()
+        {
+            try
+            {
+                SpotifyAppRemote.Connect(
+                    global::Android.App.Application.Context,
+                    connectionParams,
+                    new ConnectionListener());
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write($"[AppRemote] connect threw: {ex.Message}");
+                _pendingConnect?.TrySetResult(false);
+            }
+        }
+
+        if (MainThread.IsMainThread) ConnectNow();
+        else MainThread.BeginInvokeOnMainThread(ConnectNow);
     }
 
     private static async Task<bool> WakeAsync()
