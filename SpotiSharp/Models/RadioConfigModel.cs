@@ -92,6 +92,17 @@ public static class RadioConfigModel
         Save();
     }
 
+    internal static RadioListenMode GetListenMode()
+    {
+        return Config.ListenMode;
+    }
+
+    internal static void SetListenMode(RadioListenMode mode)
+    {
+        Config.ListenMode = mode;
+        Save();
+    }
+
     internal static RadioAlbumMode GetAlbumMode(string albumId)
     {
         return Config.AlbumModes.GetValueOrDefault(albumId);
@@ -101,6 +112,29 @@ public static class RadioConfigModel
     {
         if (mode == RadioAlbumMode.Off) Config.AlbumModes.Remove(albumId);
         else Config.AlbumModes[albumId] = mode;
+        Save();
+    }
+
+    internal static IReadOnlyList<RecentEpisode> GetUpNext()
+    {
+        return Config.UpNextEpisodes;
+    }
+
+    /// <summary>Adds the episode to the end of up next, or takes it out if it's already there.</summary>
+    internal static void ToggleUpNext(RecentEpisode episode)
+    {
+        if (episode == null || string.IsNullOrEmpty(episode.EpisodeId)) return;
+
+        int removed = Config.UpNextEpisodes.RemoveAll(picked => picked.EpisodeId == episode.EpisodeId);
+        if (removed == 0) Config.UpNextEpisodes.Add(episode);
+        Save();
+    }
+
+    internal static void ClearUpNext()
+    {
+        if (Config.UpNextEpisodes.Count == 0) return;
+
+        Config.UpNextEpisodes.Clear();
         Save();
     }
 

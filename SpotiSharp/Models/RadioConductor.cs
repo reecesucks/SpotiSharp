@@ -98,6 +98,14 @@ public class RadioConductor
         SyncSpotifyQueue(radio, activeIndex);
     }
 
+    /// <summary>
+    /// How many songs to put behind the one being started. In the mix a run only lasts until the
+    /// next podcast segment, a few songs away - but music-only has no segments to stop at, so the
+    /// run would be the whole rest of the radio, and every song in it is a separate App Remote
+    /// queue call. Capping it trades a queue top-up every so often for not sending dozens at once.
+    /// </summary>
+    internal const int MAX_SONG_RUN = 15;
+
     private static void SyncSpotifyQueue(List<RadioItem> radio, int activeIndex)
     {
         if (PlaybackCommands.QueueUri == null || radio == null || activeIndex < 0 || activeIndex >= radio.Count) return;
@@ -108,6 +116,7 @@ public class RadioConductor
         var upcomingRun = radio
             .Skip(activeIndex + 1)
             .TakeWhile(item => !item.IsPodcastSegment)
+            .Take(MAX_SONG_RUN)
             .Select(item => item.PlayUri)
             .ToList();
 
@@ -375,6 +384,7 @@ public class RadioConductor
         {
             if (queued.IsPodcastSegment) break;
             run.Add(queued.PlayUri);
+            if (run.Count == MAX_SONG_RUN) break;
         }
         return run;
     }
