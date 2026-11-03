@@ -20,4 +20,10 @@ public class RadioConfig
     public int PodcastSegmentMinutes { get; set; } = 15;
 
     public bool FullPodcastEpisodes { get; set; } = false;
+
+    public RadioListenMode ListenMode { get; set; } = RadioListenMode.Mix;
+
+    // Episodes picked from "More episodes" to lead the next generated radio, in the order they
+    // were picked. Whole episodes rather than ids, since a binge look-ahead isn't in any cache.
+    public List<RecentEpisode> UpNextEpisodes { get; set; } = new List<RecentEpisode>();
 }

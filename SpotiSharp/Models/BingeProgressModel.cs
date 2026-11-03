@@ -71,11 +71,23 @@ public class BingeProgressModel
 
     internal static RecentEpisode FindNextEpisode(string showId, string showName, string showImageUrl, ISet<string> excludedEpisodeIds = null)
     {
+        return FindNextEpisodes(showId, showName, showImageUrl, 1, excludedEpisodeIds).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The next <paramref name="count"/> unfinished episodes of a binge, oldest first. Only the
+    /// first moves the binge marker: the ones after it are a look ahead, not a claim that
+    /// everything before them was heard.
+    /// </summary>
+    internal static List<RecentEpisode> FindNextEpisodes(string showId, string showName, string showImageUrl, int count, ISet<string> excludedEpisodeIds = null)
+    {
+        var found = new List<RecentEpisode>();
+
         var binge = RadioConfigModel.GetBinge(showId);
-        if (binge == null) return null;
+        if (binge == null || count <= 0) return found;
 
         var probe = APICaller.Instance?.GetPodcastEpisodesPage(showId, 0, 1);
-        if (probe == null) return null;
+        if (probe == null) return found;
         int total = probe.Total ?? 0;
 
         int searchIndex = binge.LastFinishedIndexFromOldest + 1;
@@ -83,7 +95,7 @@ public class BingeProgressModel
         {
             int offset = Math.Max(0, total - searchIndex - PAGE_SIZE);
             var page = APICaller.Instance?.GetPodcastEpisodesPage(showId, offset, PAGE_SIZE);
-            if (page?.Items == null) return null;
+            if (page?.Items == null) return found;
 
             int searchIndexBeforePage = searchIndex;
             for (int i = page.Items.Count - 1; i >= 0; i--)
@@ -101,8 +113,8 @@ public class BingeProgressModel
                     continue;
                 }
 
-                AdvanceMarker(binge, itemIndex - 1, episode.Name);
-                return new RecentEpisode(
+                if (found.Count == 0) AdvanceMarker(binge, itemIndex - 1, episode.Name);
+                found.Add(new RecentEpisode(
                     episode.Id,
                     episode.Name,
                     showId,
@@ -110,13 +122,16 @@ public class BingeProgressModel
                     showImageUrl,
                     RecentEpisodesModel.ParseReleaseDate(episode.ReleaseDate),
                     episode.DurationMs,
-                    episode.ResumePoint?.ResumePositionMs ?? 0);
+                    episode.ResumePoint?.ResumePositionMs ?? 0));
+                if (found.Count >= count) return found;
+
+                searchIndex = itemIndex + 1;
             }
 
-            if (searchIndex == searchIndexBeforePage) return null;
+            if (searchIndex == searchIndexBeforePage) return found;
         }
 
-        return null;
+        return found;
     }
 
     private static void AdvanceMarker(BingeProgress binge, int lastFinishedIndex, string nextEpisodeName)

@@ -605,7 +605,9 @@ public class RadioTickStateTests
         harness.Wait(180).Tick(Playing(b, 1000, SongMs));
         harness.Wait(20).Tick(Playing(b, 20000, SongMs));
 
-        harness.Wait(2).Tick(Playing(a, 0, SongMs));
+        // nothing heard from Spotify for long enough that b could have finished, then a leftover
+        // queued copy of a turns up
+        harness.Wait(200).Tick(Playing(a, 0, SongMs));
 
         Assert.Equal(b.PlayUri, harness.ActiveUri);
         Assert.Equal(new[] { a.PlayUri }, harness.Skipped);
@@ -624,7 +626,7 @@ public class RadioTickStateTests
         harness.Wait(180).Tick(Playing(b, 1000, SongMs));
         harness.Wait(20).Tick(Playing(b, 20000, SongMs));
 
-        harness.Wait(1).Tick(Playing(a, 0, SongMs));
+        harness.Wait(200).Tick(Playing(a, 0, SongMs));
         harness.Wait(2).Tick(Playing(a, 2000, SongMs));
         Assert.Single(harness.Skipped);
 
@@ -715,7 +717,7 @@ public class RadioTickStateTests
     }
 
     [Fact]
-    public void Skips_a_later_radio_item_outside_the_current_run()
+    public void Bows_out_when_the_listener_jumps_to_a_later_radio_item_mid_song()
     {
         var a = Song("a");
         var podcast = Segment("ep1");
@@ -724,10 +726,74 @@ public class RadioTickStateTests
 
         harness.Tick(Playing(a, 20000, SongMs));
         harness.Wait(2).Tick(Playing(later, 0, SongMs));
-
-        Assert.Equal(a.PlayUri, harness.ActiveUri);
-        Assert.Equal(new[] { later.PlayUri }, harness.Skipped);
         Assert.False(harness.Stopped);
+
+        harness.Wait(4).Tick(Playing(later, 4000, SongMs));
+
+        Assert.True(harness.Stopped);
+        Assert.Empty(harness.Skipped);
+        Assert.Empty(harness.Started);
+    }
+
+    [Fact]
+    public void Lets_the_listener_switch_to_an_album_that_shares_songs_with_the_radio()
+    {
+        // radio-bug-20261103-154326.txt, 11-02 16:59: Reece put on a brakence album part way
+        // through "Great Kid". Most of the album is in the radio too, so the radio skipped eight
+        // album songs in eight seconds and only bowed out at the first one it didn't have.
+        var greatKid = Song("great-kid");
+        var madeleine = Song("madeleine");
+        var sinkfly = Song("sinkfly");
+        var crystallized = Song("crystallized");
+        var harness = new RadioHarness(new[] { greatKid, Segment("ep1"), madeleine, sinkfly, crystallized });
+
+        harness.Tick(Playing(greatKid, 164409, 250800));
+        harness.Wait(2).Tick(Playing(greatKid, 166852, 250800));
+
+        harness.Wait(TimeSpan.FromMilliseconds(100)).Tick(Playing(madeleine, 0, 238906));
+        harness.Wait(1).Tick(Playing(madeleine, 815, 238906));
+        harness.Wait(3).Tick(Playing(madeleine, 4228, 238906));
+
+        Assert.Empty(harness.Skipped);
+        Assert.True(harness.Stopped);
+        Assert.Contains("listener took over", harness.State.LastReason);
+    }
+
+    [Fact]
+    public void Lets_the_listener_switch_while_the_radio_is_paused()
+    {
+        // 11-02 12:07: paused part way through a podcast segment for six minutes, then started an
+        // album; the radio skipped three of its songs before giving up
+        var segment = Segment("ep1", positionMs: 8100000);
+        var album = Song("with-or-without-it");
+        var harness = new RadioHarness(new IRadioQueueItem[] { segment, Song("a"), album });
+
+        harness.Tick(Playing(segment, 8660000, 9539313));
+        harness.Wait(5).Tick(Paused(segment, 8665916, 9539313));
+
+        harness.Wait(382).Tick(Playing(album, 0, SongMs));
+        harness.Wait(4).Tick(Playing(album, 4000, SongMs));
+
+        Assert.Empty(harness.Skipped);
+        Assert.True(harness.Stopped);
+    }
+
+    [Fact]
+    public void One_stale_report_of_another_radio_song_does_not_end_the_radio()
+    {
+        var a = Song("a");
+        var b = Song("b");
+        var podcast = Segment("ep1");
+        var harness = new RadioHarness(new[] { a, podcast, b });
+
+        harness.Tick(Playing(a, 20000, SongMs));
+        harness.Wait(2).Tick(Playing(b, 90000, SongMs));
+        harness.Wait(2).Tick(Playing(a, 24000, SongMs));
+        harness.Wait(10).Tick(Playing(a, 34000, SongMs));
+
+        Assert.False(harness.Stopped);
+        Assert.Empty(harness.Skipped);
+        Assert.Equal(a.PlayUri, harness.ActiveUri);
     }
 
     #endregion

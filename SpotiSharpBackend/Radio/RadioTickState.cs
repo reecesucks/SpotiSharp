@@ -37,6 +37,9 @@ public sealed class RadioTickState
     private string? _skippingUri;
     private DateTime _skipSentAtUtc;
 
+    private string? _takeoverUri;
+    private DateTime _takeoverSeenAtUtc;
+
     private readonly int _segmentLengthMs;
 
     public RadioTickState(IReadOnlyList<IRadioQueueItem> queue, int startIndex, DateTime nowUtc, bool alreadyIssued,
@@ -91,7 +94,14 @@ public sealed class RadioTickState
         if (ActivePlayedThrough(nowUtc, boundProjection: somethingElsePlaying))
             return Advance(nowUtc, $"active item played through ({DescribeObservation(nowUtc)}), Spotify now on {state.CurrentItemUri ?? "nothing"}");
 
-        if (somethingElsePlaying && IsInQueue(state.CurrentItemUri)) return SkipUnexpected(state, nowUtc);
+        if (somethingElsePlaying && IsInQueue(state.CurrentItemUri))
+        {
+            // Spotify's queue only moves on when a song ends, so leaving ours part way through
+            // means the listener picked something - often an album that shares songs with the
+            // radio. Skipping those would fight them a song at a time.
+            if (ActiveCutShort(nowUtc)) return ConfirmTakeover(state, nowUtc);
+            return SkipUnexpected(state, nowUtc);
+        }
 
         if (somethingElsePlaying)
             return StopResult($"{state.CurrentItemUri} isn't in the radio and the active item hadn't finished ({DescribeObservation(nowUtc)})");
@@ -166,6 +176,7 @@ public sealed class RadioTickState
         _startAttempts = 0;
         _unavailableSkips = 0;
         _silenceSinceUtc = null;
+        _takeoverUri = null;
 
         if (state.DurationMs > 0) _lastObservedDurationMs = state.DurationMs;
 
@@ -218,6 +229,7 @@ public sealed class RadioTickState
         bool moved = runIndex != _activeIndex;
         if (moved) LastReason = reason;
         _activeIndex = runIndex;
+        _takeoverUri = null;
 
         _startConfirmed = true;
         _startAttempts = 0;
@@ -252,6 +264,34 @@ public sealed class RadioTickState
         _skipSentAtUtc = nowUtc;
         LastReason = $"{state.CurrentItemUri} is a radio item playing out of turn";
         return RadioTickResult.Skip;
+    }
+
+    private RadioTickResult ConfirmTakeover(PlaybackSnapshot state, DateTime nowUtc)
+    {
+        if (!state.IsPlaying) return RadioTickResult.Nothing;
+
+        if (state.CurrentItemUri != _takeoverUri)
+        {
+            _takeoverUri = state.CurrentItemUri;
+            _takeoverSeenAtUtc = nowUtc;
+            return RadioTickResult.Nothing;
+        }
+
+        if (nowUtc < _takeoverSeenAtUtc.AddMilliseconds(RadioTuning.TAKEOVER_CONFIRM_MS)) return RadioTickResult.Nothing;
+
+        return StopResult($"Spotify left the active item part way through ({DescribeObservation(nowUtc)}) " +
+                          $"for {state.CurrentItemUri}, so the listener took over");
+    }
+
+    /// <summary>Whether the active item was last seen well short of its end, so it can't have just finished.</summary>
+    private bool ActiveCutShort(DateTime nowUtc)
+    {
+        int endMs = ActiveEndMs(_queue![_activeIndex]);
+        if (endMs <= 0) return false;
+
+        double sinceLastSampleMs = Math.Max(0, (nowUtc - _lastObservedAtUtc).TotalMilliseconds);
+        double positionMs = _lastObservedProgressMs + (_lastObservedWasPlaying ? sinceLastSampleMs : 0);
+        return positionMs < endMs - RadioTuning.END_TOLERANCE_MS;
     }
 
     private RadioTickResult RetryOrSkipActive(PlaybackSnapshot state, DateTime nowUtc)
@@ -313,6 +353,7 @@ public sealed class RadioTickState
         _startAttempts = 0;
         _startConfirmed = false;
         _silenceSinceUtc = null;
+        _takeoverUri = null;
     }
 
     public int? RemainingSegmentMs(DateTime nowUtc)
