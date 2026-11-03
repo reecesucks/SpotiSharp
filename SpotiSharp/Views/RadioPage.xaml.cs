@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using QinF25.Input;
 using SpotiSharp.Keypad;
 using SpotiSharp.Models;
 using SpotiSharp.ViewModels;
@@ -11,6 +13,8 @@ public partial class RadioPage : BasePage
     private RadioHeaderButtons _headerButtons;
     private readonly KeypadFocusScope _focusScope;
 
+    private RadioPageViewModel ViewModel => (RadioPageViewModel)BindingContext;
+
     public RadioPage()
     {
         InitializeComponent();
@@ -19,6 +23,9 @@ public partial class RadioPage : BasePage
         _headerButtons.BindingContext = BindingContext;
 
         _focusScope = new KeypadFocusScope(horizontal: _headerButtons.Row, vertical: MainListView);
+
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        SyncHorizontalSection();
     }
 
     protected override View CreateTitleAccessory()
@@ -27,16 +34,40 @@ public partial class RadioPage : BasePage
         return _headerButtons;
     }
 
+    private void OnViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(RadioPageViewModel.IsModeStripVisible)) SyncHorizontalSection();
+    }
+
+    // The scope only has the two axes, so while the mode strip is on screen it takes Left/Right
+    // over from the header buttons - it is the thing the listener just asked for.
+    private void SyncHorizontalSection()
+    {
+        _focusScope.SetHorizontal(ViewModel.IsModeStripVisible ? ModeStrip : _headerButtons.Row);
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
         _focusScope.Attach();
+        KeypadManager.Instance.KeyPressed += OnKeyPressed;
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         _focusScope.Detach();
+        KeypadManager.Instance.KeyPressed -= OnKeyPressed;
+    }
+
+    // The keypad has no long press, so * stands in for the hold on Generate. The focus scope
+    // ignores the dial pad, so claiming this key here can't collide with it.
+    private void OnKeyPressed(object sender, KeypadKeyEventArgs e)
+    {
+        if (e.Key != KeypadKey.Star) return;
+
+        ViewModel.ToggleModeStrip();
+        e.Handled = true;
     }
 
 #if ANDROID
