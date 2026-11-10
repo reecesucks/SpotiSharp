@@ -102,5 +102,43 @@ public static class StorageHandler
         }
     }
 
+    private static string _audiobookshelfServerUrl = string.Empty;
+
+    public static string AudiobookshelfServerUrl
+    {
+        get { return _audiobookshelfServerUrl; }
+        set
+        {
+            _audiobookshelfServerUrl = value;
+            OnDataChange?.Invoke("audiobookshelfServerUrl", value);
+        }
+    }
+
+    private static string _audiobookshelfApiKey = string.Empty;
+
+    public static string AudiobookshelfApiKey
+    {
+        get { return _audiobookshelfApiKey; }
+        set
+        {
+            _audiobookshelfApiKey = value;
+            OnDataChange?.Invoke("audiobookshelfApiKey", value);
+        }
+    }
+
+    // Which engine the AudioBookshelf radio page's podcast episodes come from - an either/or choice,
+    // not "both": defaults to Spotify so nothing changes for anyone who hasn't opted in.
+    private static bool _useAudiobookshelfPodcasts = false;
+
+    public static bool UseAudiobookshelfPodcasts
+    {
+        get { return _useAudiobookshelfPodcasts; }
+        set
+        {
+            _useAudiobookshelfPodcasts = value;
+            OnDataChange?.Invoke("useAudiobookshelfPodcasts", value ? "1" : "0");
+        }
+    }
+
     public static event DataChange OnDataChange;
 }
