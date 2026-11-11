@@ -13,6 +13,7 @@ public partial class AppShell : Shell
 		Routing.RegisterRoute("DetailArtistPage", typeof(Views.DetailArtistPage));
 		Routing.RegisterRoute("DetailAlbumPage", typeof(Views.DetailAlbumPage));
 		Routing.RegisterRoute("RadioSettingsPage", typeof(Views.RadioSettingsPage));
+		Routing.RegisterRoute("RadioAudiobookshelfSettingsPage", typeof(Views.RadioAudiobookshelfSettingsPage));
 
 		_ = BackendConnector.Instance;
 	}

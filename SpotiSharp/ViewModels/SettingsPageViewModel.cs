@@ -2,6 +2,7 @@
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
+using SpotiSharpBackend.AudioBookshelf;
 
 namespace SpotiSharp.ViewModels;
 
@@ -55,6 +56,44 @@ public class SettingsPageViewModel : BaseViewModel
         }
     }
 
+    private string _audiobookshelfServerUrl;
+
+    public string AudiobookshelfServerUrl
+    {
+        get { return _audiobookshelfServerUrl; }
+        set { SetProperty(ref _audiobookshelfServerUrl, value); }
+    }
+
+    private string _audiobookshelfApiKey;
+
+    public string AudiobookshelfApiKey
+    {
+        get { return _audiobookshelfApiKey; }
+        set { SetProperty(ref _audiobookshelfApiKey, value); }
+    }
+
+    private string _audiobookshelfConnectionStatus = string.Empty;
+
+    public string AudiobookshelfConnectionStatus
+    {
+        get { return _audiobookshelfConnectionStatus; }
+        set { SetProperty(ref _audiobookshelfConnectionStatus, value); }
+    }
+
+    private bool _useAudiobookshelfPodcasts;
+
+    // Either/or, not a separate toggle per source - the Radio page's podcasts come from Spotify
+    // or AudioBookshelf, never both, so this takes effect immediately rather than needing Apply.
+    public bool UseAudiobookshelfPodcasts
+    {
+        get { return _useAudiobookshelfPodcasts; }
+        set
+        {
+            if (!SetProperty(ref _useAudiobookshelfPodcasts, value)) return;
+            StorageHandler.UseAudiobookshelfPodcasts = value;
+        }
+    }
+
     public ObservableCollection<DeviceOption> Devices { get; } = new();
 
     private DeviceOption _selectedDevice;
@@ -76,6 +115,9 @@ public class SettingsPageViewModel : BaseViewModel
     {
         _showSegmentDebugTimer = DebugSettings.ShowSegmentTimer;
         _showSongSource = DebugSettings.ShowSongSource;
+        _audiobookshelfServerUrl = StorageHandler.AudiobookshelfServerUrl;
+        _audiobookshelfApiKey = StorageHandler.AudiobookshelfApiKey;
+        _useAudiobookshelfPodcasts = StorageHandler.UseAudiobookshelfPodcasts;
 
         ApplySettings = new Command(() =>
         {
@@ -85,6 +127,14 @@ public class SettingsPageViewModel : BaseViewModel
             if (IsUsingCollaborationHost) CollaborationAPI.Instance?.CreateSession();
             // TODO: else clear current state of playlist creation.
             });
+
+        ApplyAudiobookshelfSettings = new Command(() =>
+        {
+            SaveAudiobookshelfSettings();
+            AudiobookshelfConnectionStatus = string.Empty;
+        });
+
+        TestAudiobookshelfConnection = new Command(async () => await TestAudiobookshelfConnectionAsync());
 
         UseCurrentDevice = new Command(PinCurrentDevice);
         RefreshDevices = new Command(async () => await RefreshDevicesAsync());
@@ -155,7 +205,26 @@ public class SettingsPageViewModel : BaseViewModel
         return $"{device.Name} ({device.Type}){active}";
     }
 
+    private void SaveAudiobookshelfSettings()
+    {
+        StorageHandler.AudiobookshelfServerUrl = AudiobookshelfServerUrl?.Trim() ?? string.Empty;
+        StorageHandler.AudiobookshelfApiKey = AudiobookshelfApiKey?.Trim() ?? string.Empty;
+    }
+
+    private async Task TestAudiobookshelfConnectionAsync()
+    {
+        // Save first so Test checks whatever is currently typed, not the last-applied value.
+        SaveAudiobookshelfSettings();
+        AudiobookshelfConnectionStatus = "Testing...";
+        var error = await AudiobookshelfApiClient.TestConnectionAsync();
+        AudiobookshelfConnectionStatus = error == null ? "Connected" : $"Failed: {error}";
+    }
+
     public ICommand ApplySettings { private set; get; }
+
+    public ICommand ApplyAudiobookshelfSettings { private set; get; }
+
+    public ICommand TestAudiobookshelfConnection { private set; get; }
 
     public ICommand UseCurrentDevice { private set; get; }
 

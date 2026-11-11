@@ -38,5 +38,10 @@ public class BackendConnector
         StorageHandler.RefreshToken = await SecureStorage.Default.GetAsync("refreshToken") ?? string.Empty;
         StorageHandler.SelectedDeviceId = await SecureStorage.Default.GetAsync("selectedDeviceId") ?? string.Empty;
         StorageHandler.CachedDevices = await SecureStorage.Default.GetAsync("cachedDevices") ?? string.Empty;
+        StorageHandler.AudiobookshelfServerUrl = await SecureStorage.Default.GetAsync("audiobookshelfServerUrl") ?? string.Empty;
+        if (string.IsNullOrEmpty(StorageHandler.AudiobookshelfServerUrl)) StorageHandler.AudiobookshelfServerUrl = "https://audio.reecesucks.com"; // paste server URL here for simplified debugging
+        StorageHandler.AudiobookshelfApiKey = await SecureStorage.Default.GetAsync("audiobookshelfApiKey") ?? string.Empty;
+        if (string.IsNullOrEmpty(StorageHandler.AudiobookshelfApiKey)) StorageHandler.AudiobookshelfApiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlJZCI6IjFjNjlkNTQ2LTRhMGItNDNmMy1hNDQ0LWJiNzJiNWFjZTk1OSIsIm5hbWUiOiJTcG90aXNoYXJwIiwidHlwZSI6ImFwaSIsImlhdCI6MTc5NDEwODExMn0.ADnGwZnapLODZxjwy2DIO6VIynMUphbbMvg_kHPx9BY"; // paste API key here for simplified debugging
+        StorageHandler.UseAudiobookshelfPodcasts = await SecureStorage.Default.GetAsync("useAudiobookshelfPodcasts") == "1";
     }
 }

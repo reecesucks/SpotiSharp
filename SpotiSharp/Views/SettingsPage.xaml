@@ -82,6 +82,24 @@
                         Command="{Binding UseCurrentDevice}"
                         HorizontalOptions="Start"
                         Margin="0,8,0,0" />
+
+                <Label Text="AudioBookshelf" FontSize="22" Margin="0,24,0,0" />
+                <Label Text="Server URL" Margin="0,8,0,0" />
+                <Entry Text="{Binding AudiobookshelfServerUrl}" Placeholder="http://[host]:[port]" />
+                <Label Text="API key" Margin="0,8,0,0" />
+                <Entry Text="{Binding AudiobookshelfApiKey}" IsPassword="True" />
+                <HorizontalStackLayout Spacing="8" Margin="0,8,0,0">
+                    <Button Text="Apply" Command="{Binding ApplyAudiobookshelfSettings}" />
+                    <Button Text="Test connection" Command="{Binding TestAudiobookshelfConnection}" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding AudiobookshelfConnectionStatus}" Margin="0,4,0,0" />
+
+                <Label Text="Radio podcast source" Margin="0,24,0,0" />
+                <HorizontalStackLayout Spacing="8" Margin="0,8,0,0">
+                    <Label Text="Spotify" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding UseAudiobookshelfPodcasts}" />
+                    <Label Text="AudioBookshelf" VerticalOptions="Center" />
+                </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Grid>
         </Grid>
