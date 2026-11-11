@@ -54,6 +54,16 @@
         ContentTemplate="{DataTemplate views:PodcastsPage}"
         Route="PodcastsPage" />
     <ShellContent
+        x:Name="AudiobookshelfPodcastsContent"
+        Title="Podcasts (AudioBookshelf)"
+        ContentTemplate="{DataTemplate views:AudiobookshelfPodcastsPage}"
+        Route="AudiobookshelfPodcastsPage" />
+    <ShellContent
+        x:Name="RadioAudiobookshelfContent"
+        Title="Radio (AudioBookshelf)"
+        ContentTemplate="{DataTemplate views:RadioAudiobookshelfPage}"
+        Route="RadioAudiobookshelfPage" />
+    <ShellContent
         x:Name="AuthenticationContent"
         Title="Authentication"
         ContentTemplate="{DataTemplate local:AuthenticationPage}"

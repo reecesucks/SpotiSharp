@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             xmlns:models="clr-namespace:SpotiSharp.Models"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:converters="clr-namespace:SpotiSharp.Converters"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             x:DataType="viewmodels:RadioAudiobookshelfPageViewModel"
+             x:Name="RadioPageRoot"
+             x:Class="SpotiSharp.Views.RadioAudiobookshelfPage"
+                Title="Radio">
+    <views:BasePage.Resources>
+        <!-- listen mode strip: keypad focus moves the background, the active mode the text -->
+        <Style x:Key="ModeButton" TargetType="Button">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="HeightRequest" Value="30" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+            <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+        </Style>
+    </views:BasePage.Resources>
+    <views:BasePage.Content>
+        <Grid RowDefinitions="Auto,*">
+            <!-- Revealed by a long press on Generate, and shown unprompted whenever the mode is
+                 not Mix, so an arriving listener is never quietly looking at a filtered list. -->
+            <keypad:KeypadButtonRow x:Name="ModeStrip" Grid.Row="0" SelfManaged="False"
+                                     IsVisible="{Binding IsModeStripVisible}"
+                                     ColumnDefinitions="*,*,*,Auto" ColumnSpacing="4"
+                                     Margin="8,6,8,2">
+                <Button Grid.Column="0" Text="Music" Command="{Binding ShowMusic}" Style="{StaticResource ModeButton}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsMusicMode}" Value="True">
+                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="KeypadStates">
+                            <VisualState x:Name="Unfocused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Focused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+                <Button Grid.Column="1" Text="Mix" Command="{Binding ShowMix}" Style="{StaticResource ModeButton}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsMixMode}" Value="True">
+                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="KeypadStates">
+                            <VisualState x:Name="Unfocused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Focused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+                <Button Grid.Column="2" Text="Podcasts" Command="{Binding ShowPodcasts}" Style="{StaticResource ModeButton}">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button" Binding="{Binding IsPodcastsMode}" Value="True">
+                            <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                            <Setter Property="FontAttributes" Value="Bold" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="KeypadStates">
+                            <VisualState x:Name="Unfocused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Focused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+                <Button Grid.Column="3" Text="&#x2715;" Command="{Binding HideModeStrip}"
+                        Style="{StaticResource ModeButton}" WidthRequest="34">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="KeypadStates">
+                            <VisualState x:Name="Unfocused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Focused">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </keypad:KeypadButtonRow>
+
+            <Grid Grid.Row="1">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                   IsVisible="{Binding IsBusy}"
+                                   HeightRequest="32"
+                                   VerticalOptions="Start" />
+
+                <keypad:KeypadCollectionView x:Name="MainListView" SelfManaged="False"
+                                ItemsSource="{Binding Items}"
+                                SelectedItem="{Binding SelectedItem}"
+                                ActivateCommand="{Binding SelectItem}"
+                                ItemSizingStrategy="MeasureFirstItem">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:RadioAudiobookshelfItem">
+                            <!-- fixed height so every row is uniform and the list only measures once -->
+                            <!-- tap and long press are wired natively in code behind: a maui
+                                 TapGestureRecognizer swallows the touch and blocks long press -->
+                            <Grid ColumnDefinitions="Auto,*" Padding="8,6" HeightRequest="64"
+                                  HandlerChanged="OnRowHandlerChanged">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="Transparent" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <!-- Keypad focus highlight; "currently playing" uses the separate IsCurrent trigger below. -->
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                                <Setter TargetName="TitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                                <Setter TargetName="SubtitleLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                                <Setter TargetName="SourceLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid.Triggers>
+                                    <DataTrigger TargetType="Grid" Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource Gray900}" />
+                                    </DataTrigger>
+                                </Grid.Triggers>
+                                <Image Grid.Column="0"
+                                       Source="{Binding ImageUrl}"
+                                       Aspect="AspectFill"
+                                       HeightRequest="52"
+                                       WidthRequest="52"
+                                       IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}">
+                                    <!-- a slight fade keeps "More episodes" reading as not part of the radio -->
+                                    <Image.Triggers>
+                                        <DataTrigger TargetType="Image" Binding="{Binding IsMoreRow}" Value="True">
+                                            <Setter Property="Opacity" Value="0.6" />
+                                        </DataTrigger>
+                                    </Image.Triggers>
+                                </Image>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" Margin="10,0,0,0" VerticalOptions="Center"
+                                                     IsVisible="{Binding IsConfirmingRemove, Converter={converters:BooleanConverter}}">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <Label x:Name="TitleLabel"
+                                               Grid.Column="0"
+                                               Text="{Binding Title}"
+                                               FontSize="17"
+                                               LineBreakMode="TailTruncation">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsCurrent}" Value="True">
+                                                    <Setter Property="TextColor" Value="{DynamicResource Primary}" />
+                                                    <Setter Property="FontAttributes" Value="Bold" />
+                                                </DataTrigger>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsMoreHeader}" Value="True">
+                                                    <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+                                                    <Setter Property="FontAttributes" Value="Bold" />
+                                                    <Setter Property="FontSize" Value="14" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                        <Label Grid.Column="1"
+                                               Text="{Binding DebugSegmentRemaining}"
+                                               FontSize="11"
+                                               FontAttributes="Italic"
+                                               TextColor="{DynamicResource TextSecondary}"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding HasDebugSegmentRemaining}" />
+                                        <!-- shares the timer's cell: only songs have a source, only podcasts have a timer -->
+                                        <Label x:Name="SourceLabel"
+                                               Grid.Column="1"
+                                               Text="{Binding Source}"
+                                               FontSize="11"
+                                               TextColor="{DynamicResource TextSecondary}"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding BindingContext.ShowSongSources, Source={x:Reference RadioPageRoot}}" />
+                                        <!-- the same cell again: a collapsed episode has no pips to say how long it runs -->
+                                        <Label Grid.Column="1"
+                                               Text="{Binding RemainingLabel}"
+                                               FontSize="11"
+                                               TextColor="{DynamicResource TextSecondary}"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding HasRemainingLabel}" />
+                                        <!-- and once more: a "More episodes" row has none of the above -->
+                                        <Label Grid.Column="1"
+                                               Text="{Binding UpNextLabel}"
+                                               FontSize="11"
+                                               FontAttributes="Bold"
+                                               TextColor="{DynamicResource Primary}"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding HasUpNextLabel}" />
+                                    </Grid>
+                                    <Label x:Name="SubtitleLabel"
+                                           Text="{Binding Subtitle}"
+                                           FontSize="13"
+                                           TextColor="{DynamicResource TextSecondary}"
+                                           LineBreakMode="TailTruncation" />
+                                    <HorizontalStackLayout Spacing="3"
+                                                           IsVisible="{Binding IsPodcastSegment}"
+                                                           BindableLayout.ItemsSource="{Binding SegmentPips}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:Boolean">
+                                                <BoxView HeightRequest="4"
+                                                         WidthRequest="26"
+                                                         CornerRadius="2"
+                                                         Color="{DynamicResource Gray600}">
+                                                    <BoxView.Triggers>
+                                                        <DataTrigger TargetType="BoxView" Binding="{Binding .}" Value="True">
+                                                            <Setter Property="Color" Value="{DynamicResource Primary}" />
+                                                        </DataTrigger>
+                                                    </BoxView.Triggers>
+                                                </BoxView>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <!-- revealed by a long press, replaces the row content -->
+                                <Grid Grid.Column="0" Grid.ColumnSpan="2"
+                                      ColumnDefinitions="*,*,*"
+                                      ColumnSpacing="6"
+                                      IsVisible="{Binding IsConfirmingRemove}">
+                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding IsRadioSong}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Remove"
+                                               FontSize="14"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <!-- a "More episodes" row isn't in the radio, so the only thing to do is keep it out for good -->
+                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding IsMoreEpisode}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.HideMoreEpisode, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Hide episode from radio"
+                                               FontSize="14"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <Border Grid.Column="0"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding HasSegmentActions}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Remove section"
+                                               FontSize="11"
+                                               LineBreakMode="WordWrap"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <Border Grid.Column="1"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding HasSegmentActions}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.RemoveAllSections, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Remove all"
+                                               FontSize="11"
+                                               LineBreakMode="WordWrap"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <!-- a collapsed episode already stands for every section, so
+                                         "remove section" and "remove all" would be one button twice -->
+                                    <Border Grid.Column="0" Grid.ColumnSpan="2"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding IsWholeEpisode}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.RemoveSingle, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Remove episode"
+                                               FontSize="11"
+                                               LineBreakMode="WordWrap"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <Border Grid.Column="2"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding IsPodcastSegment}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.NotInterested, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Not interested"
+                                               FontSize="11"
+                                               LineBreakMode="WordWrap"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                    <CollectionView.Footer>
+                        <Button Text="Add More"
+                                Margin="8,12"
+                                Command="{Binding GenerateMoreRadio}"
+                                IsEnabled="{Binding IsGenerating, Converter={converters:BooleanConverter}}" />
+                    </CollectionView.Footer>
+                </keypad:KeypadCollectionView>
+            </Grid>
+        </Grid>
+    </views:BasePage.Content>
+</views:BasePage>

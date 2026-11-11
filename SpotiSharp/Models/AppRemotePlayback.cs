@@ -59,8 +59,10 @@ public static class AppRemotePlayback
 
     public static RemovedSongCheck CheckRemovedSong(string? uri) => Queue.CheckRemovedSong(uri);
 
-    /// <summary>Plays a radio item locally: a podcast segment from its rewound start, or a song followed by the rest of its run.</summary>
-    public static async Task<bool> TryPlayItemAsync(RadioItem item, IReadOnlyList<string>? songRun)
+    /// <summary>Plays a radio item locally: a podcast segment from its rewound start, or a song followed by the rest of its run.
+    /// Takes <see cref="IRadioQueueItem"/> rather than the concrete <see cref="RadioItem"/> so the AudioBookshelf-backed
+    /// radio's own queue item type can share this same Spotify playback plumbing for its music half.</summary>
+    public static async Task<bool> TryPlayItemAsync(IRadioQueueItem item, IReadOnlyList<string>? songRun)
     {
         if (item.IsPodcastSegment)
         {

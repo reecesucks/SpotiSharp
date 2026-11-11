@@ -19,21 +19,23 @@
                         <VisualStateGroup x:Name="CommonStates">
                             <VisualState x:Name="Normal">
                                 <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="Transparent" />
+                                    <Setter TargetName="HeaderGrid" Property="Grid.BackgroundColor" Value="Transparent" />
                                     <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
                                     <Setter TargetName="ChevronLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
                                 </VisualState.Setters>
                             </VisualState>
                             <VisualState x:Name="Selected">
                                 <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                    <!-- Targets only the header row, not this whole template - the template
+                                         also holds the expanded episode list, which the highlight must not cover. -->
+                                    <Setter TargetName="HeaderGrid" Property="Grid.BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
                                     <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                     <Setter TargetName="ChevronLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
                     </VisualStateManager.VisualStateGroups>
-                    <Grid Padding="8,8" ColumnDefinitions="56,*,Auto">
+                    <Grid x:Name="HeaderGrid" Padding="8,8" ColumnDefinitions="56,*,Auto">
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding ToggleExpanded}" />
                         </Grid.GestureRecognizers>
@@ -80,6 +82,21 @@
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
+                    <Grid IsVisible="{Binding IsExpanded}" Padding="16,0,8,8">
+                        <Label Text="Load more"
+                               FontSize="13"
+                               TextColor="{DynamicResource TextSecondary}"
+                               IsVisible="{Binding CanLoadMore}"
+                               HorizontalOptions="Start">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding LoadMore}" />
+                            </Label.GestureRecognizers>
+                        </Label>
+                        <ActivityIndicator IsRunning="{Binding IsLoadingMore}"
+                                            IsVisible="{Binding IsLoadingMore}"
+                                            HeightRequest="18" WidthRequest="18"
+                                            HorizontalOptions="Start" />
+                    </Grid>
                 </VerticalStackLayout>
             </DataTemplate>
         </CollectionView.ItemTemplate>

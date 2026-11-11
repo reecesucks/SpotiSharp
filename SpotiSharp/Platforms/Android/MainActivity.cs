@@ -34,6 +34,24 @@ public class MainActivity : KeypadActivity
 
         RadioDiagnostics.SavePublicFile = PublicDownloads.Save;
 
+        AudiobookshelfDownloadBackgroundService.StartRequested = () =>
+        {
+            var context = global::Android.App.Application.Context;
+            var intent = new Intent(context, typeof(AudiobookshelfDownloadService));
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
+                context.StartForegroundService(intent);
+            else
+                context.StartService(intent);
+        };
+
+        AudiobookshelfDownloadBackgroundService.StopRequested = () =>
+        {
+            var context = global::Android.App.Application.Context;
+            context.StopService(new Intent(context, typeof(AudiobookshelfDownloadService)));
+        };
+
+        AudiobookshelfPlayer.Initialize();
+
         if (Authentication.HasStoredSession)
             SpotifyAppRemoteConnector.Connect(StorageHandler.ClientId, "http://127.0.0.1:5000/callback");
 
