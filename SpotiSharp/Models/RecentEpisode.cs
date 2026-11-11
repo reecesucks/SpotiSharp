@@ -1,6 +1,6 @@
 namespace SpotiSharp.Models;
 
-public class RecentEpisode
+public class RecentEpisode : IPodcastEpisodeSource
 {
     public string EpisodeId { get; private set; }
     public string EpisodeName { get; private set; }
@@ -11,6 +11,12 @@ public class RecentEpisode
     public int DurationMs { get; private set; }
 
     public int ResumePositionMs { get; private set; }
+
+    public string PlayUri => $"spotify:episode:{EpisodeId}";
+
+    public PodcastSourceKind SourceKind => PodcastSourceKind.Spotify;
+
+    public IReadOnlyList<int> SpliceStartMs => Array.Empty<int>();
 
     public RecentEpisode(string episodeId, string episodeName, string showId, string showName, string showImageUrl, DateTime releaseDate, int durationMs, int resumePositionMs = 0)
     {

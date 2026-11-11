@@ -89,6 +89,34 @@ public class RecentEpisodesModel
             .ToList();
     }
 
+    /// <summary>Fetches one more page of a show's episodes, strictly for the Podcasts page's "load
+    /// more" - deliberately separate from <see cref="RefreshEpisodesForShow"/>'s cache and the
+    /// EPISODES_PER_SHOW cap, since that cap feeds the original Spotify Radio's episode pool
+    /// (<see cref="RadioModel"/>) and must not change size just because the Podcasts page wants to
+    /// show more history. Nothing here is disk-cached - every expand re-pages from offset 0.</summary>
+    internal static (List<RecentEpisode> episodes, bool hasMore) FetchMoreEpisodesForShow(
+        string showId, string showName, string showImageUrl, int offset, int limit)
+    {
+        var page = APICaller.Instance?.GetPodcastEpisodesPage(showId, offset, limit);
+        if (page?.Items == null) return (new List<RecentEpisode>(), false);
+
+        var episodes = page.Items
+            .Where(episode => episode != null)
+            .Select(episode => new RecentEpisode(
+                episode.Id,
+                episode.Name,
+                showId,
+                showName,
+                showImageUrl,
+                ParseReleaseDate(episode.ReleaseDate),
+                episode.DurationMs,
+                episode.ResumePoint?.ResumePositionMs ?? 0))
+            .ToList();
+
+        bool hasMore = page.Total.HasValue && offset + episodes.Count < page.Total.Value;
+        return (episodes, hasMore);
+    }
+
     private static string EpisodeCacheKey(string showId)
     {
         return "episodes_" + showId;

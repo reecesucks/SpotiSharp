@@ -244,6 +244,10 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void RefreshPlayerValuesCore()
     {
+        // AudioBookshelf playback has nothing to do with Spotify's account/device state, so a Spotify
+        // poll finding "nothing playing" must not stomp the bar while an episode is actually playing.
+        if (_isAudiobookshelfSource && Models.AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() == true) return;
+
         CurrentlyPlayingContext currentlyPlayingContext = null;
         var api = APICaller.Instance;
         if (api == null || !api.TryGetCurrentPlaybackContext(out currentlyPlayingContext))
@@ -267,6 +271,8 @@ public class PlayerBarViewModel : BaseViewModel
             _pollsWereFailing = false;
             DiagnosticLog.Write("[Poll] playback poll recovered");
         }
+
+        _isAudiobookshelfSource = false;
 
         string currentItemUri = null;
         int currentItemDurationMs = 0;
@@ -359,11 +365,46 @@ public class PlayerBarViewModel : BaseViewModel
         PersistLastPlayed(_lastKnownUri, SongName, SongImageURL, _lastKnownProgressMs, IsTrackPlaying);
     }
 
+    /// <summary>
+    /// True while the bar is showing/controlling an AudioBookshelf episode instead of Spotify.
+    /// Spotify's own update paths (<see cref="ApplyPushedState"/>, the Web API poll) clear it again
+    /// the moment they have something real to show, so the bar always reflects whichever source most
+    /// recently had something playing.
+    /// </summary>
+    private bool _isAudiobookshelfSource;
+
+    /// <summary>Updates the bar from the AudioBookshelf/Media3 player. Separate from <see cref="ApplyPushedState"/>
+    /// by design — AudioBookshelf has no shuffle/repeat/skip/like concept here, so this only touches what's shared.</summary>
+    public void ApplyAudiobookshelfState(string episodeId, string name, string imageUrl, bool isPlaying, int progressMs)
+    {
+        if (string.IsNullOrEmpty(episodeId)) return;
+
+        _isAudiobookshelfSource = true;
+        ApplyIsPlaying(isPlaying);
+        if (isPlaying) NotifyPlaybackStarting();
+
+        HasCurrentSong = true;
+        SongName = name;
+        SongImageURL = imageUrl ?? string.Empty;
+        _lastKnownUri = episodeId;
+        _lastKnownProgressMs = progressMs;
+
+        _currentTrackUri = null;
+        _currentTrackId = null;
+        IsTrackPlaying = false;
+        IsSongLiked = false;
+    }
+
     /// <summary>Updates the bar from an App Remote player state push. Must be called on the main thread.</summary>
     public void ApplyPushedState(string uri, string name, bool isEpisode, bool isPlaying, int progressMs, bool shuffleOn, bool repeatOn)
     {
         if (string.IsNullOrEmpty(uri)) return;
 
+        // Same reasoning as the Web API poll guard above: App Remote keeps pushing state for whatever
+        // Spotify last had loaded even while the user is actually listening to an AudioBookshelf episode.
+        if (_isAudiobookshelfSource && Models.AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() == true) return;
+
+        _isAudiobookshelfSource = false;
         ApplyIsPlaying(isPlaying);
         if (isPlaying) NotifyPlaybackStarting();
 
@@ -408,6 +449,15 @@ public class PlayerBarViewModel : BaseViewModel
     private void TogglePlayingFunc()
     {
         bool target = !IsPlaying;
+
+        if (_isAudiobookshelfSource)
+        {
+            IsPlaying = target;
+            if (target) Models.AudiobookshelfPlaybackCommands.Play?.Invoke();
+            else Models.AudiobookshelfPlaybackCommands.Pause?.Invoke();
+            return;
+        }
+
         DiagnosticLog.Write($"[PlayerBar] play/pause tapped: sending {(target ? "resume" : "pause")} via {(HasAppRemote ? "App Remote" : "Web API")}");
         IsPlaying = target;
         _expectedIsPlaying = target;
@@ -464,6 +514,8 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void SongBackFunc()
     {
+        if (_isAudiobookshelfSource) return;
+
         if (HasAppRemote)
         {
             Models.PlaybackCommands.SkipPrevious?.Invoke();
@@ -478,6 +530,8 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void SongSkipFunc()
     {
+        if (_isAudiobookshelfSource) return;
+
         Task.Run(() =>
         {
             if (Models.RadioConductor.Instance.AdvanceManually())
@@ -498,6 +552,8 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void ChangeRepeatFunc()
     {
+        if (_isAudiobookshelfSource) return;
+
         if (HasAppRemote)
         {
             Models.PlaybackCommands.ToggleRepeat?.Invoke();
@@ -509,6 +565,8 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void ChangeShuffleFunc()
     {
+        if (_isAudiobookshelfSource) return;
+
         bool target = !IsShuffleOn;
         IsShuffleOn = target;
         _expectedShuffle = target;

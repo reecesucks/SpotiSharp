@@ -52,6 +52,60 @@ public class AudiobookshelfMediaMetadata
 {
     [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+
+    // The podcast's source RSS feed URL - only present on a podcast library item, used to pull the
+    // full back-catalog (including episodes AudioBookshelf hasn't downloaded yet) via
+    // AudiobookshelfApiClient.GetPodcastFeedEpisodesAsync, since media.episodes above only ever
+    // holds episodes already downloaded to the server.
+    [JsonPropertyName("feedUrl")]
+    public string? FeedUrl { get; set; }
+}
+
+internal class AudiobookshelfFeedResponse
+{
+    [JsonPropertyName("podcast")]
+    public AudiobookshelfFeedPodcastDto? Podcast { get; set; }
+}
+
+internal class AudiobookshelfFeedPodcastDto
+{
+    [JsonPropertyName("episodes")]
+    public List<AudiobookshelfFeedEpisodeDto> Episodes { get; set; } = new();
+}
+
+/// <summary>One episode as it appears in the podcast's raw RSS feed (POST /api/podcasts/feed), which -
+/// unlike <see cref="AudiobookshelfEpisodeDto"/> from the library item's media.episodes - includes every
+/// episode the feed has ever published, downloaded or not. Captures unknown fields via
+/// <see cref="Extra"/> so posting one of these back to POST /podcasts/:id/download-episodes (which needs
+/// the object echoed back close to verbatim) doesn't silently drop something the server sent.</summary>
+public class AudiobookshelfFeedEpisodeDto
+{
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("subtitle")]
+    public string? Subtitle { get; set; }
+
+    [JsonPropertyName("pubDate")]
+    public string? PubDate { get; set; }
+
+    [JsonPropertyName("publishedAt")]
+    public long? PublishedAtMs { get; set; }
+
+    [JsonPropertyName("season")]
+    public string? Season { get; set; }
+
+    [JsonPropertyName("episode")]
+    public string? Episode { get; set; }
+
+    [JsonPropertyName("enclosure")]
+    public AudiobookshelfEnclosureDto? Enclosure { get; set; }
+
+    [JsonPropertyName("guid")]
+    public string? Guid { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, System.Text.Json.JsonElement>? Extra { get; set; }
 }
 
 public class AudiobookshelfEpisodeDto
@@ -67,6 +121,12 @@ public class AudiobookshelfEpisodeDto
 
     [JsonPropertyName("pubDate")]
     public string? PubDate { get; set; }
+
+    // The server's own already-parsed pubDate, as epoch milliseconds - more reliable than re-parsing
+    // the raw pubDate string ourselves, since AudioBookshelf has already handled whatever RSS date
+    // format the feed used. Null if the feed's pubDate didn't parse there either.
+    [JsonPropertyName("publishedAt")]
+    public long? PublishedAtMs { get; set; }
 
     [JsonPropertyName("season")]
     public string? Season { get; set; }

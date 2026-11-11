@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:SpotiSharp.Views"
+             xmlns:models="clr-namespace:SpotiSharp.Models"
+             xmlns:viewmodels="clr-namespace:SpotiSharp.ViewModels"
+             xmlns:keypad="clr-namespace:SpotiSharp.Keypad"
+             xmlns:converters="clr-namespace:SpotiSharp.Converters"
+             xmlns:controls="clr-namespace:SpotiSharp.Controls"
+             x:DataType="viewmodels:AudiobookshelfPodcastsViewModel"
+             x:Class="SpotiSharp.Views.AudiobookshelfPodcastsPage"
+             x:Name="AudiobookshelfPodcastsPageRoot"
+                Title="Podcasts (AudioBookshelf)">
+    <views:BasePage.Content>
+        <Grid>
+            <RefreshView Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+                <keypad:KeypadCollectionView x:Name="ShowList" SelfManaged="False"
+                                ItemsSource="{Binding ShowGroups}"
+                                ActivateCommand="{Binding ToggleExpanded}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:AudiobookshelfShowGroupViewModel">
+                            <VerticalStackLayout>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter TargetName="ShowHeaderGrid" Property="Grid.BackgroundColor" Value="Transparent" />
+                                                <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                                <Setter TargetName="ShowChevronLabel" Property="Label.TextColor" Value="{DynamicResource TextPrimary}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <!-- Targets only the show header row, not this whole template - the
+                                                     template also holds the expanded episode list below it. -->
+                                                <Setter TargetName="ShowHeaderGrid" Property="Grid.BackgroundColor" Value="{DynamicResource SelectedRowBackground}" />
+                                                <Setter TargetName="ShowNameLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                                <Setter TargetName="ShowChevronLabel" Property="Label.TextColor" Value="{DynamicResource SelectedRowText}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid x:Name="ShowHeaderGrid" Padding="8,8" ColumnDefinitions="44,*,Auto">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ToggleExpanded}" />
+                                    </Grid.GestureRecognizers>
+                                    <Image Grid.Column="0"
+                                           Source="{Binding ImageUrl}"
+                                           Aspect="AspectFill"
+                                           HeightRequest="44"
+                                           WidthRequest="44" />
+                                    <Label Grid.Column="1"
+                                           x:Name="ShowNameLabel"
+                                           Text="{Binding Name}"
+                                           FontSize="19"
+                                           Margin="10,0,0,0"
+                                           VerticalOptions="Center"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Grid.Column="2"
+                                           x:Name="ShowChevronLabel"
+                                           Text="▸"
+                                           FontSize="18"
+                                           VerticalOptions="Center">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsExpanded}" Value="True">
+                                                <Setter Property="Text" Value="▾" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </Grid>
+                                <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                                    IsVisible="{Binding IsLoading}"
+                                                    HeightRequest="32" />
+                                <VerticalStackLayout IsVisible="{Binding IsExpanded}"
+                                                      BindableLayout.ItemsSource="{Binding Episodes}"
+                                                      Padding="16,0,0,0">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AudiobookshelfEpisode">
+                                            <!-- tap and long press are wired natively in code behind on Android: a maui
+                                                 TapGestureRecognizer here would swallow the touch and block long press -->
+                                            <Grid ColumnDefinitions="44,*,36" Padding="0,8" HandlerChanged="OnRowHandlerChanged">
+                                                <Image Grid.Column="0"
+                                                       Source="{Binding ShowCoverUrl}"
+                                                       Aspect="AspectFill"
+                                                       HeightRequest="44"
+                                                       WidthRequest="44" />
+                                                <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0">
+                                                    <Label Text="{Binding EpisodeName}"
+                                                           FontSize="19"
+                                                           LineBreakMode="TailTruncation" />
+                                                    <Label FontSize="16" TextColor="{DynamicResource TextSecondary}"
+                                                           Text="{Binding ReleaseDate, StringFormat='{0:d}'}" />
+                                                </VerticalStackLayout>
+
+                                                <Grid Grid.Column="2" WidthRequest="36" HeightRequest="36">
+                                                    <Grid.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding BindingContext.ToggleDownloadCommand, Source={x:Reference AudiobookshelfPodcastsPageRoot}}"
+                                                                               CommandParameter="{Binding .}" />
+                                                    </Grid.GestureRecognizers>
+                                                    <controls:DownloadProgressRing IsVisible="{Binding IsDownloading}"
+                                                                        Progress="{Binding DownloadProgress}"
+                                                                        RingColor="{DynamicResource TextSecondary}"
+                                                                        HeightRequest="28" WidthRequest="28" />
+                                                    <Label Text="&#10003;"
+                                                           IsVisible="{Binding IsDownloaded}"
+                                                           FontSize="20"
+                                                           TextColor="{DynamicResource TextSecondary}"
+                                                           HorizontalOptions="Center" VerticalOptions="Center" />
+                                                    <Label Text="&#8681;"
+                                                           IsVisible="{Binding IsDownloaded, Converter={converters:BooleanConverter}}"
+                                                           FontSize="20"
+                                                           TextColor="{DynamicResource TextSecondary}"
+                                                           HorizontalOptions="Center" VerticalOptions="Center" />
+                                                </Grid>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                                <Label Text="Load more"
+                                       FontSize="13"
+                                       Margin="16,0,0,8"
+                                       TextColor="{DynamicResource TextSecondary}"
+                                       IsVisible="{Binding CanLoadMore}"
+                                       HorizontalOptions="Start">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding LoadMore}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </VerticalStackLayout>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </keypad:KeypadCollectionView>
+            </RefreshView>
+
+            <Grid IsVisible="{Binding IsLoading}" BackgroundColor="{DynamicResource PageBackground}">
+                <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                   HeightRequest="40"
+                                   WidthRequest="40"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+            </Grid>
+
+            <VerticalStackLayout IsVisible="{Binding IsNotConfigured}"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Padding="24"
+                                 Spacing="8">
+                <Label Text="AudioBookshelf isn't configured yet."
+                       FontSize="19"
+                       HorizontalTextAlignment="Center" />
+                <Label Text="Set the server URL and API key in Settings."
+                       FontSize="16"
+                       TextColor="{DynamicResource TextSecondary}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </Grid>
+    </views:BasePage.Content>
+</views:BasePage>
