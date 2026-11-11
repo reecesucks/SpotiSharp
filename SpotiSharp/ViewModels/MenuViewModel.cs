@@ -37,6 +37,8 @@ public class MenuViewModel : BaseViewModel
             Add("Artists", "ArtistsPage");
             Add("Albums", "AlbumsPage");
             Add("Podcasts", "PodcastsPage");
+            Add("Podcasts (AudioBookshelf)", "AudiobookshelfPodcastsPage");
+            Add("Radio (AudioBookshelf)", "RadioAudiobookshelfPage");
         }
         else
         {

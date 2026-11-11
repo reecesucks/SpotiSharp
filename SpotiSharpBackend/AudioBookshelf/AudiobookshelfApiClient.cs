@@ -66,14 +66,33 @@ public static class AudiobookshelfApiClient
         return result;
     }
 
-    /// <summary>Episodes for one podcast library item, fetched expanded so <c>media.episodes</c> is populated.
-    /// Includes episodes AudioBookshelf already knows about from the feed but has not downloaded yet
-    /// (no <see cref="AudiobookshelfEpisodeDto.AudioFile"/>) - that is what the binge-ahead downloader
-    /// (<see cref="SpotiSharp.Models.RadioAudiobookshelfBingeAheadModel"/>) uses to find what's missing.</summary>
+    /// <summary>The podcast library item itself, fetched expanded so <c>media.episodes</c> and
+    /// <c>media.metadata.feedUrl</c> are populated. <c>media.episodes</c> is downloaded episodes only -
+    /// AudioBookshelf only creates an episode row once its audio has actually been pulled down, so this
+    /// never includes anything still sitting unfetched in the feed. For the full back-catalog including
+    /// those, see <see cref="GetPodcastFeedEpisodesAsync"/>.</summary>
+    public static async Task<AudiobookshelfLibraryItem?> GetLibraryItemAsync(string libraryItemId)
+    {
+        return await SendAsync<AudiobookshelfLibraryItem>($"api/items/{libraryItemId}?expanded=1");
+    }
+
+    /// <summary>Episodes for one podcast library item that AudioBookshelf has already downloaded.
+    /// See <see cref="GetLibraryItemAsync"/> for why this is downloaded-only, not the full feed.</summary>
     public static async Task<List<AudiobookshelfEpisodeDto>> GetEpisodesAsync(string libraryItemId)
     {
-        var item = await SendAsync<AudiobookshelfLibraryItem>($"api/items/{libraryItemId}?expanded=1");
+        var item = await GetLibraryItemAsync(libraryItemId);
         return item?.Media?.Episodes ?? new List<AudiobookshelfEpisodeDto>();
+    }
+
+    /// <summary>The podcast's full RSS feed, re-fetched live from its source URL (AudioBookshelf's own
+    /// POST /api/podcasts/feed, normally used for its "add new podcast" preview) - this is the only way
+    /// to see episodes the feed has published that AudioBookshelf has not downloaded yet, which is what
+    /// the binge-ahead downloader (<see cref="SpotiSharp.Models.RadioAudiobookshelfBingeAheadModel"/>)
+    /// needs to find what's missing ahead of the listener's position.</summary>
+    public static async Task<List<AudiobookshelfFeedEpisodeDto>> GetPodcastFeedEpisodesAsync(string feedUrl)
+    {
+        var response = await SendPostForResponseAsync<AudiobookshelfFeedResponse>("api/podcasts/feed", new { rssFeed = feedUrl });
+        return response?.Podcast?.Episodes ?? new List<AudiobookshelfFeedEpisodeDto>();
     }
 
     /// <summary>Queues the given episodes for download on the server (AudioBookshelf's own
@@ -81,7 +100,17 @@ public static class AudiobookshelfApiClient
     /// back from <see cref="GetEpisodesAsync"/>, enclosure/guid included, since that's what it uses to
     /// fetch the audio). Fire-and-forget on the server side - this call just returns once it's queued,
     /// not once the file is actually downloaded. Never throws - returns whether the request was accepted.</summary>
-    public static async Task<bool> DownloadEpisodesAsync(string libraryItemId, IReadOnlyList<AudiobookshelfEpisodeDto> episodes)
+    public static Task<bool> DownloadEpisodesAsync(string libraryItemId, IReadOnlyList<AudiobookshelfEpisodeDto> episodes)
+        => DownloadEpisodesInternalAsync(libraryItemId, episodes);
+
+    /// <summary>Same endpoint, for episodes that came back from <see cref="GetPodcastFeedEpisodesAsync"/>
+    /// rather than the library item's own (downloaded-only) episode list - this is the normal case for
+    /// the binge-ahead downloader, which is specifically queuing episodes AudioBookshelf has not fetched
+    /// yet.</summary>
+    public static Task<bool> DownloadEpisodesAsync(string libraryItemId, IReadOnlyList<AudiobookshelfFeedEpisodeDto> episodes)
+        => DownloadEpisodesInternalAsync(libraryItemId, episodes);
+
+    private static async Task<bool> DownloadEpisodesInternalAsync<T>(string libraryItemId, IReadOnlyList<T> episodes)
     {
         if (episodes == null || episodes.Count == 0) return false;
 
@@ -205,12 +234,21 @@ public static class AudiobookshelfApiClient
 
     private static async Task SendPostAsync<T>(string relativePath, T payload)
     {
+        await SendPostForResponseAsync<object>(relativePath, payload);
+    }
+
+    private static async Task<TResponse?> SendPostForResponseAsync<TResponse>(string relativePath, object payload) where TResponse : class
+    {
         using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri(relativePath));
         AddAuthHeader(request);
         request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
 
         using var response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
+
+        if (typeof(TResponse) == typeof(object)) return null;
+        var stream = await response.Content.ReadAsStreamAsync();
+        return await JsonSerializer.DeserializeAsync<TResponse>(stream, JsonOptions);
     }
 
     private static Uri BuildUri(string relativePath)
