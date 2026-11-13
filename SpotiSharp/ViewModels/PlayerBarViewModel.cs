@@ -73,6 +73,82 @@ public class PlayerBarViewModel : BaseViewModel
         private set { SetProperty(ref _isTrackPlaying, value); }
     }
 
+    private int _progressMs;
+
+    public int ProgressMs
+    {
+        get { return _progressMs; }
+        private set { SetProperty(ref _progressMs, value); }
+    }
+
+    private int _durationMs;
+
+    public int DurationMs
+    {
+        get { return _durationMs; }
+        private set
+        {
+            if (!SetProperty(ref _durationMs, value)) return;
+            OnPropertyChanged(nameof(SeekMaxMs));
+        }
+    }
+
+    private bool _isDraggingSeek;
+
+    private int _seekDisplayMs;
+
+    /// <summary>What the podcast progress bar shows while dragging - a separate value from
+    /// <see cref="ProgressMs"/> so the live position ticking in underneath doesn't fight the
+    /// listener's finger mid-drag. Mirrors <see cref="ProgressMs"/> whenever not being dragged.</summary>
+    public int SeekDisplayMs
+    {
+        get { return _seekDisplayMs; }
+        private set { SetProperty(ref _seekDisplayMs, value); }
+    }
+
+    /// <summary>How far forward the podcast progress bar can be dragged. While Radio is conducting
+    /// an AudioBookshelf segment, this is the segment's own end - not the whole episode's duration -
+    /// so a drag can only ever reach the current section's boundary, never into a section the radio
+    /// hasn't decided to play yet. Floored at the current position so Maximum never ends up below
+    /// Value (e.g. a stale read right at a segment transition).</summary>
+    public int SeekMaxMs
+    {
+        get
+        {
+            var segmentEndMs = IsPodcastSource ? Models.RadioAudiobookshelfConductor.Instance.CurrentAudiobookshelfSegmentEndMs() : null;
+            var max = segmentEndMs ?? DurationMs;
+            return Math.Max(max, Math.Max(SeekDisplayMs, 1));
+        }
+    }
+
+    /// <summary>True while the bar is showing an AudioBookshelf episode - the podcast progress bar
+    /// only makes sense there (Spotify's own now-playing surfaces already have one).</summary>
+    public bool IsPodcastSource => _isAudiobookshelfSource;
+
+    /// <summary>Drag started on the podcast progress bar - freezes <see cref="SeekDisplayMs"/> against
+    /// the live position ticking in underneath until <see cref="CommitSeekDrag"/>.</summary>
+    public void BeginSeekDrag() => _isDraggingSeek = true;
+
+    /// <summary>Drag released - sends the seek to AudioBookshelf and resumes tracking live position.</summary>
+    public void CommitSeekDrag(int targetMs)
+    {
+        targetMs = Math.Max(0, targetMs);
+        _isDraggingSeek = false;
+        SeekDisplayMs = targetMs;
+        if (!IsPodcastSource) return;
+
+        ProgressMs = targetMs;
+        Models.AudiobookshelfPlaybackCommands.SeekTo?.Invoke(targetMs);
+    }
+
+    private void UpdateProgress(int progressMs, int durationMs)
+    {
+        ProgressMs = progressMs;
+        DurationMs = durationMs;
+        if (!_isDraggingSeek) SeekDisplayMs = progressMs;
+        OnPropertyChanged(nameof(SeekMaxMs));
+    }
+
     private static readonly TimeSpan PendingStateWindow = TimeSpan.FromSeconds(5);
 
     private DateTime _playStatePendingUntil;
@@ -122,9 +198,26 @@ public class PlayerBarViewModel : BaseViewModel
         _pollingStopped = false;
     }
 
+    /// <summary>Hands the player bar back from AudioBookshelf to Spotify - needed before any Spotify
+    /// playback that isn't a user tap through <see cref="NotifyPlaybackStarting(string,string,string)"/>
+    /// (e.g. Radio auto-advancing from an AB segment into a Spotify one), since the poll/push guards in
+    /// <see cref="RefreshPlayerValuesCore"/>/<see cref="ApplyPushedState"/> deliberately stay sticky on
+    /// an AB source otherwise. Also actually pauses AudioBookshelf's own ExoPlayer here - the two are
+    /// entirely separate audio tracks (same reasoning, in reverse, as the Android AudiobookshelfPlayer
+    /// pausing Spotify before it starts), so without this the AB episode keeps playing underneath
+    /// whatever Spotify starts next instead of yielding.</summary>
+    public void NotifySpotifyPlaybackStarting()
+    {
+        if (!_isAudiobookshelfSource) return;
+        _isAudiobookshelfSource = false;
+        Models.AudiobookshelfPlaybackCommands.Pause?.Invoke();
+        OnPropertyChanged(nameof(IsPodcastSource));
+    }
+
     public void NotifyPlaybackStarting(string title, string imageUrl, string trackUri)
     {
         NotifyPlaybackStarting();
+        NotifySpotifyPlaybackStarting();
 
         SongName = title;
         SongImageURL = imageUrl ?? string.Empty;
@@ -245,8 +338,20 @@ public class PlayerBarViewModel : BaseViewModel
     private void RefreshPlayerValuesCore()
     {
         // AudioBookshelf playback has nothing to do with Spotify's account/device state, so a Spotify
-        // poll finding "nothing playing" must not stomp the bar while an episode is actually playing.
-        if (_isAudiobookshelfSource && Models.AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() == true) return;
+        // poll must not stomp the bar while an AB episode owns it - not even transiently, since
+        // GetIsPlaying() reads ExoPlayer's IsPlaying, which goes false during buffering/pausing too
+        // (gating on it here used to drop _isAudiobookshelfSource on the very next tick and never
+        // recover, hiding the podcast progress bar for the rest of the episode).
+        if (_isAudiobookshelfSource)
+        {
+            // Nothing else drives a continuous position update while Radio is the one playing the
+            // episode (only the standalone Podcasts page's own poll calls ApplyAudiobookshelfState) -
+            // without this the podcast progress bar would freeze at whatever position it last had.
+            var positionMs = Models.AudiobookshelfPlaybackCommands.GetPositionMs?.Invoke() ?? ProgressMs;
+            var durationMs = Models.AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? DurationMs;
+            UpdateProgress(positionMs, durationMs);
+            return;
+        }
 
         CurrentlyPlayingContext currentlyPlayingContext = null;
         var api = APICaller.Instance;
@@ -273,6 +378,7 @@ public class PlayerBarViewModel : BaseViewModel
         }
 
         _isAudiobookshelfSource = false;
+        OnPropertyChanged(nameof(IsPodcastSource));
 
         string currentItemUri = null;
         int currentItemDurationMs = 0;
@@ -375,11 +481,12 @@ public class PlayerBarViewModel : BaseViewModel
 
     /// <summary>Updates the bar from the AudioBookshelf/Media3 player. Separate from <see cref="ApplyPushedState"/>
     /// by design — AudioBookshelf has no shuffle/repeat/skip/like concept here, so this only touches what's shared.</summary>
-    public void ApplyAudiobookshelfState(string episodeId, string name, string imageUrl, bool isPlaying, int progressMs)
+    public void ApplyAudiobookshelfState(string episodeId, string name, string imageUrl, bool isPlaying, int progressMs, int durationMs = 0)
     {
         if (string.IsNullOrEmpty(episodeId)) return;
 
         _isAudiobookshelfSource = true;
+        OnPropertyChanged(nameof(IsPodcastSource));
         ApplyIsPlaying(isPlaying);
         if (isPlaying) NotifyPlaybackStarting();
 
@@ -388,6 +495,7 @@ public class PlayerBarViewModel : BaseViewModel
         SongImageURL = imageUrl ?? string.Empty;
         _lastKnownUri = episodeId;
         _lastKnownProgressMs = progressMs;
+        UpdateProgress(progressMs, durationMs > 0 ? durationMs : DurationMs);
 
         _currentTrackUri = null;
         _currentTrackId = null;
@@ -402,9 +510,10 @@ public class PlayerBarViewModel : BaseViewModel
 
         // Same reasoning as the Web API poll guard above: App Remote keeps pushing state for whatever
         // Spotify last had loaded even while the user is actually listening to an AudioBookshelf episode.
-        if (_isAudiobookshelfSource && Models.AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() == true) return;
+        if (_isAudiobookshelfSource) return;
 
         _isAudiobookshelfSource = false;
+        OnPropertyChanged(nameof(IsPodcastSource));
         ApplyIsPlaying(isPlaying);
         if (isPlaying) NotifyPlaybackStarting();
 

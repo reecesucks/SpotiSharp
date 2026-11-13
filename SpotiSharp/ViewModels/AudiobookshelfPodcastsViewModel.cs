@@ -34,6 +34,9 @@ public class AudiobookshelfPodcastsViewModel : BaseViewModel
 
         // Otherwise nothing downloads until the next app login - this is the whole point of pinning.
         await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync();
+        // Same reasoning for Radio's episode pick - otherwise it keeps offering the newest episode of
+        // this show instead of the one just pinned until the next app login refreshes the cache.
+        await AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync();
 
         await Shell.Current.DisplayAlert("Binge set", $"Bingeing \"{episode.ShowName}\" from \"{episode.EpisodeName}\".", "OK");
     }
@@ -61,7 +64,7 @@ public class AudiobookshelfPodcastsViewModel : BaseViewModel
         }
 
         _nowPlaying = episode;
-        PlayerBarViewModel.Instance.ApplyAudiobookshelfState(episode.EpisodeId, episode.EpisodeName, episode.ShowCoverUrl, isPlaying: true, episode.ResumePositionMs);
+        PlayerBarViewModel.Instance.ApplyAudiobookshelfState(episode.EpisodeId, episode.EpisodeName, episode.ShowCoverUrl, isPlaying: true, episode.ResumePositionMs, episode.DurationMs);
         StartPolling();
     }
 
@@ -91,7 +94,7 @@ public class AudiobookshelfPodcastsViewModel : BaseViewModel
 
             var isPlaying = AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() ?? false;
             var positionMs = AudiobookshelfPlaybackCommands.GetPositionMs?.Invoke() ?? 0;
-            PlayerBarViewModel.Instance.ApplyAudiobookshelfState(_nowPlaying.EpisodeId, _nowPlaying.EpisodeName, _nowPlaying.ShowCoverUrl, isPlaying, positionMs);
+            PlayerBarViewModel.Instance.ApplyAudiobookshelfState(_nowPlaying.EpisodeId, _nowPlaying.EpisodeName, _nowPlaying.ShowCoverUrl, isPlaying, positionMs, _nowPlaying.DurationMs);
 
             // Save periodically while playing, and immediately on a pause - not every 1s tick,
             // since each save is a network round trip to the AudioBookshelf server.

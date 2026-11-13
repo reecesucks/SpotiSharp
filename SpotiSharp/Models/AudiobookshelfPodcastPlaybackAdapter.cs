@@ -48,6 +48,12 @@ internal class AudiobookshelfPodcastPlaybackAdapter : IPodcastPlaybackAdapter
             AudiobookshelfPlaybackCommands.Load(streamUrl, AudiobookshelfApiClient.BuildAuthHeaders(), nowPlayingInfo, item.PositionMs);
         }
 
+        // Nothing else tells the player bar this is now an AudioBookshelf episode - without this,
+        // PlayerBarViewModel.IsPodcastSource never flips on for Radio-driven playback, and the podcast
+        // progress bar stays hidden even while an AB segment is actually playing.
+        SpotiSharp.ViewModels.PlayerBarViewModel.Instance.ApplyAudiobookshelfState(
+            episode.EpisodeId, episode.EpisodeName, episode.ShowCoverUrl, isPlaying: true, item.PositionMs, episode.DurationMs);
+
         return PlaybackAttempt.Success;
     }
 
