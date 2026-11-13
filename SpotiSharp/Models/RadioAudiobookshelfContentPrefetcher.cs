@@ -34,6 +34,7 @@ internal static class RadioAudiobookshelfContentPrefetcher
                 {
                     AudiobookshelfPodcastsModel.RefreshEpisodesAsync().GetAwaiter().GetResult();
                     RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync().GetAwaiter().GetResult();
+                    AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync().GetAwaiter().GetResult();
                 }
 
                 DiagnosticLog.Write("[Prefetch] radio content warmed");

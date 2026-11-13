@@ -23,6 +23,11 @@ internal static class AudiobookshelfPlayer
     private static MediaSession? _session;
     private static bool _serviceStarted;
 
+    /// <summary>Title/show/artwork of whatever was last loaded, kept here (rather than inside the
+    /// service) because the service can be created/destroyed by the OS independently of playback -
+    /// <see cref="AudiobookshelfPlaybackService"/> reads this when (re)building its notification.</summary>
+    internal static AudiobookshelfNowPlayingInfo? CurrentInfo { get; private set; }
+
     internal static void Initialize()
     {
         AudiobookshelfPlaybackCommands.Load = Load;
@@ -89,6 +94,12 @@ internal static class AudiobookshelfPlayer
         {
             try
             {
+                // Spotify and this player are two entirely separate audio tracks on the same device -
+                // without this, starting an AB episode while a Spotify track is still playing leaves
+                // both audible at once instead of Spotify yielding the way it would for any other app.
+                PlaybackCommands.Pause?.Invoke();
+
+                CurrentInfo = info;
                 var player = EnsurePlayer();
                 EnsureServiceStarted();
 
@@ -122,6 +133,7 @@ internal static class AudiobookshelfPlayer
                 player.Prepare();
                 if (startPositionMs > 0) player.SeekTo(startPositionMs);
                 player.Play();
+                AudiobookshelfPlaybackService.UpdateNotification();
             }
             catch (Exception ex)
             {
@@ -135,14 +147,17 @@ internal static class AudiobookshelfPlayer
 
     private static void Play()
     {
+        PlaybackCommands.Pause?.Invoke();
         if (MainThread.IsMainThread) _player?.Play();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Play());
+        AudiobookshelfPlaybackService.UpdateNotification();
     }
 
     private static void Pause()
     {
         if (MainThread.IsMainThread) _player?.Pause();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Pause());
+        AudiobookshelfPlaybackService.UpdateNotification();
     }
 
     private static void SeekTo(int positionMs)

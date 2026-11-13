@@ -162,6 +162,7 @@ public class RadioAudiobookshelfSettingsPageViewModel : BaseViewModel
         {
             RadioAudiobookshelfConfigModel.ClearBinge(item.Id);
             item.SetBingeStatus(null);
+            await AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync();
             return;
         }
 
@@ -180,5 +181,8 @@ public class RadioAudiobookshelfSettingsPageViewModel : BaseViewModel
 
         // Otherwise nothing downloads until the next app login - this is the whole point of pinning.
         await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync();
+        // Same reasoning for Radio's episode pick - otherwise it keeps offering the newest episode of
+        // this show instead of the one just pinned until the next app login refreshes the cache.
+        await AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync();
     }
 }

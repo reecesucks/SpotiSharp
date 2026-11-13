@@ -145,6 +145,33 @@ public class RadioAudiobookshelfConductor
         }
     }
 
+    /// <summary>Where the currently-conducting AudioBookshelf segment ends, for the player bar's
+    /// podcast progress slider to cap forward drags at - null when Radio isn't active or the active
+    /// item isn't AudioBookshelf (nothing to cap against).</summary>
+    /// <summary>Lock-free by design, like the other UI-facing reads above (<see cref="CurrentItem"/>,
+    /// <see cref="RemainingItems"/>) - <see cref="TickAudiobookshelf"/> holds <see cref="_lock"/> across
+    /// a blocking <see cref="MainThread.InvokeOnMainThreadAsync{T}"/> round trip (reading position/duration
+    /// off the player), so a UI-thread caller taking the same lock here (e.g. the player bar's progress
+    /// slider evaluating its Maximum binding) can deadlock against it: the tick thread waits for the main
+    /// thread to run its queued continuation while the main thread sits blocked on this lock, which it
+    /// will now never get past to reach that continuation. Reads <see cref="_currentItemSnapshot"/>/
+    /// <see cref="_remainingSnapshot"/> instead, refreshed under the lock on every state change but safe
+    /// to read without it.</summary>
+    internal int? CurrentAudiobookshelfSegmentEndMs()
+    {
+        var active = _currentItemSnapshot;
+        if (active == null || active.SourceKind != PodcastSourceKind.Audiobookshelf) return null;
+
+        if (active.IsFinalPodcastSegment)
+        {
+            int durationMs = AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? 0;
+            return durationMs > 0 ? durationMs : null;
+        }
+
+        var nextSegment = _remainingSnapshot?.Skip(1).FirstOrDefault(item => item.IsPodcastSegment);
+        return nextSegment?.PositionMs;
+    }
+
     internal bool AdvanceManually()
     {
         lock (_lock)
@@ -244,7 +271,9 @@ public class RadioAudiobookshelfConductor
 
             bool isPlaying = AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() ?? false;
             int positionMs = AudiobookshelfPlaybackCommands.GetPositionMs?.Invoke() ?? 0;
+            int durationMs = AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? 0;
 
+            LogAudiobookshelfSampleIfNew(active, isPlaying, positionMs, durationMs);
             SaveAudiobookshelfProgress(active, isPlaying, positionMs);
 
             int? segmentEndMs = AudiobookshelfSegmentEndMs(active);
@@ -257,6 +286,22 @@ public class RadioAudiobookshelfConductor
                 CaptureState();
             }
         }
+    }
+
+    // One line per new playback sample the AB tick path acts on, same purpose as LogSampleIfNew
+    // above for Spotify - without this, a save-logs dump covering an AB replay/early-cut glitch
+    // would be silent for exactly the window that matters, since TickAudiobookshelf otherwise only
+    // logs when it decides to advance.
+    private (string? episodeId, bool isPlaying, int positionMs, int durationMs) _lastLoggedAbSample;
+
+    private void LogAudiobookshelfSampleIfNew(RadioAudiobookshelfItem active, bool isPlaying, int positionMs, int durationMs)
+    {
+        var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(active.PlayUri);
+        var sample = (episodeId, isPlaying, positionMs, durationMs);
+        if (sample == _lastLoggedAbSample) return;
+        _lastLoggedAbSample = sample;
+
+        DiagnosticLog.Write($"[Sample] AudioBookshelf active #{_state.ActiveIndex} | {(isPlaying ? "playing" : "paused")} {Label(active.PlayUri)} {positionMs}/{durationMs}");
     }
 
     private DateTime _lastAbProgressSaveUtc = DateTime.MinValue;
@@ -399,8 +444,14 @@ public class RadioAudiobookshelfConductor
 
         if (item.IsPodcastSegment)
         {
+            // The AB adapter sets the player bar's AudioBookshelf state itself; anything else playing
+            // through this method is Spotify-bound and needs the bar handed back explicitly, since the
+            // poll/push guards now stay sticky on an AB source until told otherwise.
+            if (item.SourceKind != PodcastSourceKind.Audiobookshelf) SpotiSharp.ViewModels.PlayerBarViewModel.Instance.NotifySpotifyPlaybackStarting();
             return PodcastPlaybackAdapters.For(item.SourceKind).Play(item);
         }
+
+        SpotiSharp.ViewModels.PlayerBarViewModel.Instance.NotifySpotifyPlaybackStarting();
 
         if (PlaybackCommands.PlayUri != null)
         {

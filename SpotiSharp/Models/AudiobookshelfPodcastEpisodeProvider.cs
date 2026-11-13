@@ -4,10 +4,11 @@ namespace SpotiSharp.Models;
 
 /// <summary>The AudioBookshelf episode provider - picked instead of <see cref="SpotifyPodcastEpisodeProvider"/>
 /// when the main settings page's "Radio podcast source" switch (<see cref="StorageHandler.UseAudiobookshelfPodcasts"/>)
-/// is set to AudioBookshelf. No show-weighting or binge-tracking yet (AudioBookshelf has no equivalent
-/// UI for either today) - just the most recently released episodes across your AudioBookshelf shows,
-/// reading the same disk-cached list the standalone Podcasts page shows, kept warm by
-/// <see cref="RadioAudiobookshelfContentPrefetcher"/>.</summary>
+/// is set to AudioBookshelf. No show-weighting yet (AudioBookshelf has no equivalent UI for it today),
+/// but a show pinned as "binge" gets its next unfinished episode (<see cref="AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync"/>)
+/// instead of whatever's newest - the rest of the slots are filled with the most recently released
+/// episodes across non-binged AudioBookshelf shows, reading the same disk-cached list the standalone
+/// Podcasts page shows. Both caches are kept warm by <see cref="RadioAudiobookshelfContentPrefetcher"/>.</summary>
 internal class AudiobookshelfPodcastEpisodeProvider : IPodcastEpisodeProvider
 {
     private const int EPISODE_COUNT = 3;
@@ -23,12 +24,24 @@ internal class AudiobookshelfPodcastEpisodeProvider : IPodcastEpisodeProvider
         staleBingeEpisodeIds = new HashSet<string>();
         moreEpisodes = new List<RecentEpisode>();
 
-        var episodes = AudiobookshelfPodcastsModel.GetDiskCachedEpisodes();
-        if (episodes == null || episodes.Count == 0) return new List<IPodcastEpisodeSource>();
+        var bingeShowIds = RadioAudiobookshelfConfigModel.GetAllBingeShowIds();
+        var bingeNext = AudiobookshelfPodcastsModel.GetDiskCachedBingeNextEpisodes();
+        var bingeEpisodes = bingeShowIds
+            .Select(showId => bingeNext.GetValueOrDefault(showId))
+            .Where(episode => episode != null)
+            .Cast<AudiobookshelfEpisode>()
+            .ToList();
 
-        return episodes
-            .Where(episode => episode.DurationMs > 0)
-            .OrderByDescending(episode => episode.ReleaseDate)
+        var episodes = AudiobookshelfPodcastsModel.GetDiskCachedEpisodes() ?? new List<AudiobookshelfEpisode>();
+        var bingeShowIdSet = bingeShowIds.ToHashSet();
+        var recentPool = episodes
+            .Where(episode => episode.DurationMs > 0 && !bingeShowIdSet.Contains(episode.LibraryItemId))
+            .OrderByDescending(episode => episode.ReleaseDate);
+
+        if (bingeEpisodes.Count == 0 && !recentPool.Any()) return new List<IPodcastEpisodeSource>();
+
+        return bingeEpisodes
+            .Concat(recentPool)
             .Take(EPISODE_COUNT)
             .Cast<IPodcastEpisodeSource>()
             .ToList();
