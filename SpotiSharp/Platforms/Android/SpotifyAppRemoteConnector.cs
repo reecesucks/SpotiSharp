@@ -78,6 +78,7 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.Pause = () => { LogCommand("pause"); Pause(); };
         PlaybackCommands.Resume = () => { LogCommand("resume"); Resume(); };
         PlaybackCommands.SkipNext = () => { LogCommand("skip next"); SkipNext(); };
+        PlaybackCommands.SkipNextAsync = () => { LogCommand("skip next"); return SkipNextAsync(); };
         PlaybackCommands.SkipPrevious = () => { LogCommand("skip previous"); SkipPrevious(); };
         PlaybackCommands.SetShuffle = shuffle => { LogCommand($"set shuffle {shuffle}"); SetShuffle(shuffle); };
         PlaybackCommands.ToggleRepeat = () => { LogCommand("toggle repeat"); ToggleRepeat(); };
@@ -159,6 +160,21 @@ internal static class SpotifyAppRemoteConnector
 
     private static void SkipNext(bool isRetry = false) =>
         _appRemote?.PlayerApi.SkipNext()?.SetErrorCallback(new CommandErrorCallback("skip next", isRetry ? null : () => SkipNext(true)));
+
+    /// <summary>Result-reporting "skip next", with no retry of its own - unlike <see cref="SkipNext"/>,
+    /// a caller flushing many of these in a row (<see cref="AppRemotePlayback"/>) needs to see a
+    /// failure as "nothing left to skip past", not have it silently retried and blur that signal.</summary>
+    private static Task<bool> SkipNextAsync()
+    {
+        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+
+        var tcs = new TaskCompletionSource<bool>();
+        _appRemote.PlayerApi.SkipNext()
+            ?.SetResultCallback(new PlayResultCallback(tcs))
+            ?.SetErrorCallback(new PlayErrorCallback(tcs, "skip next"));
+
+        return WithTimeout(tcs.Task, "skip next");
+    }
 
     private static void SkipPrevious(bool isRetry = false) =>
         _appRemote?.PlayerApi.SkipPrevious()?.SetErrorCallback(new CommandErrorCallback("skip previous", isRetry ? null : () => SkipPrevious(true)));

@@ -30,10 +30,12 @@ internal static class RadioAudiobookshelfContentPrefetcher
 
                 // Only warmed when the radio is actually set to use it - no point making AudioBookshelf
                 // network calls on every app start for a source that's switched off.
+                DiagnosticLog.Write($"[Prefetch] AudioBookshelf gate: UseAudiobookshelfPodcasts={StorageHandler.UseAudiobookshelfPodcasts}, " +
+                    $"AudiobookshelfApiClient.IsConfigured={AudiobookshelfApiClient.IsConfigured}");
                 if (StorageHandler.UseAudiobookshelfPodcasts && AudiobookshelfApiClient.IsConfigured)
                 {
                     AudiobookshelfPodcastsModel.RefreshEpisodesAsync().GetAwaiter().GetResult();
-                    RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync().GetAwaiter().GetResult();
+                    RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync("app start prefetch").GetAwaiter().GetResult();
                     AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync().GetAwaiter().GetResult();
                 }
 

@@ -150,14 +150,15 @@ public static class AudiobookshelfApiClient
     /// <see cref="GetMediaProgressAsync"/> reads it. Never throws - returns whether it succeeded, so a
     /// caller (see <see cref="SpotiSharp.Models.AudiobookshelfProgressSyncModel"/>) can queue a failed
     /// save (e.g. offline) and retry it later instead of losing it.</summary>
-    public static async Task<bool> SaveProgressAsync(string libraryItemId, string episodeId, int currentPositionMs, int durationMs)
+    public static async Task<bool> SaveProgressAsync(string libraryItemId, string episodeId, int currentPositionMs, int durationMs, bool isFinished = false)
     {
         try
         {
             var payload = new AudiobookshelfProgressUpdate
             {
                 CurrentTime = currentPositionMs / 1000.0,
-                Duration = durationMs > 0 ? durationMs / 1000.0 : null
+                Duration = durationMs > 0 ? durationMs / 1000.0 : null,
+                IsFinished = isFinished
             };
             await SendPatchAsync($"api/me/progress/{libraryItemId}/{episodeId}", payload);
             return true;

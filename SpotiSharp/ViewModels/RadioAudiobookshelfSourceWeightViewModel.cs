@@ -23,9 +23,9 @@ public class RadioAudiobookshelfSourceWeightViewModel : BaseViewModel
     public ICommand ToggleBinge { get; }
     public bool SupportsBinge => ToggleBinge != null;
 
-    // AudioBookshelf shows don't support weighting yet (the AudioBookshelf episode provider always
-    // just takes the most recent episodes across shows) - hides the weight stepper there rather than
-    // showing a control that does nothing.
+    // False only for a source type whose provider doesn't act on a weight - hides the stepper there
+    // rather than showing a control that does nothing. AudioBookshelf shows support weighting the same
+    // way Spotify shows and playlists do (AudiobookshelfPodcastEpisodeProvider).
     public bool ShowWeight { get; }
 
     private string _bingeStatus;

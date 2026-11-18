@@ -23,4 +23,10 @@ public static class AudiobookshelfPlaybackCommands
     public static Func<int>? GetPositionMs { get; set; }
     public static Func<int>? GetDurationMs { get; set; }
     public static Func<bool>? GetIsPlaying { get; set; }
+
+    /// <summary>Set by the player whenever <see cref="Pause"/> was called from the user tapping pause
+    /// (the player bar or the lock-screen/notification controls) rather than from Radio's own Load/Play
+    /// flow - so a tick seeing "not playing" can tell a listener's deliberate pause from a silent stall
+    /// and only treat the latter as something to recover from.</summary>
+    public static bool UserInitiatedPause { get; set; }
 }

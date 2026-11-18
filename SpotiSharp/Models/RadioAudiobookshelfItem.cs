@@ -32,9 +32,22 @@ public class RadioAudiobookshelfItem : INotifyPropertyChanged, IRadioQueueItem
     // Null for podcasts, and for radios cached before this existed.
     public string Source { get; }
 
+    private readonly PodcastSourceKind _sourceKind;
+
     // Which engine a podcast segment plays through. Spotify (default) for songs and for radios
     // cached before this existed, so old disk-cached radios still deserialize correctly.
-    public PodcastSourceKind SourceKind { get; }
+    //
+    // Self-corrects from PlayUri's own prefix rather than trusting _sourceKind outright - a disk-cached
+    // AudioBookshelf segment has come back on a real device with _sourceKind reset to the Spotify
+    // default despite PlayUri still correctly reading "audiobookshelf:episode:...", which sent the
+    // segment through AppRemotePlayback (playing the literal synthetic uri as if it were a real Spotify
+    // one - "Cannot play specified uri: [UNKNOWN]") instead of AudiobookshelfPodcastPlaybackAdapter.
+    // PlayUri's prefix is the one thing every log capture shows surviving the round trip intact, so it's
+    // the one source of truth worth trusting here.
+    public PodcastSourceKind SourceKind =>
+        PlayUri != null && PlayUri.StartsWith("audiobookshelf:episode:", StringComparison.Ordinal)
+            ? PodcastSourceKind.Audiobookshelf
+            : _sourceKind;
 
     private bool _isCurrent;
 
@@ -110,7 +123,7 @@ public class RadioAudiobookshelfItem : INotifyPropertyChanged, IRadioQueueItem
     // The episode behind a "More episodes" row in the podcasts view. Those rows sit below the
     // radio and are never handed to the conductor: tapping one marks it up next instead.
     [JsonIgnore]
-    public RecentEpisode MoreEpisode { get; private init; }
+    public IPodcastEpisodeSource MoreEpisode { get; private init; }
 
     // The caption row that starts the "More episodes" section.
     [JsonIgnore]
@@ -161,7 +174,7 @@ public class RadioAudiobookshelfItem : INotifyPropertyChanged, IRadioQueueItem
         ShowName = showName;
         DurationMs = durationMs;
         IsWholeEpisode = isWholeEpisode;
-        SourceKind = sourceKind;
+        _sourceKind = sourceKind;
     }
 
     internal static RadioAudiobookshelfItem ForSong(string title, string artists, string imageUrl, string trackUri, string source)
@@ -169,14 +182,14 @@ public class RadioAudiobookshelfItem : INotifyPropertyChanged, IRadioQueueItem
         return new RadioAudiobookshelfItem(false, title, artists, imageUrl, trackUri, 0, new List<bool>(), source: source);
     }
 
-    internal static RadioAudiobookshelfItem ForMoreEpisode(RecentEpisode episode)
+    internal static RadioAudiobookshelfItem ForMoreEpisode(IPodcastEpisodeSource episode)
     {
         var subtitle = episode.ReleaseDate > DateTime.MinValue
             ? $"{episode.ShowName} · {episode.ReleaseDate:d MMM yyyy}"
             : episode.ShowName;
 
-        return new RadioAudiobookshelfItem(false, episode.EpisodeName, subtitle, episode.ShowImageUrl, $"spotify:episode:{episode.EpisodeId}", 0,
-            new List<bool>(), showName: episode.ShowName, durationMs: episode.DurationMs)
+        return new RadioAudiobookshelfItem(false, episode.EpisodeName, subtitle, episode.ShowImageUrl, episode.PlayUri, 0,
+            new List<bool>(), showName: episode.ShowName, durationMs: episode.DurationMs, sourceKind: episode.SourceKind)
         {
             MoreEpisode = episode
         };

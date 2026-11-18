@@ -14,6 +14,16 @@ public class AudiobookshelfShowGroupViewModel : BaseViewModel
     public string Name { get; }
     public string ImageUrl { get; }
 
+    // Set on the first binge-pinned show when the owning page view model orders the list as
+    // regular shows then binge shows - purely a visual cue (a bit of extra top margin in the
+    // XAML trigger), not a section header, so a listener bingeing nothing never sees a gap at all.
+    private bool _isFirstBingeShow;
+    public bool IsFirstBingeShow
+    {
+        get { return _isFirstBingeShow; }
+        internal set { SetProperty(ref _isFirstBingeShow, value); }
+    }
+
     private bool _isExpanded;
     public bool IsExpanded
     {
@@ -88,9 +98,29 @@ public class AudiobookshelfShowGroupViewModel : BaseViewModel
 
     private void ShowMore(bool initial = false)
     {
-        int count = initial ? Math.Min(PAGE_SIZE, _allEpisodes.Count) : Math.Min(Episodes.Count + PAGE_SIZE, _allEpisodes.Count);
-        Episodes = _allEpisodes.Take(count).ToList();
-        CanLoadMore = count < _allEpisodes.Count;
+        var source = FilteredEpisodes();
+        int count = initial ? Math.Min(PAGE_SIZE, source.Count) : Math.Min(Episodes.Count + PAGE_SIZE, source.Count);
+        Episodes = source.Take(count).ToList();
+        CanLoadMore = count < source.Count;
+    }
+
+    // The Podcasts page's "Unplayed" toggle (RadioAudiobookshelfConfigModel.GetPodcastsPageUnplayedOnly)
+    // is read live here rather than cached at construction - RefreshUnplayedFilter below is what
+    // re-reads it and recomputes Episodes when the listener flips the toggle.
+    private List<AudiobookshelfEpisode> FilteredEpisodes()
+    {
+        return RadioAudiobookshelfConfigModel.GetPodcastsPageUnplayedOnly()
+            ? _allEpisodes.Where(episode => !episode.IsFinished).ToList()
+            : _allEpisodes;
+    }
+
+    /// <summary>Recomputes the visible slice from the already-fetched back catalog against the
+    /// current "Unplayed" setting - a no-op before this show has ever been expanded (nothing fetched
+    /// yet to filter), since the next expand/fetch applies the current setting anyway.</summary>
+    internal void RefreshUnplayedFilter()
+    {
+        if (_allEpisodes.Count == 0) return;
+        ShowMore(initial: true);
     }
 
     private static void MarkDownloaded(List<AudiobookshelfEpisode> episodes)

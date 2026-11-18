@@ -61,6 +61,9 @@ public class RadioAudiobookshelfModel
                 segmentStartsMs.AddRange(spliceStartsMs);
                 int totalSegments = segmentStartsMs.Count;
 
+                DiagnosticLog.Write($"[Radio] segmenting \"{episode.EpisodeName}\" on {spliceStartsMs.Count} splice point(s) from {startMs / 1000}s: " +
+                    $"[{string.Join(", ", segmentStartsMs.Select(ms => $"{ms / 1000}s"))}] (episode has {episode.SpliceStartMs.Count} total, {episode.SpliceStartMs.Count - spliceStartsMs.Count} before resume/past the end)");
+
                 for (int segmentIndex = 0; segmentIndex < totalSegments; segmentIndex++)
                 {
                     AddSongs(radio, songPool, ref songIndex, SongsPerSection);
@@ -76,6 +79,9 @@ public class RadioAudiobookshelfModel
 
             int totalFixedSegments = fullEpisodes ? 1 : Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
             int firstSegmentNumber = totalFixedSegments - segmentCount;
+
+            DiagnosticLog.Write($"[Radio] segmenting \"{episode.EpisodeName}\" on the fixed {SegmentLengthMs / 1000}s timer from {startMs / 1000}s " +
+                $"({segmentCount} segment(s), no usable splice data: {(episode.SpliceStartMs?.Count ?? 0)} splice point(s) on the episode, fullEpisodes={fullEpisodes})");
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
@@ -120,6 +126,12 @@ public class RadioAudiobookshelfModel
         var savedAlbums = SavedAlbumsModel.CachedAlbums;
         var random = new Random();
 
+        // Songs/podcast segments already in the radio - BuildSongPool's own pool is deduped by
+        // URI, but an album pulled in here is a separate source with no such guarantee, so a song
+        // that's both saved as an album and sitting in a playlist/liked source would otherwise be
+        // queued twice.
+        var usedUris = new HashSet<string>(radio.Select(item => item.PlayUri));
+
         foreach (var (albumId, mode) in albumModes)
         {
             var album = savedAlbums.FirstOrDefault(savedAlbum => savedAlbum.AlbumId == albumId);
@@ -130,11 +142,14 @@ public class RadioAudiobookshelfModel
 
             // a random handful, kept in album track order
             var picked = songs
+                .Where(song => !usedUris.Contains(song.SongUri))
                 .OrderBy(_ => random.Next())
                 .Take(ALBUM_SONG_COUNT)
                 .OrderBy(song => songs.IndexOf(song))
                 .Select(song => RadioAudiobookshelfItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri, ShortSourceName(album.AlbumName)))
                 .ToList();
+
+            foreach (var item in picked) usedUris.Add(item.PlayUri);
 
             if (mode == RadioAudiobookshelfAlbumMode.Consecutive)
             {
@@ -187,7 +202,7 @@ public class RadioAudiobookshelfModel
     /// and resume logic below stays source-agnostic.
     /// </summary>
     private static List<IPodcastEpisodeSource> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds,
-        out List<RecentEpisode> moreEpisodes)
+        out List<IPodcastEpisodeSource> moreEpisodes)
     {
         return EpisodeProvider.GetEpisodes(out liveProgress, out staleBingeEpisodeIds, out moreEpisodes);
     }
@@ -195,7 +210,7 @@ public class RadioAudiobookshelfModel
     private const string MORE_EPISODES_CACHE_KEY = "radio_more_episodes";
 
     /// <summary>The episodes the last generation left out, for the podcasts view's "More episodes".</summary>
-    internal static List<RecentEpisode> CachedMoreEpisodes => DiskCacheHelper.Load<List<RecentEpisode>>(MORE_EPISODES_CACHE_KEY);
+    internal static List<IPodcastEpisodeSource> CachedMoreEpisodes => DiskCacheHelper.Load<List<IPodcastEpisodeSource>>(MORE_EPISODES_CACHE_KEY);
 
     // the playlists currently feeding the radio's song pool
     internal static List<string> SourcePlaylistIds()

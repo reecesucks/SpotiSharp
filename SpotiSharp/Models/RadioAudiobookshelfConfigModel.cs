@@ -103,6 +103,17 @@ public static class RadioAudiobookshelfConfigModel
         Save();
     }
 
+    internal static bool GetPodcastsPageUnplayedOnly()
+    {
+        return Config.PodcastsPageUnplayedOnly;
+    }
+
+    internal static void SetPodcastsPageUnplayedOnly(bool unplayedOnly)
+    {
+        Config.PodcastsPageUnplayedOnly = unplayedOnly;
+        Save();
+    }
+
     internal static RadioAudiobookshelfAlbumMode GetAlbumMode(string albumId)
     {
         return Config.AlbumModes.GetValueOrDefault(albumId);
@@ -115,13 +126,13 @@ public static class RadioAudiobookshelfConfigModel
         Save();
     }
 
-    internal static IReadOnlyList<RecentEpisode> GetUpNext()
+    internal static IReadOnlyList<IPodcastEpisodeSource> GetUpNext()
     {
         return Config.UpNextEpisodes;
     }
 
     /// <summary>Adds the episode to the end of up next, or takes it out if it's already there.</summary>
-    internal static void ToggleUpNext(RecentEpisode episode)
+    internal static void ToggleUpNext(IPodcastEpisodeSource episode)
     {
         if (episode == null || string.IsNullOrEmpty(episode.EpisodeId)) return;
 
