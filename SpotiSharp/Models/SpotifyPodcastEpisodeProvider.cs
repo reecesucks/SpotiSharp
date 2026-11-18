@@ -21,11 +21,11 @@ internal class SpotifyPodcastEpisodeProvider : IPodcastEpisodeProvider
     /// the lookup failed, in which case the cached verdict is all we have.
     /// </summary>
     public List<IPodcastEpisodeSource> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds,
-        out List<RecentEpisode> moreEpisodes)
+        out List<IPodcastEpisodeSource> moreEpisodes)
     {
         liveProgress = null;
         staleBingeEpisodeIds = new HashSet<string>();
-        moreEpisodes = new List<RecentEpisode>();
+        moreEpisodes = new List<IPodcastEpisodeSource>();
 
         var cached = RecentEpisodesModel.GetDiskCachedEpisodesAcrossAllShows();
         var episodes = cached != null && cached.Count > 0 && cached.All(episode => episode.DurationMs > 0 && !string.IsNullOrEmpty(episode.ShowId))
@@ -36,7 +36,17 @@ internal class SpotifyPodcastEpisodeProvider : IPodcastEpisodeProvider
         var excludedEpisodeIds = RadioAudiobookshelfConfigModel.Config.ExcludedEpisodeIds;
         if (excludedEpisodeIds.Count > 0) episodes = episodes.Where(episode => !excludedEpisodeIds.Contains(episode.EpisodeId)).ToList();
 
-        var configuredShowWeights = RadioAudiobookshelfConfigModel.Config.ShowWeights;
+        // ShowWeights is one dictionary shared with AudiobookshelfPodcastEpisodeProvider (keyed there
+        // by LibraryItemId, a different id space) - unscoped, a weight set on an AudioBookshelf show
+        // (from before switching sources, or just never touched since) would flip this provider's pick
+        // into "only explicitly-weighted shows" and silently exclude every Spotify show that was never
+        // itself weighted. Scoping to known Spotify show ids keeps AudioBookshelf's weights out of it.
+        var spotifyShowIds = PlaylistListModel.SavedShows.Select(show => show.Id)
+            .Concat(episodes.Select(episode => episode.ShowId))
+            .ToHashSet();
+        var configuredShowWeights = RadioAudiobookshelfConfigModel.Config.ShowWeights
+            .Where(entry => spotifyShowIds.Contains(entry.Key))
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
         var showWeights = ActiveWeights(configuredShowWeights);
         var bingeShowIds = RadioAudiobookshelfConfigModel.Config.BingeShows.Keys.ToList();
 
@@ -62,7 +72,10 @@ internal class SpotifyPodcastEpisodeProvider : IPodcastEpisodeProvider
 
         // Picked by the listener to lead this radio; they stand outside the normal pick so the
         // pool below can't hand them out a second time.
+        // Shared with AudiobookshelfPodcastEpisodeProvider's own picks - only the Spotify-shaped ones
+        // are this provider's to act on.
         var upNext = RadioAudiobookshelfConfigModel.GetUpNext()
+            .OfType<RecentEpisode>()
             .Where(episode => !excludedEpisodeIds.Contains(episode.EpisodeId))
             .ToList();
         var upNextIds = upNext.Select(episode => episode.EpisodeId).ToHashSet();
@@ -127,6 +140,7 @@ internal class SpotifyPodcastEpisodeProvider : IPodcastEpisodeProvider
             .Where(episode => !inRadio.Contains(episode.EpisodeId))
             .GroupBy(episode => episode.EpisodeId)
             .Select(group => group.First())
+            .Cast<IPodcastEpisodeSource>()
             .ToList();
 
         return radioEpisodes.Cast<IPodcastEpisodeSource>().ToList();

@@ -248,10 +248,10 @@
 
                                 <!-- revealed by a long press, replaces the row content -->
                                 <Grid Grid.Column="0" Grid.ColumnSpan="2"
-                                      ColumnDefinitions="*,*,*"
+                                      ColumnDefinitions="*,*,*,*"
                                       ColumnSpacing="6"
                                       IsVisible="{Binding IsConfirmingRemove}">
-                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
+                                    <Border Grid.Column="0" Grid.ColumnSpan="4"
                                             BackgroundColor="{DynamicResource Danger}"
                                             StrokeShape="RoundRectangle 6"
                                             Stroke="Transparent"
@@ -267,7 +267,7 @@
                                                VerticalOptions="Center" />
                                     </Border>
                                     <!-- a "More episodes" row isn't in the radio, so the only thing to do is keep it out for good -->
-                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
+                                    <Border Grid.Column="0" Grid.ColumnSpan="4"
                                             BackgroundColor="{DynamicResource Danger}"
                                             StrokeShape="RoundRectangle 6"
                                             Stroke="Transparent"
@@ -318,7 +318,7 @@
                                     </Border>
                                     <!-- a collapsed episode already stands for every section, so
                                          "remove section" and "remove all" would be one button twice -->
-                                    <Border Grid.Column="0" Grid.ColumnSpan="2"
+                                    <Border Grid.Column="0" Grid.ColumnSpan="3"
                                             BackgroundColor="{DynamicResource Danger}"
                                             StrokeShape="RoundRectangle 6"
                                             Stroke="Transparent"
@@ -345,6 +345,23 @@
                                                                    CommandParameter="{Binding .}" />
                                         </Border.GestureRecognizers>
                                         <Label Text="Not interested"
+                                               FontSize="11"
+                                               LineBreakMode="WordWrap"
+                                               TextColor="{DynamicResource OnDanger}"
+                                               HorizontalOptions="Center"
+                                               HorizontalTextAlignment="Center"
+                                               VerticalOptions="Center" />
+                                    </Border>
+                                    <Border Grid.Column="3"
+                                            BackgroundColor="{DynamicResource Danger}"
+                                            StrokeShape="RoundRectangle 6"
+                                            Stroke="Transparent"
+                                            IsVisible="{Binding IsPodcastSegment}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.MarkAsPlayed, Source={x:Reference RadioPageRoot}}"
+                                                                   CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Label Text="Mark as played"
                                                FontSize="11"
                                                LineBreakMode="WordWrap"
                                                TextColor="{DynamicResource OnDanger}"

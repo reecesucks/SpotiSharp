@@ -23,7 +23,13 @@ public class RadioAudiobookshelfConfig
 
     public RadioAudiobookshelfListenMode ListenMode { get; set; } = RadioAudiobookshelfListenMode.Mix;
 
+    // The AudioBookshelf Podcasts page's "Unplayed" toggle - on by default, including for configs
+    // saved before this field existed (the property initializer below still runs on deserialization,
+    // so an old save with no such field still comes back true).
+    public bool PodcastsPageUnplayedOnly { get; set; } = true;
+
     // Episodes picked from "More episodes" to lead the next generated radio, in the order they
     // were picked. Whole episodes rather than ids, since a binge look-ahead isn't in any cache.
-    public List<RecentEpisode> UpNextEpisodes { get; set; } = new List<RecentEpisode>();
+    // Spotify or AudioBookshelf - see PodcastEpisodeSourceConverter for how this round-trips either.
+    public List<IPodcastEpisodeSource> UpNextEpisodes { get; set; } = new List<IPodcastEpisodeSource>();
 }

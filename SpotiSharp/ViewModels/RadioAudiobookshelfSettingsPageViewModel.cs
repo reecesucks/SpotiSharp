@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Input;
 using SpotiSharp.Helpers;
 using SpotiSharp.Models;
+using SpotiSharpBackend;
 
 namespace SpotiSharp.ViewModels;
 
@@ -20,12 +21,19 @@ public class RadioAudiobookshelfSettingsPageViewModel : BaseViewModel
     {
         GoBack = new Command(async () => await Shell.Current.GoToAsync(".."));
         ClearCache = new Command(async () => await ClearCacheAsync());
+
+        // Only one podcast source's weight/binge page belongs here - whichever the main settings
+        // page's "Radio podcast source" switch actually points the radio at. The other source's
+        // page would just be dead weight the listener can swipe to but that never affects anything.
+        var podcastSourcePage = StorageHandler.UseAudiobookshelfPodcasts
+            ? new RadioAudiobookshelfSourceListViewModel("Podcasts (AudioBookshelf)", LoadAudiobookshelfPodcastToggles,
+                () => AudiobookshelfPodcastsModel.RefreshEpisodesAsync().GetAwaiter().GetResult())
+            : new RadioAudiobookshelfSourceListViewModel("Podcasts", LoadPodcastToggles, () => PlaylistListModel.RefreshSavedShows());
+
         Pages = new List<object>
         {
             new RadioAudiobookshelfSourceListViewModel("Playlists", LoadPlaylistToggles, () => PlaylistListModel.RefreshPlayLists()),
-            new RadioAudiobookshelfSourceListViewModel("Podcasts", LoadPodcastToggles, () => PlaylistListModel.RefreshSavedShows()),
-            new RadioAudiobookshelfSourceListViewModel("Podcasts (AudioBookshelf)", LoadAudiobookshelfPodcastToggles,
-                () => AudiobookshelfPodcastsModel.RefreshEpisodesAsync().GetAwaiter().GetResult()),
+            podcastSourcePage,
             new RadioAudiobookshelfAlbumListViewModel(),
             new RadioAudiobookshelfMixSettingsViewModel()
         };
@@ -147,11 +155,10 @@ public class RadioAudiobookshelfSettingsPageViewModel : BaseViewModel
                     first.LibraryItemId,
                     first.ShowName,
                     first.ShowCoverUrl,
-                    0,
-                    (_, _) => { }, // AudioBookshelf shows don't support weighting yet
+                    RadioAudiobookshelfConfigModel.GetShowWeight(first.LibraryItemId),
+                    RadioAudiobookshelfConfigModel.SetShowWeight,
                     BingeStatusFor(first.LibraryItemId),
-                    ToggleAudiobookshelfBingeAsync,
-                    showWeight: false);
+                    ToggleAudiobookshelfBingeAsync);
             })
             .ToList();
     }
@@ -180,7 +187,7 @@ public class RadioAudiobookshelfSettingsPageViewModel : BaseViewModel
         item.SetBingeStatus(BingeStatusFor(item.Id));
 
         // Otherwise nothing downloads until the next app login - this is the whole point of pinning.
-        await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync();
+        await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync("pin as binged");
         // Same reasoning for Radio's episode pick - otherwise it keeps offering the newest episode of
         // this show instead of the one just pinned until the next app login refreshes the cache.
         await AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync();

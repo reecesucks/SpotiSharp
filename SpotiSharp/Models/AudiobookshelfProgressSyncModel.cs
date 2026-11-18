@@ -18,25 +18,49 @@ public static class AudiobookshelfProgressSyncModel
         public string EpisodeId { get; set; } = string.Empty;
         public int PositionMs { get; set; }
         public int DurationMs { get; set; }
+        public bool IsFinished { get; set; }
         public DateTime QueuedAtUtc { get; set; }
     }
 
     private static Dictionary<string, PendingSave>? _queue;
     private static bool _flushInProgress;
 
+    // A queued save this old is almost certainly stale - genuine offline stretches are minutes or
+    // hours, not days, and after that long the listener has very likely moved on (finished the
+    // episode some other way, like the Radio page's "Mark as played", or just kept listening past
+    // where this position was saved). Replaying it then would silently overwrite whatever's
+    // actually current on the server - exactly what happened to a save queued back when progress
+    // saves for Radio-driven playback were failing outright, replayed days later once that was fixed.
+    private static readonly TimeSpan MaxPendingAge = TimeSpan.FromHours(24);
+
     /// <summary>Flushes anything queued, then saves this position - queuing it in turn if that fails too.</summary>
-    public static async Task SaveOrQueueAsync(string libraryItemId, string episodeId, int positionMs, int durationMs)
+    public static async Task SaveOrQueueAsync(string libraryItemId, string episodeId, int positionMs, int durationMs, bool isFinished = false)
     {
         await FlushPendingAsync();
 
-        var succeeded = await AudiobookshelfApiClient.SaveProgressAsync(libraryItemId, episodeId, positionMs, durationMs);
+        var succeeded = await AudiobookshelfApiClient.SaveProgressAsync(libraryItemId, episodeId, positionMs, durationMs, isFinished);
         if (succeeded)
         {
-            DiagnosticLog.Write($"[Audiobookshelf] progress saved: episode {episodeId} at {positionMs}ms");
+            DiagnosticLog.Write($"[Audiobookshelf] progress saved: episode {episodeId} at {positionMs}ms{(isFinished ? " (finished)" : "")}");
+
+            // This save went straight through, bypassing the queue entirely - but a stale entry for
+            // the same episode queued from an earlier failure (e.g. back when progress saves for
+            // Radio-driven playback were silently failing outright, before that bug was fixed) would
+            // otherwise just sit there forever, waiting for some unrelated future flush to blindly
+            // replay it and stomp this (newer, possibly "finished") position with old data. Nothing
+            // else ever clears a queued entry except a flush that successfully resends that exact
+            // one, so a save that skips the queue has to clear it itself.
+            Dequeue(episodeId);
             return;
         }
 
-        Enqueue(libraryItemId, episodeId, positionMs, durationMs);
+        Enqueue(libraryItemId, episodeId, positionMs, durationMs, isFinished);
+    }
+
+    private static void Dequeue(string episodeId)
+    {
+        var queue = GetQueue();
+        if (queue.Remove(episodeId)) SaveQueue(queue);
     }
 
     /// <summary>Attempts to send every queued save, in the order queued, stopping at the first one that
@@ -54,9 +78,18 @@ public static class AudiobookshelfProgressSyncModel
         {
             DiagnosticLog.Write($"[Audiobookshelf] attempting to flush {queue.Count} queued progress save(s)");
 
+            var now = DateTime.UtcNow;
             foreach (var pending in queue.Values.OrderBy(p => p.QueuedAtUtc).ToList())
             {
-                var succeeded = await AudiobookshelfApiClient.SaveProgressAsync(pending.LibraryItemId, pending.EpisodeId, pending.PositionMs, pending.DurationMs);
+                if (now - pending.QueuedAtUtc > MaxPendingAge)
+                {
+                    DiagnosticLog.Write($"[Audiobookshelf] dropping stale queued progress for episode {pending.EpisodeId} (queued at {pending.QueuedAtUtc:O}), not replaying it over whatever's current now");
+                    queue.Remove(pending.EpisodeId);
+                    SaveQueue(queue);
+                    continue;
+                }
+
+                var succeeded = await AudiobookshelfApiClient.SaveProgressAsync(pending.LibraryItemId, pending.EpisodeId, pending.PositionMs, pending.DurationMs, pending.IsFinished);
                 if (!succeeded)
                 {
                     DiagnosticLog.Write($"[Audiobookshelf] flush stopped - still failing to reach server ({queue.Count} save(s) remain queued)");
@@ -76,7 +109,7 @@ public static class AudiobookshelfProgressSyncModel
         }
     }
 
-    private static void Enqueue(string libraryItemId, string episodeId, int positionMs, int durationMs)
+    private static void Enqueue(string libraryItemId, string episodeId, int positionMs, int durationMs, bool isFinished)
     {
         var queue = GetQueue();
         queue[episodeId] = new PendingSave
@@ -85,6 +118,7 @@ public static class AudiobookshelfProgressSyncModel
             EpisodeId = episodeId,
             PositionMs = positionMs,
             DurationMs = durationMs,
+            IsFinished = isFinished,
             QueuedAtUtc = DateTime.UtcNow
         };
         SaveQueue(queue);

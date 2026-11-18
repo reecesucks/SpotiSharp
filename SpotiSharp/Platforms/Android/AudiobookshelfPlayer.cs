@@ -22,6 +22,8 @@ internal static class AudiobookshelfPlayer
     private static IExoPlayer? _player;
     private static MediaSession? _session;
     private static bool _serviceStarted;
+    private static PlaybackException? _lastLoggedError;
+    private static readonly System.Threading.Timer _errorPollTimer = new(_ => PollForError(), null, 2000, 2000);
 
     /// <summary>Title/show/artwork of whatever was last loaded, kept here (rather than inside the
     /// service) because the service can be created/destroyed by the OS independently of playback -
@@ -100,6 +102,8 @@ internal static class AudiobookshelfPlayer
                 PlaybackCommands.Pause?.Invoke();
 
                 CurrentInfo = info;
+                _lastLoggedError = null;
+                AudiobookshelfPlaybackCommands.UserInitiatedPause = false;
                 var player = EnsurePlayer();
                 EnsureServiceStarted();
 
@@ -148,6 +152,7 @@ internal static class AudiobookshelfPlayer
     private static void Play()
     {
         PlaybackCommands.Pause?.Invoke();
+        AudiobookshelfPlaybackCommands.UserInitiatedPause = false;
         if (MainThread.IsMainThread) _player?.Play();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Play());
         AudiobookshelfPlaybackService.UpdateNotification();
@@ -155,6 +160,7 @@ internal static class AudiobookshelfPlayer
 
     private static void Pause()
     {
+        AudiobookshelfPlaybackCommands.UserInitiatedPause = true;
         if (MainThread.IsMainThread) _player?.Pause();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Pause());
         AudiobookshelfPlaybackService.UpdateNotification();
@@ -170,5 +176,20 @@ internal static class AudiobookshelfPlayer
     {
         if (MainThread.IsMainThread) return func();
         return MainThread.InvokeOnMainThreadAsync(func).GetAwaiter().GetResult();
+    }
+
+    /// <summary>Polled on a plain timer rather than via <c>Player.AddListener</c> - the Java interface's
+    /// default methods aren't bound as default in this binding, so implementing only <c>OnPlayerError</c>
+    /// threw <c>AbstractMethodError</c> on every other callback (e.g. OnAudioSessionIdChanged) and crashed
+    /// the app on first playback. Without this, a stream/network failure (a 404, a dropped connection, an
+    /// expired token) never reaches the diagnostic log - the episode just sits paused at position 0
+    /// forever with nothing to say why.</summary>
+    private static void PollForError()
+    {
+        var error = InvokeOnMainThread(() => _player?.PlayerError);
+        if (error == null || ReferenceEquals(error, _lastLoggedError)) return;
+
+        _lastLoggedError = error;
+        DiagnosticLog.Write($"[Audiobookshelf] ExoPlayer error for \"{CurrentInfo?.Title}\": {error.ErrorCodeName} - {error.Message}");
     }
 }

@@ -11,11 +11,15 @@ public enum QueueStart
 }
 
 /// <summary>
-/// What to send Spotify to start a radio item. <paramref name="Run"/> is the whole run that should
-/// sit behind <paramref name="PlayUri"/>; <paramref name="ToQueue"/> is only the part of it Spotify
-/// isn't already holding, which is all that may be sent.
+/// What to send Spotify to start a radio item. <paramref name="PreSkipCount"/> real skip-forwards
+/// must be sent first - for <see cref="QueueStart.SkipTo"/> that's what walks past anything stray
+/// ahead of <paramref name="PlayUri"/> and lands on it (no separate play follows); for
+/// <see cref="QueueStart.Play"/> it's what empties Spotify's queue before <paramref name="PlayUri"/>
+/// is played outright. <paramref name="Run"/> is the whole run that should sit behind
+/// <paramref name="PlayUri"/>; <paramref name="ToQueue"/> is only the part of it Spotify isn't
+/// already holding, which is all that may be sent.
 /// </summary>
-public sealed record QueuePlan(QueueStart Start, string PlayUri, IReadOnlyList<string> Run, IReadOnlyList<string> ToQueue);
+public sealed record QueuePlan(QueueStart Start, string PlayUri, IReadOnlyList<string> Run, IReadOnlyList<string> ToQueue, int PreSkipCount);
 
 /// <summary>Which queued songs the listener removed, and which songs the radio gained, after a radio edit.</summary>
 public sealed record SyncPlan(IReadOnlyList<string> ToAppend);
@@ -49,12 +53,20 @@ public sealed class SpotifyQueueMirror
 
     // Everything queued into Spotify that hasn't been seen playing since, oldest first -- our best
     // guess at its "Next in queue".
-    private readonly List<string> _notYetPlayed = new List<string>();
+    private List<string> _notYetPlayed = new List<string>();
     private string? _playedDirectlyUri;
     private string? _lastNotedUri;
 
     private string? _skippingUri;
     private DateTime _skipSentAtUtc;
+
+    // App Remote gives no way to read Spotify's real queue, so right after this mirror is created
+    // (app start, or a fresh reconnect) it has no idea what's actually sitting there - a prior
+    // session's leftovers, or anything queued from Spotify's own UI, are invisible until something
+    // is done about them. The very first play of a session can't trust an empty _notYetPlayed to mean
+    // an empty real queue, so it flushes a generous amount regardless; after that, this mirror is the
+    // only thing adding to Spotify's queue, so its own count is trusted again.
+    private bool _everFlushed;
 
     public SpotifyQueueMirror(Func<string?, string>? label = null)
     {
@@ -66,46 +78,77 @@ public sealed class SpotifyQueueMirror
     /// Call <see cref="NotePlayAccepted"/> once Spotify has taken it, then <see cref="NoteQueued"/>
     /// for each uri that lands.
     ///
-    /// Spotify's queue is append-only for us, so what it already holds decides both how to reach
-    /// <paramref name="uri"/> and what's left to queue. Sending the whole run every time -- while
-    /// play() leaves the previous copies in place -- is what used to leave the run duplicated behind
-    /// a song and the song itself sitting at the head of the queue, ready to restart when it ended.
+    /// Spotify's queue is append-only for us and App Remote has no way to clear it, so the only real
+    /// flush is a skip-forward per entry - and a skip can only ever land on the very next thing
+    /// queued, never clear what's behind it without abandoning what it just landed on. So a stray is
+    /// only ever left alone when what's behind the target is an exact, provable match for the run
+    /// about to be queued; any mismatch, anywhere, means nothing is trusted and everything tracked is
+    /// flushed before playing outright. No stray ever gets to just sit there - that tolerance was
+    /// exactly how the queue clogged up over a session.
     /// </summary>
-    /// <param name="canSkip">Whether the caller can send a skip-forward; without one everything is a play.</param>
+    /// <param name="canSkip">Whether the caller can send a skip-forward; without one everything is a play, with nothing pre-flushed.</param>
     public QueuePlan PlanPlay(string uri, IEnumerable<string>? queueAfter, bool canSkip = true)
     {
         var run = queueAfter?.Where(queuedUri => !string.IsNullOrEmpty(queuedUri)).ToList() ?? new List<string>();
 
         lock (_queueLock)
         {
-            // Already the next thing up: skipping forward reaches it and consumes the queue entry,
-            // where playing it would leave that entry to play the song a second time.
-            bool atHead = canSkip && _notYetPlayed.Count > 0 && _notYetPlayed[0] == uri;
-            var start = atHead ? QueueStart.SkipTo : QueueStart.Play;
-
-            // What Spotify still holds once it's on `uri`, and the part of the run that isn't in
-            // there already. Anything else it holds is left alone: it plays out of turn later and
-            // the radio deals with it then, but nothing is gained by queueing a second copy now.
-            var behind = atHead ? _notYetPlayed.Skip(1).ToList() : new List<string>(_notYetPlayed);
-
-            int matched = 0;
-            foreach (var queued in behind)
+            int index = canSkip ? _notYetPlayed.IndexOf(uri) : -1;
+            if (index >= 0)
             {
-                if (matched < run.Count && queued == run[matched]) matched++;
+                var behind = _notYetPlayed.Skip(index + 1).ToList();
+                bool cleanMatch = behind.Count <= run.Count && behind.SequenceEqual(run.Take(behind.Count));
+
+                if (cleanMatch)
+                {
+                    var toQueue = run.Skip(behind.Count).ToList();
+                    int preSkipCount = index + 1;
+
+                    _playedDirectlyUri = uri;
+                    _notYetPlayed = behind;
+                    _skipWhenReached.Clear();
+                    _skippingUri = null;
+                    _everFlushed = true;
+
+                    DiagnosticLog.Write($"[Queue] skipping past {preSkipCount} to {_label(uri)}, then queueing {toQueue.Count} of {run.Count}");
+                    return new QueuePlan(QueueStart.SkipTo, uri, run, toQueue, preSkipCount);
+                }
             }
-            var toQueue = run.Skip(matched).ToList();
 
-            // Only a play puts Spotify on something we never queued; a skip lands on the queue
-            // entry itself, which NoteNowPlaying should account for as usual.
-            _playedDirectlyUri = atHead ? null : uri;
+            // Not found, or found but what's behind it isn't a provable match for the run - flush
+            // everything tracked (the full cap instead, if nothing's tracked and this mirror has never
+            // proven a clean baseline - an empty _notYetPlayed right after app start doesn't mean an
+            // empty real queue, just that nothing's been seen yet) and queue the whole run fresh.
+            bool knowsSomething = _notYetPlayed.Count > 0 || _everFlushed;
+            int flushCount = knowsSomething ? _notYetPlayed.Count : RadioTuning.MAX_QUEUE_FLUSH_SKIPS;
 
-            var strays = behind.Count - matched;
-            DiagnosticLog.Write(
-                $"[Queue] {(atHead ? "skipping to" : "playing")} {_label(uri)} then queueing {toQueue.Count} of " +
-                $"{run.Count}; Spotify should still hold {_notYetPlayed.Count} from before" +
-                $"{(strays > 0 ? $" ({strays} not in the run)" : "")}: {Describe(_notYetPlayed)}");
+            _playedDirectlyUri = uri;
+            _notYetPlayed = new List<string>();
+            _skipWhenReached.Clear();
+            _skippingUri = null;
+            _everFlushed = true;
 
-            return new QueuePlan(start, uri, run, toQueue);
+            DiagnosticLog.Write($"[Queue] flushing {flushCount} then playing {_label(uri)}, then queueing all {run.Count} of the run fresh");
+            return new QueuePlan(QueueStart.Play, uri, run, run, flushCount);
+        }
+    }
+
+    /// <summary>Spotify's queue should sit empty while something else (an AudioBookshelf episode) owns
+    /// playback instead of it - there's nothing for Spotify to play next regardless, and leaving
+    /// whatever was tracked sitting there unflushed is exactly the kind of stray leftover that goes
+    /// stale over a long episode. Returns how many real skip-forwards the caller needs to send to
+    /// actually empty it; the caller is expected to have paused Spotify first, so this never races a
+    /// still-playing track landing on something before the skips land.</summary>
+    public int PlanClear()
+    {
+        lock (_queueLock)
+        {
+            int count = _notYetPlayed.Count;
+            _notYetPlayed = new List<string>();
+            _skipWhenReached.Clear();
+            _skippingUri = null;
+            _everFlushed = true;
+            return count;
         }
     }
 

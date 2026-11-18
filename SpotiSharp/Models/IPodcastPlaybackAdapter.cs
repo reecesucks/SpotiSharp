@@ -7,7 +7,10 @@ namespace SpotiSharp.Models;
 /// without caring whether the segment came from Spotify or AudioBookshelf.</summary>
 internal interface IPodcastPlaybackAdapter
 {
-    PlaybackAttempt Play(RadioAudiobookshelfItem item);
+    /// <summary>Plays the segment. <paramref name="resumePositionMs"/> overrides <see
+    /// cref="RadioAudiobookshelfItem.PositionMs"/> as the start point when given - used by a stall
+    /// retry to pick up from where playback actually stopped rather than restarting the segment.</summary>
+    PlaybackAttempt Play(RadioAudiobookshelfItem item, int? resumePositionMs = null);
 }
 
 /// <summary>Resolves the <see cref="IPodcastPlaybackAdapter"/> for a segment's <see cref="PodcastSourceKind"/>.</summary>

@@ -639,7 +639,20 @@ public class PlayerBarViewModel : BaseViewModel
 
     private void SongSkipFunc()
     {
-        if (_isAudiobookshelfSource) return;
+        if (_isAudiobookshelfSource)
+        {
+            // Whichever Radio conductor is actually driving this AB episode (AB-sourced Radio, or
+            // Spotify Radio with an interspersed AB segment) owns "next" the same way it does for a
+            // Spotify song - advance to the next queued item instead of doing nothing. Neither
+            // conductor is active when this AB episode is just the standalone Podcasts page playing
+            // (no queue to advance), so both calls correctly no-op there.
+            Task.Run(() =>
+            {
+                if (Models.RadioAudiobookshelfConductor.Instance.AdvanceManually() || Models.RadioConductor.Instance.AdvanceManually())
+                    RefreshPlayerValues();
+            });
+            return;
+        }
 
         Task.Run(() =>
         {

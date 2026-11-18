@@ -19,6 +19,19 @@ public static class AudiobookshelfPodcastsModel
         return DiskCacheHelper.Load<List<AudiobookshelfEpisode>>(ALL_EPISODES_CACHE_KEY);
     }
 
+    /// <summary>Resolves an episode id against both episode caches. The recent-episodes cache
+    /// (<see cref="GetDiskCachedEpisodes"/>) only holds a capped, per-show list of the most recently
+    /// released episodes, so a show being binged through its back-catalog has its current episode in
+    /// <see cref="GetDiskCachedBingeNextEpisodes"/> instead - checking the recent list alone misses it.</summary>
+    public static AudiobookshelfEpisode? FindCachedEpisode(string episodeId)
+    {
+        var recent = GetDiskCachedEpisodes()?.FirstOrDefault(candidate => candidate.EpisodeId == episodeId);
+        if (recent != null) return recent;
+
+        return GetDiskCachedBingeNextEpisodes().Values
+            .FirstOrDefault(candidate => candidate.EpisodeId == episodeId);
+    }
+
     /// <summary>The next unfinished episode, in feed order, for each AudioBookshelf show pinned as
     /// "binge" - keyed by library item id. Refreshed by <see cref="RefreshBingeNextEpisodesAsync"/>,
     /// read synchronously by <see cref="AudiobookshelfPodcastEpisodeProvider"/> since Radio's episode
@@ -61,7 +74,30 @@ public static class AudiobookshelfPodcastsModel
             }
         }
 
+        DiagnosticLog.Write($"[Audiobookshelf] binge-next refresh: {bingeShowIds.Count} pinned show(s), {result.Count} with a next episode");
         DiskCacheHelper.Save(BINGE_NEXT_CACHE_KEY, result);
+    }
+
+    // Logging what actually comes back here (count and the raw title values) is how the Start/End/Title
+    // shape mismatch that silently zeroed out every splice point was found - keep it, in case the
+    // server's tagging shape moves again.
+    private static List<AudiobookshelfChapter>? MapChapters(string episodeTitle, List<AudiobookshelfChapterDto>? rawChapters)
+    {
+        if (rawChapters == null)
+        {
+            DiagnosticLog.Write($"[Audiobookshelf] \"{episodeTitle}\" has no chapters field at all from the server");
+            return null;
+        }
+
+        var chapters = rawChapters
+            .Select(chapter => new AudiobookshelfChapter(chapter.StartSeconds, chapter.EndSeconds, chapter.Title))
+            .ToList();
+
+        int spliceCount = chapters.Count(chapter => chapter.IsSplice);
+        DiagnosticLog.Write($"[Audiobookshelf] \"{episodeTitle}\" has {chapters.Count} chapter(s) from the server, {spliceCount} tagged splice" +
+            (chapters.Count > 0 ? $" (tags seen: {string.Join(", ", chapters.Select(chapter => chapter.Tag ?? "null").Distinct())})" : ""));
+
+        return chapters;
     }
 
     private static async Task<AudiobookshelfEpisode?> FindNextDownloadedBingeEpisodeAsync(
@@ -69,22 +105,42 @@ public static class AudiobookshelfPodcastsModel
     {
         var item = await AudiobookshelfApiClient.GetLibraryItemAsync(libraryItemId);
         var downloaded = item?.Media?.Episodes;
-        if (downloaded == null || downloaded.Count == 0) return null;
+        if (downloaded == null || downloaded.Count == 0)
+        {
+            DiagnosticLog.Write($"[Audiobookshelf] binge-next for {libraryItemId}: server reports 0 episodes for this item");
+            return null;
+        }
 
         var ordered = downloaded.OrderBy(ParsePubDate).ToList();
 
-        // An explicit "Binge from here" pick always wins, same rule as the ahead-downloader.
-        var anchorEpisodeId = RadioAudiobookshelfConfigModel.GetBinge(libraryItemId)?.LastTrackedEpisodeId;
-        var startIndex = !string.IsNullOrEmpty(anchorEpisodeId)
-            ? ordered.FindIndex(episode => episode.Id == anchorEpisodeId)
+        // An explicit "Binge from here" pick wins while it's still unfinished, same rule as the
+        // ahead-downloader (RadioAudiobookshelfBingeAheadModel.FindBingePositionAsync) - nothing ever
+        // moves the pin forward as episodes finish, so a finished pin has to fall back to the first
+        // unfinished episode or this show gets stuck re-offering the same finished episode forever.
+        // Matched by feed guid first - stable across AudioBookshelf deleting/re-downloading the pinned
+        // episode, unlike its own episode id, which stops matching anything once that happens (the
+        // id-based anchor is kept only for binges pinned before AnchorGuid existed).
+        var binge = RadioAudiobookshelfConfigModel.GetBinge(libraryItemId);
+        var anchorIndex = !string.IsNullOrEmpty(binge?.AnchorGuid)
+            ? ordered.FindIndex(episode => episode.Guid == binge.AnchorGuid)
             : -1;
+        if (anchorIndex < 0 && !string.IsNullOrEmpty(binge?.LastTrackedEpisodeId))
+            anchorIndex = ordered.FindIndex(episode => episode.Id == binge.LastTrackedEpisodeId);
+        bool anchorFinished = anchorIndex >= 0 &&
+            progressByShowAndEpisode.TryGetValue((libraryItemId, ordered[anchorIndex].Id), out var anchorProgress) && anchorProgress.IsFinished;
+
+        var startIndex = anchorIndex >= 0 && !anchorFinished ? anchorIndex : -1;
 
         if (startIndex < 0)
         {
             startIndex = ordered.FindIndex(episode =>
                 !progressByShowAndEpisode.TryGetValue((libraryItemId, episode.Id), out var progress) || !progress.IsFinished);
         }
-        if (startIndex < 0) return null;
+        if (startIndex < 0)
+        {
+            DiagnosticLog.Write($"[Audiobookshelf] binge-next for {libraryItemId}: all {ordered.Count} episode(s) show as finished - nothing to offer");
+            return null;
+        }
 
         var next = ordered[startIndex];
         var showName = item!.Media?.Metadata?.Title ?? "Unknown show";
@@ -94,13 +150,11 @@ public static class AudiobookshelfPodcastsModel
             ? (int)(nextProgress.CurrentTimeSeconds * 1000)
             : 0;
 
-        var chapters = next.Chapters?
-            .Select(chapter => new AudiobookshelfChapter(chapter.StartSeconds, chapter.EndSeconds, chapter.Tags?.Title))
-            .ToList();
+        var chapters = MapChapters(next.Title, next.Chapters);
 
         return new AudiobookshelfEpisode(
             next.Id, libraryItemId, next.AudioFile?.Ino ?? string.Empty, next.Title, showName, coverUrl,
-            ParsePubDate(next), (int)(next.DurationSeconds * 1000), resumeMs, chapters);
+            ParsePubDate(next), (int)(next.DurationSeconds * 1000), resumeMs, chapters, guid: next.Guid);
     }
 
     public static async Task<List<AudiobookshelfEpisode>?> RefreshEpisodesAsync()
@@ -127,13 +181,12 @@ public static class AudiobookshelfPodcastsModel
                     .Select(episode =>
                     {
                         // A finished episode resumes from the start, not from a second before the end.
-                        var resumeMs = progressByKey.TryGetValue((podcast.Id, episode.Id), out var progress) && !progress.IsFinished
+                        var hasProgress = progressByKey.TryGetValue((podcast.Id, episode.Id), out var progress);
+                        var resumeMs = hasProgress && !progress.IsFinished
                             ? (int)(progress.CurrentTimeSeconds * 1000)
                             : 0;
 
-                        var chapters = episode.Chapters?
-                            .Select(chapter => new AudiobookshelfChapter(chapter.StartSeconds, chapter.EndSeconds, chapter.Tags?.Title))
-                            .ToList();
+                        var chapters = MapChapters(episode.Title, episode.Chapters);
 
                         return new AudiobookshelfEpisode(
                             episode.Id,
@@ -145,7 +198,9 @@ public static class AudiobookshelfPodcastsModel
                             ParsePubDate(episode),
                             (int)(episode.DurationSeconds * 1000),
                             resumeMs,
-                            chapters);
+                            chapters,
+                            isFinished: hasProgress && progress.IsFinished,
+                            guid: episode.Guid);
                     });
 
                 result.AddRange(recent);
@@ -200,13 +255,12 @@ public static class AudiobookshelfPodcastsModel
         return episodes
             .Select(episode =>
             {
-                var resumeMs = progressByEpisodeId.TryGetValue(episode.Id, out var progress) && !progress.IsFinished
+                var hasProgress = progressByEpisodeId.TryGetValue(episode.Id, out var progress);
+                var resumeMs = hasProgress && !progress.IsFinished
                     ? (int)(progress.CurrentTimeSeconds * 1000)
                     : 0;
 
-                var chapters = episode.Chapters?
-                    .Select(chapter => new AudiobookshelfChapter(chapter.StartSeconds, chapter.EndSeconds, chapter.Tags?.Title))
-                    .ToList();
+                var chapters = MapChapters(episode.Title, episode.Chapters);
 
                 return new AudiobookshelfEpisode(
                     episode.Id,
@@ -218,7 +272,9 @@ public static class AudiobookshelfPodcastsModel
                     ParsePubDate(episode),
                     (int)(episode.DurationSeconds * 1000),
                     resumeMs,
-                    chapters);
+                    chapters,
+                    isFinished: hasProgress && progress.IsFinished,
+                    guid: episode.Guid);
             })
             .OrderByDescending(episode => episode.ReleaseDate)
             .ToList();

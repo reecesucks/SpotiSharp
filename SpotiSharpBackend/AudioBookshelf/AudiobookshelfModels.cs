@@ -175,29 +175,35 @@ public class AudiobookshelfEnclosureDto
 
 public class AudiobookshelfChapterDto
 {
-    [JsonPropertyName("id")]
+    [JsonPropertyName("Id")]
     public int Id { get; set; }
 
-    // The server sends these as strings ("645.2"), not JSON numbers - FlexibleDoubleConverter
-    // parses either so a server that switches to numbers later doesn't break this.
-    [JsonPropertyName("start_time")]
-    [JsonConverter(typeof(FlexibleDoubleConverter))]
+    // Confirmed from a real tagged episode: the server sends these as TimeSpan-formatted strings
+    // ("00:44:07.8988205"), not seconds - TimeSpanSecondsConverter parses that format.
+    [JsonPropertyName("Start")]
+    [JsonConverter(typeof(TimeSpanSecondsConverter))]
     public double StartSeconds { get; set; }
 
-    [JsonPropertyName("end_time")]
-    [JsonConverter(typeof(FlexibleDoubleConverter))]
+    [JsonPropertyName("End")]
+    [JsonConverter(typeof(TimeSpanSecondsConverter))]
     public double EndSeconds { get; set; }
 
-    [JsonPropertyName("tags")]
-    public AudiobookshelfChapterTagsDto? Tags { get; set; }
+    // A flat title ("Start", "Splice 1", "Splice 2", ...) - not nested under a "tags" object as
+    // earlier guessed. See AudiobookshelfChapter.IsSplice for how a "Splice N" title is recognised.
+    [JsonPropertyName("Title")]
+    public string? Title { get; set; }
 }
 
-public class AudiobookshelfChapterTagsDto
+internal class TimeSpanSecondsConverter : JsonConverter<double>
 {
-    // "start" for ordinary content, "splice" marking a point where an ad was cut out of the
-    // audio - see AudiobookshelfChapter for what Radio does with a "splice" tag.
-    [JsonPropertyName("title")]
-    public string? Title { get; set; }
+    public override double Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    {
+        var text = reader.GetString();
+        return TimeSpan.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ? parsed.TotalSeconds : 0;
+    }
+
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, double value, System.Text.Json.JsonSerializerOptions options) =>
+        writer.WriteStringValue(TimeSpan.FromSeconds(value).ToString());
 }
 
 internal class FlexibleDoubleConverter : JsonConverter<double>
@@ -244,4 +250,11 @@ internal class AudiobookshelfProgressUpdate
 
     [JsonPropertyName("duration")]
     public double? Duration { get; set; }
+
+    // AudioBookshelf doesn't infer "finished" from currentTime reaching duration - it only has
+    // whatever the client explicitly tells it, so without this an episode played to the end through
+    // SpotiSharp (Radio or the standalone Podcasts page) never gets marked finished server-side and
+    // keeps coming back as if unplayed.
+    [JsonPropertyName("isFinished")]
+    public bool IsFinished { get; set; }
 }
