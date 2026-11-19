@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Local-only debug secrets - see SpotiSharp/Models/DebugSecrets.cs. Never commit real keys here.
+DebugSecrets.Local.cs
