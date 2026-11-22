@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
+using SpotiSharpBackend.AudioBookshelf;
 using SpotiSharpBackend.Radio;
 
 namespace SpotiSharp.ViewModels;
@@ -132,6 +133,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         UiLoop.Instance.OnRefreshUi += UpdateDebugSegmentTimer;
         SyncWithConductor();
         UpdateDebugSegmentTimer();
+        RefreshAudiobookshelfEpisodesInBackground();
     }
 
     internal override void OnDisappearing()
@@ -139,6 +141,28 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         base.OnDisappearing();
         RadioAudiobookshelfConductor.Instance.ActiveItemChanged -= SetCurrentItem;
         UiLoop.Instance.OnRefreshUi -= UpdateDebugSegmentTimer;
+    }
+
+    // The startup prefetch (RadioAudiobookshelfContentPrefetcher) only ever runs once per app
+    // session, so episode metadata - chapters/splice tags included - otherwise goes stale for the
+    // rest of the session even after the server adds them. Re-pulling it here, every time this page
+    // is shown, keeps Generate working off a reasonably fresh copy without blocking the UI thread or
+    // slowing down Generate itself.
+    private static void RefreshAudiobookshelfEpisodesInBackground()
+    {
+        if (!StorageHandler.UseAudiobookshelfPodcasts || !AudiobookshelfApiClient.IsConfigured) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await AudiobookshelfPodcastsModel.RefreshEpisodesAsync();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write($"[Radio] background episode refresh (on page show) failed: {ex.Message}");
+            }
+        });
     }
 
     private void UpdateDebugSegmentTimer()
@@ -717,6 +741,13 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         _lastClickedAt = now;
 
         ClearRemoveOptions();
+
+        // This tap is as foreground as it gets - whether or not radioItem itself is a podcast, the
+        // run can still reach one later, possibly with the screen off by then and Android refusing a
+        // service start from the background at that point. Starting it now, here, while the run is
+        // music, means it's already alive (like Spotify's own service already is) by the time that
+        // happens - a no-op once it's running, same as every later tap.
+        AudiobookshelfPlaybackCommands.EnsureServiceActive?.Invoke();
 
         SetCurrentItem(radioItem);
 

@@ -17,6 +17,7 @@ public class RecentEpisode : IPodcastEpisodeSource
     public PodcastSourceKind SourceKind => PodcastSourceKind.Spotify;
 
     public IReadOnlyList<int> SpliceStartMs => Array.Empty<int>();
+    public IReadOnlyList<int> MusicBreakStartMs => Array.Empty<int>();
 
     public RecentEpisode(string episodeId, string episodeName, string showId, string showName, string showImageUrl, DateTime releaseDate, int durationMs, int resumePositionMs = 0)
     {

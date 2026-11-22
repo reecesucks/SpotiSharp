@@ -31,6 +31,12 @@ public interface IPodcastEpisodeSource
     /// which case <see cref="RadioAudiobookshelfModel"/> segments the episode the old way, on a fixed
     /// timer, instead of at these boundaries.</summary>
     IReadOnlyList<int> SpliceStartMs { get; }
+
+    /// <summary>Candidate music-break points (ms from the start), ascending - natural pauses ShillSkip
+    /// noticed in the audio, not tied to ad removal. Only a fallback: <see cref="RadioAudiobookshelfModel"/>
+    /// reaches for these when <see cref="SpliceStartMs"/> is empty, and still only keeps the ones that
+    /// land close to the configured segment length.</summary>
+    IReadOnlyList<int> MusicBreakStartMs { get; }
 }
 
 /// <summary>Dispatches an <see cref="IPodcastEpisodeSource"/>-typed cache entry (the "more episodes"

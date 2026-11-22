@@ -132,12 +132,12 @@ public sealed class RadioTickState
         return Advance(nowUtc, $"{ActiveItem?.PlayUri} is unavailable");
     }
 
-    public RadioTickResult AdvanceManually(DateTime nowUtc)
+    public RadioTickResult AdvanceManually(DateTime nowUtc, string reason = "Next pressed")
     {
         if (_queue == null || _activeIndex < 0) return RadioTickResult.Nothing;
 
         _unavailableSkips = 0;
-        return Advance(nowUtc, "Next pressed");
+        return Advance(nowUtc, reason);
     }
 
     public void Resync(IReadOnlyList<IRadioQueueItem> queue, int activeIndex)

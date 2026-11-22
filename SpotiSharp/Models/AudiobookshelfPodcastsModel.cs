@@ -100,6 +100,18 @@ public static class AudiobookshelfPodcastsModel
         return chapters;
     }
 
+    // One zero-length "splice" marker per ad ShillSkip cut, at SpliceAt - the only part of its Cuts
+    // this needs, since SpliceStartMs (AudiobookshelfEpisode.cs) just reads IsSplice chapters' starts.
+    private static List<AudiobookshelfChapter> MapChaptersFromShillSkip(string episodeTitle, IReadOnlyList<ShillSkipEpisodeCut> cuts)
+    {
+        var chapters = cuts
+            .Select(cut => new AudiobookshelfChapter(cut.SpliceAt.TotalSeconds, cut.SpliceAt.TotalSeconds, "Splice"))
+            .ToList();
+
+        DiagnosticLog.Write($"[Audiobookshelf] \"{episodeTitle}\" has {chapters.Count} splice point(s) from ShillSkip");
+        return chapters;
+    }
+
     private static async Task<AudiobookshelfEpisode?> FindNextDownloadedBingeEpisodeAsync(
         string libraryItemId, Dictionary<(string LibraryItemId, string EpisodeId), AudiobookshelfMediaProgress> progressByShowAndEpisode)
     {
@@ -157,6 +169,13 @@ public static class AudiobookshelfPodcastsModel
             ParsePubDate(next), (int)(next.DurationSeconds * 1000), resumeMs, chapters, guid: next.Guid);
     }
 
+    /// <summary>Rebuilds the flat episode cache that feeds <see cref="AudiobookshelfPodcastEpisodeProvider"/>.
+    /// Shows to fetch, and which of their episodes to keep, normally come from ShillSkip's own
+    /// GET /episodes (<see cref="ShillSkipApiClient"/>) - every episode it has ever had a job for, so a
+    /// show being binged through its back-catalog still gets its current episode cached, not just each
+    /// show's 5 most recently released ones. Falls back to that old per-show-top-5 crawl if ShillSkip
+    /// comes back empty (its own tunnel down, the Mac asleep) so a AudioBookshelf-only setup, or one
+    /// where ShillSkip just isn't reachable right now, doesn't lose episode refresh entirely.</summary>
     public static async Task<List<AudiobookshelfEpisode>?> RefreshEpisodesAsync()
     {
         if (!AudiobookshelfApiClient.IsConfigured) return null;
@@ -166,45 +185,10 @@ public static class AudiobookshelfPodcastsModel
             var progressByKey = (await AudiobookshelfApiClient.GetMediaProgressAsync())
                 .ToDictionary(p => (p.LibraryItemId, p.EpisodeId ?? string.Empty));
 
-            var podcasts = await AudiobookshelfApiClient.GetAllPodcastsAsync();
-            var result = new List<AudiobookshelfEpisode>();
-
-            foreach (var podcast in podcasts)
-            {
-                var showName = podcast.Media?.Metadata?.Title ?? "Unknown show";
-                var coverUrl = BuildCoverUrl(podcast.Id);
-
-                var episodes = await AudiobookshelfApiClient.GetEpisodesAsync(podcast.Id);
-                var recent = episodes
-                    .OrderByDescending(ParsePubDate)
-                    .Take(EPISODES_PER_SHOW)
-                    .Select(episode =>
-                    {
-                        // A finished episode resumes from the start, not from a second before the end.
-                        var hasProgress = progressByKey.TryGetValue((podcast.Id, episode.Id), out var progress);
-                        var resumeMs = hasProgress && !progress.IsFinished
-                            ? (int)(progress.CurrentTimeSeconds * 1000)
-                            : 0;
-
-                        var chapters = MapChapters(episode.Title, episode.Chapters);
-
-                        return new AudiobookshelfEpisode(
-                            episode.Id,
-                            podcast.Id,
-                            episode.AudioFile?.Ino ?? string.Empty,
-                            episode.Title,
-                            showName,
-                            coverUrl,
-                            ParsePubDate(episode),
-                            (int)(episode.DurationSeconds * 1000),
-                            resumeMs,
-                            chapters,
-                            isFinished: hasProgress && progress.IsFinished,
-                            guid: episode.Guid);
-                    });
-
-                result.AddRange(recent);
-            }
+            var shillSkipEpisodes = await ShillSkipApiClient.GetEpisodesAsync();
+            var result = shillSkipEpisodes.Count > 0
+                ? await FetchFromShillSkipCatalogAsync(shillSkipEpisodes, progressByKey)
+                : await FetchFromTopRecentPerShowAsync(progressByKey);
 
             var ordered = result.OrderByDescending(episode => episode.ReleaseDate).ToList();
             DiskCacheHelper.Save(ALL_EPISODES_CACHE_KEY, ordered);
@@ -215,6 +199,93 @@ public static class AudiobookshelfPodcastsModel
             DiagnosticLog.Write($"[Audiobookshelf] episode refresh failed: {ex.Message}");
             return null;
         }
+    }
+
+    private static async Task<List<AudiobookshelfEpisode>> FetchFromShillSkipCatalogAsync(
+        List<ShillSkipEpisodeSummary> shillSkipEpisodes, Dictionary<(string LibraryItemId, string EpisodeId), AudiobookshelfMediaProgress> progressByKey)
+    {
+        var showsById = shillSkipEpisodes
+            .GroupBy(episode => episode.LibraryItemId)
+            .ToDictionary(group => group.Key, group => group.First().PodcastTitle);
+
+        // ShillSkip's own Cuts are this run's authoritative splice points - AudioBookshelf's own
+        // chapter tags (MapChapters, used in the fallback crawl below) are a second-hand copy of the
+        // same data and only ever catch up to this once something re-tags the episode there, so an
+        // episode ShillSkip already has cuts for doesn't need to wait on that.
+        var cutsByEpisodeId = shillSkipEpisodes.ToDictionary(episode => episode.EpisodeId, episode => episode.Cuts);
+
+        // Separate from Cuts - these are just candidate points, not ad removal, so they're kept off
+        // to the side rather than folded into the same splice-point list.
+        var musicBreaksByEpisodeId = shillSkipEpisodes.ToDictionary(episode => episode.EpisodeId, episode => episode.MusicBreaks);
+
+        DiagnosticLog.Write($"[Audiobookshelf] episode refresh using ShillSkip's catalog: {shillSkipEpisodes.Count} episode(s) across {showsById.Count} show(s)");
+
+        var result = new List<AudiobookshelfEpisode>();
+        foreach (var (libraryItemId, showName) in showsById)
+        {
+            var coverUrl = BuildCoverUrl(libraryItemId);
+            var episodes = await AudiobookshelfApiClient.GetEpisodesAsync(libraryItemId);
+            result.AddRange(episodes.Select(episode =>
+                MapEpisode(episode, libraryItemId, showName, coverUrl, progressByKey,
+                    cutsByEpisodeId.GetValueOrDefault(episode.Id),
+                    musicBreaksByEpisodeId.GetValueOrDefault(episode.Id))));
+        }
+
+        return result;
+    }
+
+    private static async Task<List<AudiobookshelfEpisode>> FetchFromTopRecentPerShowAsync(
+        Dictionary<(string LibraryItemId, string EpisodeId), AudiobookshelfMediaProgress> progressByKey)
+    {
+        var podcasts = await AudiobookshelfApiClient.GetAllPodcastsAsync();
+        var result = new List<AudiobookshelfEpisode>();
+
+        foreach (var podcast in podcasts)
+        {
+            var showName = podcast.Media?.Metadata?.Title ?? "Unknown show";
+            var coverUrl = BuildCoverUrl(podcast.Id);
+
+            var episodes = await AudiobookshelfApiClient.GetEpisodesAsync(podcast.Id);
+            var recent = episodes
+                .OrderByDescending(ParsePubDate)
+                .Take(EPISODES_PER_SHOW)
+                .Select(episode => MapEpisode(episode, podcast.Id, showName, coverUrl, progressByKey));
+
+            result.AddRange(recent);
+        }
+
+        return result;
+    }
+
+    private static AudiobookshelfEpisode MapEpisode(AudiobookshelfEpisodeDto episode, string libraryItemId, string showName, string coverUrl,
+        Dictionary<(string LibraryItemId, string EpisodeId), AudiobookshelfMediaProgress> progressByKey,
+        IReadOnlyList<ShillSkipEpisodeCut>? shillSkipCuts = null,
+        IReadOnlyList<TimeSpan>? musicBreaks = null)
+    {
+        // A finished episode resumes from the start, not from a second before the end.
+        var hasProgress = progressByKey.TryGetValue((libraryItemId, episode.Id), out var progress);
+        var resumeMs = hasProgress && !progress.IsFinished
+            ? (int)(progress.CurrentTimeSeconds * 1000)
+            : 0;
+
+        var chapters = shillSkipCuts is { Count: > 0 }
+            ? MapChaptersFromShillSkip(episode.Title, shillSkipCuts)
+            : MapChapters(episode.Title, episode.Chapters);
+
+        return new AudiobookshelfEpisode(
+            episode.Id,
+            libraryItemId,
+            episode.AudioFile?.Ino ?? string.Empty,
+            episode.Title,
+            showName,
+            coverUrl,
+            ParsePubDate(episode),
+            (int)(episode.DurationSeconds * 1000),
+            resumeMs,
+            chapters,
+            isFinished: hasProgress && progress.IsFinished,
+            guid: episode.Guid,
+            musicBreakStartMs: musicBreaks?.Select(breakPoint => (int)breakPoint.TotalMilliseconds).OrderBy(ms => ms).ToList());
     }
 
     internal static string BuildCoverUrl(string libraryItemId)

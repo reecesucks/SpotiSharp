@@ -52,6 +52,10 @@ public class AudiobookshelfEpisode : INotifyPropertyChanged, IPodcastEpisodeSour
     public IReadOnlyList<int> SpliceStartMs =>
         Chapters.Where(chapter => chapter.IsSplice).Select(chapter => (int)(chapter.StartSeconds * 1000)).OrderBy(ms => ms).ToList();
 
+    // Straight from ShillSkip's own MusicBreaks, not routed through Chapters - these aren't ad cuts
+    // and have no business being tagged into the server's chapter list the way splices are.
+    public IReadOnlyList<int> MusicBreakStartMs { get; private set; } = Array.Empty<int>();
+
     // Live download state, re-derived from AudiobookshelfDownloadsModel's own on-disk index each time
     // the episode list is built - never part of the cached episode-list JSON itself.
     private bool _isDownloaded;
@@ -103,7 +107,8 @@ public class AudiobookshelfEpisode : INotifyPropertyChanged, IPodcastEpisodeSour
 
     public AudiobookshelfEpisode(string episodeId, string libraryItemId, string audioFileIno, string episodeName,
         string showName, string showCoverUrl, DateTime releaseDate, int durationMs, int resumePositionMs = 0,
-        List<AudiobookshelfChapter>? chapters = null, bool isFinished = false, string? guid = null)
+        List<AudiobookshelfChapter>? chapters = null, bool isFinished = false, string? guid = null,
+        IReadOnlyList<int>? musicBreakStartMs = null)
     {
         EpisodeId = episodeId;
         LibraryItemId = libraryItemId;
@@ -117,6 +122,7 @@ public class AudiobookshelfEpisode : INotifyPropertyChanged, IPodcastEpisodeSour
         ResumePositionMs = resumePositionMs;
         Chapters = chapters ?? new List<AudiobookshelfChapter>();
         IsFinished = isFinished;
+        MusicBreakStartMs = musicBreakStartMs ?? Array.Empty<int>();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

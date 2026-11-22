@@ -82,8 +82,11 @@ internal class AudiobookshelfPlaybackService : MediaSessionService
         var session = AudiobookshelfPlayer.EnsureSession();
 
         return new NotificationCompat.Builder(context, ChannelId)
-            .SetContentTitle(info?.Title ?? "SpotiSharp")
-            .SetContentText(info?.ShowName ?? "Playing a podcast")
+            .SetContentTitle(info?.Title ?? "SpotiSharp Radio")
+            // The service now starts as soon as Radio plays anything, not just once a podcast
+            // episode has actually loaded - "Playing a podcast" would be a lie for however long
+            // the run is on music before (if ever) reaching one.
+            .SetContentText(info?.ShowName ?? "Ready for AudioBookshelf")
             .SetSmallIcon(global::Android.Resource.Drawable.IcMediaPlay)
             .SetOngoing(isPlaying)
             .AddAction(toggleAction)

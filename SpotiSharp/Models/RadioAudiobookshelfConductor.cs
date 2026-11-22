@@ -297,7 +297,8 @@ public class RadioAudiobookshelfConductor
             // episode is finished.
             bool episodeFinished = active.IsFinalPodcastSegment && reachedSegmentEnd;
 
-            if (CheckAudiobookshelfStall(active, positionMs, reachedSegmentEnd)) return;
+            bool playWhenReady = AudiobookshelfPlaybackCommands.GetPlayWhenReady?.Invoke() ?? isPlaying;
+            if (CheckAudiobookshelfStall(active, positionMs, reachedSegmentEnd, playWhenReady)) return;
 
             SaveAudiobookshelfProgress(active, isPlaying, positionMs, episodeFinished);
 
@@ -306,7 +307,7 @@ public class RadioAudiobookshelfConductor
             if (isPlaying && reachedSegmentEnd)
             {
                 DiagnosticLog.Write($"[Radio] AudioBookshelf segment reached its end ({positionMs} of {segmentEndMs}ms)");
-                Apply(_state.AdvanceManually(DateTime.UtcNow));
+                Apply(_state.AdvanceManually(DateTime.UtcNow, $"AudioBookshelf segment reached its end ({positionMs} of {segmentEndMs}ms)"));
                 CaptureState();
             }
         }
@@ -321,13 +322,15 @@ public class RadioAudiobookshelfConductor
     /// Nothing else watches for a segment whose position has simply stopped moving - the ExoPlayer
     /// wrapper can wedge (a dropped stream while backgrounded, a stalled socket) without ever raising
     /// a player error, and the only other check here (<c>reachedSegmentEnd</c>) can't tell a stalled
-    /// stream from one that's genuinely still mid-playback. A deliberate pause (<see
-    /// cref="AudiobookshelfPlaybackCommands.UserInitiatedPause"/>) or sitting paused right at the
-    /// segment's own end is left alone - neither is a stall. Returns true if it took an action
-    /// (reloaded or gave up and skipped), so the caller skips the rest of this tick for a now-stale
+    /// stream from one that's genuinely still mid-playback. A deliberate pause - from the player bar,
+    /// the lock-screen/notification controls, or anything else that only ever reaches the underlying
+    /// ExoPlayer instance directly - clears <paramref name="playWhenReady"/> (unlike "is it currently
+    /// playing", which also goes false while buffering, i.e. mid-stall) and is left alone, same as
+    /// sitting paused right at the segment's own end. Returns true if it took an action (reloaded or
+    /// gave up and skipped), so the caller skips the rest of this tick for a now-stale
     /// <c>active</c>/<c>positionMs</c>.
     /// </summary>
-    private bool CheckAudiobookshelfStall(RadioAudiobookshelfItem active, int positionMs, bool reachedSegmentEnd)
+    private bool CheckAudiobookshelfStall(RadioAudiobookshelfItem active, int positionMs, bool reachedSegmentEnd, bool playWhenReady)
     {
         var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(active.PlayUri);
         var nowUtc = DateTime.UtcNow;
@@ -349,7 +352,7 @@ public class RadioAudiobookshelfConductor
             return false;
         }
 
-        if (AudiobookshelfPlaybackCommands.UserInitiatedPause || reachedSegmentEnd)
+        if (!playWhenReady || reachedSegmentEnd)
         {
             _abStallBaselineAtUtc = nowUtc;
             return false;
@@ -369,7 +372,7 @@ public class RadioAudiobookshelfConductor
             // (minutes old by then) reads as an instant stall and skips again with no real retry at
             // all. Clearing it forces the "episode changed" branch to treat the next encounter as fresh.
             _abStallEpisodeId = null;
-            Apply(_state.AdvanceManually(nowUtc));
+            Apply(_state.AdvanceManually(nowUtc, $"AudioBookshelf segment stalled at {positionMs}ms after {_abStallRetries} retries"));
             CaptureState();
             return true;
         }
