@@ -64,4 +64,11 @@ public partial class PlayerBarView : ContentView
 
     private static Geometry ParseGeometry(string data) =>
         (Geometry)new PathGeometryConverter().ConvertFromInvariantString(data);
+
+    private void OnSeekDragStarted(object sender, EventArgs e) => PlayerBarViewModel.Instance.BeginSeekDrag();
+
+    private void OnSeekDragCompleted(object sender, EventArgs e)
+    {
+        if (sender is Slider slider) PlayerBarViewModel.Instance.CommitSeekDrag((int)slider.Value);
+    }
 }

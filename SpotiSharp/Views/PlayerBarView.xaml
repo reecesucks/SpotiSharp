@@ -35,6 +35,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- player controls -->
@@ -154,5 +155,24 @@
                    VerticalOptions="Center"
                    LineBreakMode="TailTruncation" />
         </HorizontalStackLayout>
+
+        <!-- podcast scrubber, iPod-classic bright blue - testing aid for Radio's AudioBookshelf
+             segments. Forward drags cap at the current section's end (Maximum = SeekMaxMs, the
+             conductor's segment boundary, not the episode's full duration); backward drags can
+             reach the episode's true start (Minimum stays 0 regardless of the section). Those two
+             ranges are rarely the same size, so the bar's visual proportion skews toward "almost
+             done" even with plenty of episode left behind it - acceptable for a scrubber built to
+             speed up testing, not for everyday listening. -->
+        <Slider Grid.Row="2"
+                Margin="0,2,0,0"
+                Minimum="0"
+                Maximum="{Binding SeekMaxMs}"
+                Value="{Binding SeekDisplayMs, Mode=TwoWay}"
+                IsVisible="{Binding IsPodcastSource}"
+                ThumbColor="#2F8CFF"
+                MinimumTrackColor="#2F8CFF"
+                MaximumTrackColor="{DynamicResource Gray600}"
+                DragStarted="OnSeekDragStarted"
+                DragCompleted="OnSeekDragCompleted" />
     </Grid>
 </ContentView>

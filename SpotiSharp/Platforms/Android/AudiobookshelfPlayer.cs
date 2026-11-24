@@ -22,6 +22,13 @@ internal static class AudiobookshelfPlayer
     private static IExoPlayer? _player;
     private static MediaSession? _session;
     private static bool _serviceStarted;
+    private static PlaybackException? _lastLoggedError;
+    private static readonly System.Threading.Timer _errorPollTimer = new(_ => PollForError(), null, 2000, 2000);
+
+    /// <summary>Title/show/artwork of whatever was last loaded, kept here (rather than inside the
+    /// service) because the service can be created/destroyed by the OS independently of playback -
+    /// <see cref="AudiobookshelfPlaybackService"/> reads this when (re)building its notification.</summary>
+    internal static AudiobookshelfNowPlayingInfo? CurrentInfo { get; private set; }
 
     internal static void Initialize()
     {
@@ -29,6 +36,7 @@ internal static class AudiobookshelfPlayer
         AudiobookshelfPlaybackCommands.Play = Play;
         AudiobookshelfPlaybackCommands.Pause = Pause;
         AudiobookshelfPlaybackCommands.SeekTo = SeekTo;
+        AudiobookshelfPlaybackCommands.EnsureServiceActive = EnsureServiceStarted;
         // ExoPlayer enforces main-thread-only access to these properties and throws
         // Java.Lang.IllegalStateException otherwise - PlayerBarViewModel's shared polling loop
         // (UiLoop) that calls these getters runs on a background thread, so each one has to hop to
@@ -37,6 +45,7 @@ internal static class AudiobookshelfPlayer
         AudiobookshelfPlaybackCommands.GetPositionMs = () => InvokeOnMainThread(() => (int)(_player?.CurrentPosition ?? 0));
         AudiobookshelfPlaybackCommands.GetDurationMs = () => InvokeOnMainThread(() => (int)Math.Max(_player?.Duration ?? 0, 0));
         AudiobookshelfPlaybackCommands.GetIsPlaying = () => InvokeOnMainThread(() => _player?.IsPlaying ?? false);
+        AudiobookshelfPlaybackCommands.GetPlayWhenReady = () => InvokeOnMainThread(() => _player?.PlayWhenReady ?? false);
 
         // Deliberately NOT starting the foreground service here: Android 12+ refuses a foreground
         // service start with no active, user-initiated media session behind it, and starting it this
@@ -55,7 +64,9 @@ internal static class AudiobookshelfPlayer
         if (_player != null) return _player;
 
         var context = global::Android.App.Application.Context;
-        _player = new ExoPlayerBuilder(context).Build();
+        // Without this, the CPU can sleep mid-decode once the screen locks - episodes stream over
+        // HTTP, so playback stalls until something (e.g. opening the app) wakes it back up.
+        _player = new ExoPlayerBuilder(context).SetWakeMode(C.WakeModeNetwork).Build();
         return _player;
     }
 
@@ -73,7 +84,6 @@ internal static class AudiobookshelfPlayer
     private static void EnsureServiceStarted()
     {
         if (_serviceStarted) return;
-        _serviceStarted = true;
 
         var context = global::Android.App.Application.Context;
         var intent = new Intent(context, typeof(AudiobookshelfPlaybackService));
@@ -81,6 +91,15 @@ internal static class AudiobookshelfPlayer
             context.StartForegroundService(intent);
         else
             context.StartService(intent);
+
+        // Only reached if the call above didn't throw - Android can refuse a foreground-service
+        // start fired from the background (Load()'s caller sees this as "load failed:
+        // startForegroundService() not allowed"), and that refusal must leave this false. Setting
+        // it unconditionally made a single refusal permanent: every later Load() (every stall
+        // retry, every segment change) saw _serviceStarted already true and never tried again -
+        // so the service, and with it AudioBookshelf's Doze/background-network exemption, stayed
+        // off for the rest of the process's life even once the app was foregrounded again.
+        _serviceStarted = true;
     }
 
     private static void Load(string streamUrl, IReadOnlyDictionary<string, string> headers, AudiobookshelfNowPlayingInfo info, int startPositionMs)
@@ -89,6 +108,13 @@ internal static class AudiobookshelfPlayer
         {
             try
             {
+                // Spotify and this player are two entirely separate audio tracks on the same device -
+                // without this, starting an AB episode while a Spotify track is still playing leaves
+                // both audible at once instead of Spotify yielding the way it would for any other app.
+                PlaybackCommands.Pause?.Invoke();
+
+                CurrentInfo = info;
+                _lastLoggedError = null;
                 var player = EnsurePlayer();
                 EnsureServiceStarted();
 
@@ -122,6 +148,7 @@ internal static class AudiobookshelfPlayer
                 player.Prepare();
                 if (startPositionMs > 0) player.SeekTo(startPositionMs);
                 player.Play();
+                AudiobookshelfPlaybackService.UpdateNotification();
             }
             catch (Exception ex)
             {
@@ -135,14 +162,21 @@ internal static class AudiobookshelfPlayer
 
     private static void Play()
     {
+        // Normally already running by now (started on Radio's first tap this session), so this is
+        // a no-op - but it's a cheap defensive retry in case the service was ever killed out from
+        // under a live session, rather than resuming a player that's quietly lost its exemption.
+        EnsureServiceStarted();
+        PlaybackCommands.Pause?.Invoke();
         if (MainThread.IsMainThread) _player?.Play();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Play());
+        AudiobookshelfPlaybackService.UpdateNotification();
     }
 
     private static void Pause()
     {
         if (MainThread.IsMainThread) _player?.Pause();
         else MainThread.BeginInvokeOnMainThread(() => _player?.Pause());
+        AudiobookshelfPlaybackService.UpdateNotification();
     }
 
     private static void SeekTo(int positionMs)
@@ -155,5 +189,20 @@ internal static class AudiobookshelfPlayer
     {
         if (MainThread.IsMainThread) return func();
         return MainThread.InvokeOnMainThreadAsync(func).GetAwaiter().GetResult();
+    }
+
+    /// <summary>Polled on a plain timer rather than via <c>Player.AddListener</c> - the Java interface's
+    /// default methods aren't bound as default in this binding, so implementing only <c>OnPlayerError</c>
+    /// threw <c>AbstractMethodError</c> on every other callback (e.g. OnAudioSessionIdChanged) and crashed
+    /// the app on first playback. Without this, a stream/network failure (a 404, a dropped connection, an
+    /// expired token) never reaches the diagnostic log - the episode just sits paused at position 0
+    /// forever with nothing to say why.</summary>
+    private static void PollForError()
+    {
+        var error = InvokeOnMainThread(() => _player?.PlayerError);
+        if (error == null || ReferenceEquals(error, _lastLoggedError)) return;
+
+        _lastLoggedError = error;
+        DiagnosticLog.Write($"[Audiobookshelf] ExoPlayer error for \"{CurrentInfo?.Title}\": {error.ErrorCodeName} - {error.Message}");
     }
 }

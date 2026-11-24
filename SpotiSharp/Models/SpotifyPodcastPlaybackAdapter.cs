@@ -8,7 +8,7 @@ namespace SpotiSharp.Models;
 /// podcast segment regardless of source, without changing Spotify's behavior.</summary>
 internal class SpotifyPodcastPlaybackAdapter : IPodcastPlaybackAdapter
 {
-    public PlaybackAttempt Play(RadioAudiobookshelfItem item)
+    public PlaybackAttempt Play(RadioAudiobookshelfItem item, int? resumePositionMs = null)
     {
         if (PlaybackCommands.PlayUri != null)
         {

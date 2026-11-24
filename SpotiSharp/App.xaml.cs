@@ -17,7 +17,15 @@ public partial class App : Application
 
 		window.Created += (_, _) => AppState.Instance.RefreshDisplayMetrics();
 		window.Stopped += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] went to the background");
-		window.Resumed += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] back in the foreground");
+		window.Resumed += (_, _) =>
+		{
+			SpotiSharpBackend.DiagnosticLog.Write("[App] back in the foreground");
+			// App Remote can silently drop the connection while backgrounded and never reconnect on
+			// its own (see SpotifyAppRemoteConnector.LogConnectionChange) - without this, the radio
+			// just sits holding until Android happens to let a maintenance-window network call through,
+			// which can take well over an hour. WakeAsync no-ops if already connected.
+			_ = Models.PlaybackCommands.WakeSpotify?.Invoke();
+		};
 		window.Destroying += (_, _) => SpotiSharpBackend.DiagnosticLog.Write("[App] window destroyed");
 
 		return window;

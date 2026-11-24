@@ -201,8 +201,8 @@ public sealed class RadioSession
 
     private void Execute(QueuePlan plan)
     {
-        if (plan.Start == QueueStart.SkipTo) Spotify.SkipNext();
-        else Spotify.Play(plan.PlayUri);
+        for (int i = 0; i < plan.PreSkipCount; i++) Spotify.SkipNext();
+        if (plan.Start == QueueStart.Play) Spotify.Play(plan.PlayUri);
 
         Mirror.NotePlayAccepted(plan);
 

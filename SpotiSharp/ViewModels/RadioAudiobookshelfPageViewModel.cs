@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Input;
 using SpotiSharp.Models;
 using SpotiSharpBackend;
+using SpotiSharpBackend.AudioBookshelf;
 using SpotiSharpBackend.Radio;
 
 namespace SpotiSharp.ViewModels;
@@ -17,6 +18,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
     public ICommand RemoveSingle { get; }
     public ICommand RemoveAllSections { get; }
     public ICommand NotInterested { get; }
+    public ICommand MarkAsPlayed { get; }
     public ICommand HideMoreEpisode { get; }
     public ICommand SelectItem { get; }
 
@@ -34,6 +36,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         RemoveSingle = new Command<RadioAudiobookshelfItem>(RemoveSingleItem);
         RemoveAllSections = new Command<RadioAudiobookshelfItem>(RemoveEpisode);
         NotInterested = new Command<RadioAudiobookshelfItem>(ExcludeEpisode);
+        MarkAsPlayed = new Command<RadioAudiobookshelfItem>(MarkEpisodeAsPlayed);
         HideMoreEpisode = new Command<RadioAudiobookshelfItem>(HideMoreEpisodeRow);
         SelectItem = new Command<RadioAudiobookshelfItem>(item =>
         {
@@ -130,6 +133,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         UiLoop.Instance.OnRefreshUi += UpdateDebugSegmentTimer;
         SyncWithConductor();
         UpdateDebugSegmentTimer();
+        RefreshAudiobookshelfEpisodesInBackground();
     }
 
     internal override void OnDisappearing()
@@ -137,6 +141,28 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         base.OnDisappearing();
         RadioAudiobookshelfConductor.Instance.ActiveItemChanged -= SetCurrentItem;
         UiLoop.Instance.OnRefreshUi -= UpdateDebugSegmentTimer;
+    }
+
+    // The startup prefetch (RadioAudiobookshelfContentPrefetcher) only ever runs once per app
+    // session, so episode metadata - chapters/splice tags included - otherwise goes stale for the
+    // rest of the session even after the server adds them. Re-pulling it here, every time this page
+    // is shown, keeps Generate working off a reasonably fresh copy without blocking the UI thread or
+    // slowing down Generate itself.
+    private static void RefreshAudiobookshelfEpisodesInBackground()
+    {
+        if (!StorageHandler.UseAudiobookshelfPodcasts || !AudiobookshelfApiClient.IsConfigured) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await AudiobookshelfPodcastsModel.RefreshEpisodesAsync();
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write($"[Radio] background episode refresh (on page show) failed: {ex.Message}");
+            }
+        });
     }
 
     private void UpdateDebugSegmentTimer()
@@ -364,7 +390,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
     }
 
     // What the last generation left out, shown under the radio in the podcasts view.
-    private List<RecentEpisode> _moreEpisodes = new List<RecentEpisode>();
+    private List<IPodcastEpisodeSource> _moreEpisodes = new List<IPodcastEpisodeSource>();
 
     private List<RadioAudiobookshelfItem> MoreEpisodeRows()
     {
@@ -372,7 +398,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         var excluded = RadioAudiobookshelfConfigModel.Config.ExcludedEpisodeIds;
 
         var rows = _moreEpisodes
-            .Where(episode => !inRadio.Contains($"spotify:episode:{episode.EpisodeId}") && !excluded.Contains(episode.EpisodeId))
+            .Where(episode => !inRadio.Contains(episode.PlayUri) && !excluded.Contains(episode.EpisodeId))
             .Select(RadioAudiobookshelfItem.ForMoreEpisode)
             .ToList();
 
@@ -482,6 +508,35 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         RemoveEpisode(item);
     }
 
+    /// <summary>Tells the AudioBookshelf server this episode is finished without having to play it
+    /// through, queuing offline the same way a normal progress save does
+    /// (<see cref="AudiobookshelfProgressSyncModel"/>), then drops it out of the current mix - Radio's
+    /// episode pool already checks AudioBookshelf's live progress on every Generate, so leaving it in
+    /// the already-generated list would be the only thing still offering it.</summary>
+    public void MarkEpisodeAsPlayed(RadioAudiobookshelfItem item)
+    {
+        if (item == null || !item.IsPodcastSegment) return;
+
+        var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(item.PlayUri);
+        var episode = string.IsNullOrEmpty(episodeId)
+            ? null
+            : AudiobookshelfPodcastsModel.FindCachedEpisode(episodeId);
+        if (episode == null)
+        {
+            DiagnosticLog.Write($"[Radio] AudioBookshelf episode for {item.PlayUri} isn't in the cached episode list, can't mark it played");
+            return;
+        }
+
+        // Waits for the finished save to land before checking the ahead-window, which is computed
+        // from the server's own progress - otherwise this would still see the just-finished episode
+        // as "current" and miss queuing the next one.
+        var saveTask = AudiobookshelfProgressSyncModel.SaveOrQueueAsync(episode.LibraryItemId, episode.EpisodeId, episode.DurationMs, episode.DurationMs, isFinished: true);
+        _ = NotifyBingeAheadAfterSaveAsync(saveTask, "episode marked as played", (episode.LibraryItemId, episode.Guid));
+        DiagnosticLog.Write($"[Radio] marked \"{episode.EpisodeName}\" as played");
+
+        RemoveEpisode(item);
+    }
+
     /// <summary>
     /// Keeps a "More episodes" episode out of every future radio - the same list "Not interested"
     /// adds to - and drops it from the section, and from up next if it was picked.
@@ -528,7 +583,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         if (IsGenerating || Items.Count > 0) return;
         if (cached == null || cached.Count == 0) return;
 
-        _moreEpisodes = more ?? new List<RecentEpisode>();
+        _moreEpisodes = more ?? new List<IPodcastEpisodeSource>();
         _allItems = cached;
         Project();
     }
@@ -573,11 +628,17 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         RadioAudiobookshelfConductor.Instance.Stop("Generate pressed");
         AppRemotePlayback.LogQueueMirror("Generate pressed");
 
+        // AudiobookshelfPodcastEpisodeProvider.GetEpisodes is synchronous and can't make a network call
+        // of its own, so it only ever sees whatever this cache last held. Refreshing it right here -
+        // instead of relying on app-start prefetch or a Podcasts page visit to have caught it - is what
+        // keeps a pinned show from going silently uncounted for a whole app session.
+        if (StorageHandler.UseAudiobookshelfPodcasts) await AudiobookshelfPodcastsModel.RefreshBingeNextEpisodesAsync();
+
         var (items, more) = await Task.Run(() => (RadioAudiobookshelfModel.Generate(), RadioAudiobookshelfModel.CachedMoreEpisodes));
         DiagnosticLog.Write($"[Radio] generated {items?.Count.ToString() ?? "nothing (failed)"} items");
         if (items != null)
         {
-            _moreEpisodes = more ?? new List<RecentEpisode>();
+            _moreEpisodes = more ?? new List<IPodcastEpisodeSource>();
             _allItems = items;
             Project();
         }
@@ -594,7 +655,7 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         DiagnosticLog.Write($"[Radio] Generate more added {items?.Count.ToString() ?? "nothing (failed)"} items");
         if (items != null)
         {
-            _moreEpisodes = more ?? new List<RecentEpisode>();
+            _moreEpisodes = more ?? new List<IPodcastEpisodeSource>();
             _allItems.AddRange(items);
             Project();
 
@@ -624,6 +685,12 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         {
             _debugMenuOpen = false;
         }
+    }
+
+    private static async Task NotifyBingeAheadAfterSaveAsync(Task saveTask, string reason, (string libraryItemId, string? guid)? finishedEpisode = null)
+    {
+        await saveTask;
+        await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync(reason, finishedEpisode);
     }
 
     private static async Task SaveBugReportAsync()
@@ -674,6 +741,13 @@ public class RadioAudiobookshelfPageViewModel : BaseViewModel
         _lastClickedAt = now;
 
         ClearRemoveOptions();
+
+        // This tap is as foreground as it gets - whether or not radioItem itself is a podcast, the
+        // run can still reach one later, possibly with the screen off by then and Android refusing a
+        // service start from the background at that point. Starting it now, here, while the run is
+        // music, means it's already alive (like Spotify's own service already is) by the time that
+        // happens - a no-op once it's running, same as every later tap.
+        AudiobookshelfPlaybackCommands.EnsureServiceActive?.Invoke();
 
         SetCurrentItem(radioItem);
 

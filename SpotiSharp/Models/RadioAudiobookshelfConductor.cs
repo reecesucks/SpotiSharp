@@ -139,10 +139,52 @@ public class RadioAudiobookshelfConductor
 
     internal int? RemainingSegmentMs()
     {
+        // _state's own RemainingSegmentMs projects forward from _lastObservedProgressMs/AtUtc, which
+        // TickAudiobookshelf never updates (it reads the AB player directly instead of going through
+        // _state's sample-observation path) - for an AB segment those fields are frozen at whatever the
+        // last Spotify song sample was, so the podcast list's countdown would stop ticking down the
+        // moment Radio switched to AudioBookshelf. Read the AB player's live position instead.
+        var active = _currentItemSnapshot;
+        if (active != null && active.SourceKind == PodcastSourceKind.Audiobookshelf)
+        {
+            var endMs = CurrentAudiobookshelfSegmentEndMs();
+            if (endMs == null) return null;
+
+            int positionMs = AudiobookshelfPlaybackCommands.GetPositionMs?.Invoke() ?? 0;
+            return endMs.Value - positionMs;
+        }
+
         lock (_lock)
         {
             return _state?.RemainingSegmentMs(DateTime.UtcNow);
         }
+    }
+
+    /// <summary>Where the currently-conducting AudioBookshelf segment ends, for the player bar's
+    /// podcast progress slider to cap forward drags at - null when Radio isn't active or the active
+    /// item isn't AudioBookshelf (nothing to cap against).</summary>
+    /// <summary>Lock-free by design, like the other UI-facing reads above (<see cref="CurrentItem"/>,
+    /// <see cref="RemainingItems"/>) - <see cref="TickAudiobookshelf"/> holds <see cref="_lock"/> across
+    /// a blocking <see cref="MainThread.InvokeOnMainThreadAsync{T}"/> round trip (reading position/duration
+    /// off the player), so a UI-thread caller taking the same lock here (e.g. the player bar's progress
+    /// slider evaluating its Maximum binding) can deadlock against it: the tick thread waits for the main
+    /// thread to run its queued continuation while the main thread sits blocked on this lock, which it
+    /// will now never get past to reach that continuation. Reads <see cref="_currentItemSnapshot"/>/
+    /// <see cref="_remainingSnapshot"/> instead, refreshed under the lock on every state change but safe
+    /// to read without it.</summary>
+    internal int? CurrentAudiobookshelfSegmentEndMs()
+    {
+        var active = _currentItemSnapshot;
+        if (active == null || active.SourceKind != PodcastSourceKind.Audiobookshelf) return null;
+
+        if (active.IsFinalPodcastSegment)
+        {
+            int durationMs = AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? 0;
+            return durationMs > 0 ? durationMs : null;
+        }
+
+        var nextSegment = _remainingSnapshot?.Skip(1).FirstOrDefault(item => item.IsPodcastSegment);
+        return nextSegment?.PositionMs;
     }
 
     internal bool AdvanceManually()
@@ -244,24 +286,122 @@ public class RadioAudiobookshelfConductor
 
             bool isPlaying = AudiobookshelfPlaybackCommands.GetIsPlaying?.Invoke() ?? false;
             int positionMs = AudiobookshelfPlaybackCommands.GetPositionMs?.Invoke() ?? 0;
+            int durationMs = AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? 0;
 
-            SaveAudiobookshelfProgress(active, isPlaying, positionMs);
+            LogAudiobookshelfSampleIfNew(active, isPlaying, positionMs, durationMs);
 
             int? segmentEndMs = AudiobookshelfSegmentEndMs(active);
+            bool reachedSegmentEnd = segmentEndMs != null && positionMs >= segmentEndMs.Value - RadioTuning.END_TOLERANCE_MS;
+            // Only the final segment's end is the whole episode's end - an interspersed mid-episode
+            // segment reaching its own boundary just means a song run is about to start, not that the
+            // episode is finished.
+            bool episodeFinished = active.IsFinalPodcastSegment && reachedSegmentEnd;
+
+            bool playWhenReady = AudiobookshelfPlaybackCommands.GetPlayWhenReady?.Invoke() ?? isPlaying;
+            if (CheckAudiobookshelfStall(active, positionMs, reachedSegmentEnd, playWhenReady)) return;
+
+            SaveAudiobookshelfProgress(active, isPlaying, positionMs, episodeFinished);
+
             if (segmentEndMs == null) return;
 
-            if (isPlaying && positionMs >= segmentEndMs.Value - RadioTuning.END_TOLERANCE_MS)
+            if (isPlaying && reachedSegmentEnd)
             {
                 DiagnosticLog.Write($"[Radio] AudioBookshelf segment reached its end ({positionMs} of {segmentEndMs}ms)");
-                Apply(_state.AdvanceManually(DateTime.UtcNow));
+                Apply(_state.AdvanceManually(DateTime.UtcNow, $"AudioBookshelf segment reached its end ({positionMs} of {segmentEndMs}ms)"));
                 CaptureState();
             }
         }
     }
 
+    private string? _abStallEpisodeId;
+    private int _abStallBaselinePositionMs;
+    private DateTime _abStallBaselineAtUtc;
+    private int _abStallRetries;
+
+    /// <summary>
+    /// Nothing else watches for a segment whose position has simply stopped moving - the ExoPlayer
+    /// wrapper can wedge (a dropped stream while backgrounded, a stalled socket) without ever raising
+    /// a player error, and the only other check here (<c>reachedSegmentEnd</c>) can't tell a stalled
+    /// stream from one that's genuinely still mid-playback. A deliberate pause - from the player bar,
+    /// the lock-screen/notification controls, or anything else that only ever reaches the underlying
+    /// ExoPlayer instance directly - clears <paramref name="playWhenReady"/> (unlike "is it currently
+    /// playing", which also goes false while buffering, i.e. mid-stall) and is left alone, same as
+    /// sitting paused right at the segment's own end. Returns true if it took an action (reloaded or
+    /// gave up and skipped), so the caller skips the rest of this tick for a now-stale
+    /// <c>active</c>/<c>positionMs</c>.
+    /// </summary>
+    private bool CheckAudiobookshelfStall(RadioAudiobookshelfItem active, int positionMs, bool reachedSegmentEnd, bool playWhenReady)
+    {
+        var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(active.PlayUri);
+        var nowUtc = DateTime.UtcNow;
+
+        if (episodeId != _abStallEpisodeId)
+        {
+            _abStallEpisodeId = episodeId;
+            _abStallBaselinePositionMs = positionMs;
+            _abStallBaselineAtUtc = nowUtc;
+            _abStallRetries = 0;
+            return false;
+        }
+
+        if (positionMs != _abStallBaselinePositionMs)
+        {
+            _abStallBaselinePositionMs = positionMs;
+            _abStallBaselineAtUtc = nowUtc;
+            _abStallRetries = 0;
+            return false;
+        }
+
+        if (!playWhenReady || reachedSegmentEnd)
+        {
+            _abStallBaselineAtUtc = nowUtc;
+            return false;
+        }
+
+        if (nowUtc - _abStallBaselineAtUtc < TimeSpan.FromMilliseconds(RadioTuning.AB_STALL_THRESHOLD_MS)) return false;
+
+        _abStallBaselineAtUtc = nowUtc;
+        _abStallRetries++;
+
+        if (_abStallRetries > RadioTuning.MAX_AB_STALL_RETRIES)
+        {
+            DiagnosticLog.Write($"[Radio] AudioBookshelf segment stalled at {positionMs}ms after {_abStallRetries} retries, giving up and skipping");
+            // Without this, the next time the run loops back to this same episode - still frozen at
+            // the same position because it never got to make progress - both resets above see the same
+            // episodeId and the same positionMs and never fire, so the leftover _abStallBaselineAtUtc
+            // (minutes old by then) reads as an instant stall and skips again with no real retry at
+            // all. Clearing it forces the "episode changed" branch to treat the next encounter as fresh.
+            _abStallEpisodeId = null;
+            Apply(_state.AdvanceManually(nowUtc, $"AudioBookshelf segment stalled at {positionMs}ms after {_abStallRetries} retries"));
+            CaptureState();
+            return true;
+        }
+
+        DiagnosticLog.Write($"[Radio] AudioBookshelf segment stalled at {positionMs}ms (retry {_abStallRetries} of {RadioTuning.MAX_AB_STALL_RETRIES}), reloading from there");
+        IssuePlayback(active, resumePositionMs: positionMs);
+        return true;
+    }
+
+    // One line per new playback sample the AB tick path acts on, same purpose as LogSampleIfNew
+    // above for Spotify - without this, a save-logs dump covering an AB replay/early-cut glitch
+    // would be silent for exactly the window that matters, since TickAudiobookshelf otherwise only
+    // logs when it decides to advance.
+    private (string? episodeId, bool isPlaying, int positionMs, int durationMs) _lastLoggedAbSample;
+
+    private void LogAudiobookshelfSampleIfNew(RadioAudiobookshelfItem active, bool isPlaying, int positionMs, int durationMs)
+    {
+        var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(active.PlayUri);
+        var sample = (episodeId, isPlaying, positionMs, durationMs);
+        if (sample == _lastLoggedAbSample) return;
+        _lastLoggedAbSample = sample;
+
+        DiagnosticLog.Write($"[Sample] AudioBookshelf active #{_state.ActiveIndex} | {(isPlaying ? "playing" : "paused")} {Label(active.PlayUri)} {positionMs}/{durationMs}");
+    }
+
     private DateTime _lastAbProgressSaveUtc = DateTime.MinValue;
     private bool _wasAbPlaying;
     private string? _abProgressEpisodeId;
+    private string? _abFinishNotifiedEpisodeId;
     private static readonly TimeSpan AbProgressSaveInterval = TimeSpan.FromSeconds(15);
 
     /// <summary>Mirrors <see cref="AudiobookshelfPodcastsViewModel"/>'s own polling save - without this,
@@ -269,7 +409,7 @@ public class RadioAudiobookshelfConductor
     /// an episode finished only through Radio never gets marked finished (or shows any progress) on the
     /// server. Saves periodically while playing and immediately on a pause, same cadence as the
     /// standalone Podcasts page.</summary>
-    private void SaveAudiobookshelfProgress(RadioAudiobookshelfItem active, bool isPlaying, int positionMs)
+    private void SaveAudiobookshelfProgress(RadioAudiobookshelfItem active, bool isPlaying, int positionMs, bool isFinished)
     {
         var episodeId = AudiobookshelfPodcastPlaybackAdapter.ParseEpisodeId(active.PlayUri);
         if (episodeId == null) return;
@@ -284,18 +424,45 @@ public class RadioAudiobookshelfConductor
         var now = DateTime.UtcNow;
         var justPaused = _wasAbPlaying && !isPlaying;
         _wasAbPlaying = isPlaying;
-        if (!justPaused && now - _lastAbProgressSaveUtc < AbProgressSaveInterval) return;
+        // The finished flag must reach the server the instant it's true - it's a one-shot transition,
+        // not something the next periodic save would catch (by then the radio's moved on).
+        if (!justPaused && !isFinished && now - _lastAbProgressSaveUtc < AbProgressSaveInterval) return;
         _lastAbProgressSaveUtc = now;
 
-        var episode = (AudiobookshelfPodcastsModel.GetDiskCachedEpisodes() ?? new List<AudiobookshelfEpisode>())
-            .FirstOrDefault(candidate => candidate.EpisodeId == episodeId);
-        if (episode == null) return;
+        var episode = FindCachedAudiobookshelfEpisode(episodeId);
+        if (episode == null)
+        {
+            DiagnosticLog.Write($"[Radio] AudioBookshelf episode {episodeId} isn't in either cached episode list, can't save progress");
+            return;
+        }
 
         int durationMs = AudiobookshelfPlaybackCommands.GetDurationMs?.Invoke() ?? 0;
         if (durationMs <= 0) durationMs = episode.DurationMs;
 
-        _ = AudiobookshelfProgressSyncModel.SaveOrQueueAsync(episode.LibraryItemId, episodeId, positionMs, durationMs);
+        var saveTask = AudiobookshelfProgressSyncModel.SaveOrQueueAsync(episode.LibraryItemId, episodeId, positionMs, durationMs, isFinished);
+
+        // Finishing an episode is exactly when the binge window needs to advance - without this,
+        // a binger listening purely through Radio only gets the next episodes downloaded on the next
+        // app start, which can leave a gap if they keep listening right away. Edge-triggered on the
+        // same one-shot transition as the save above, so this doesn't refetch the show's feed every
+        // tick for as long as isFinished stays true. Waits for the finished save to land first - the
+        // ahead-window is computed from the server's own progress, so checking before the finish is
+        // saved would still find the just-finished episode as "current" and miss queuing the next one.
+        if (isFinished && _abFinishNotifiedEpisodeId != episodeId)
+        {
+            _abFinishNotifiedEpisodeId = episodeId;
+            _ = NotifyBingeAheadAfterSaveAsync(saveTask, "Radio episode finished", (episode.LibraryItemId, episode.Guid));
+        }
     }
+
+    private static async Task NotifyBingeAheadAfterSaveAsync(Task saveTask, string reason, (string libraryItemId, string? guid)? finishedEpisode = null)
+    {
+        await saveTask;
+        await RadioAudiobookshelfBingeAheadModel.EnsureAheadAsync(reason, finishedEpisode);
+    }
+
+    private static AudiobookshelfEpisode? FindCachedAudiobookshelfEpisode(string episodeId) =>
+        AudiobookshelfPodcastsModel.FindCachedEpisode(episodeId);
 
     /// <summary>Where the active AudioBookshelf segment ends: the episode's own duration for a final
     /// segment, or the next podcast segment's start otherwise - segments are built back-to-back (see
@@ -393,14 +560,28 @@ public class RadioAudiobookshelfConductor
         }
     }
 
-    private PlaybackAttempt IssuePlayback(RadioAudiobookshelfItem item)
+    private PlaybackAttempt IssuePlayback(RadioAudiobookshelfItem item, int? resumePositionMs = null)
     {
         if (item == null) return PlaybackAttempt.Failed;
 
         if (item.IsPodcastSegment)
         {
-            return PodcastPlaybackAdapters.For(item.SourceKind).Play(item);
+            // The AB adapter sets the player bar's AudioBookshelf state itself; anything else playing
+            // through this method is Spotify-bound and needs the bar handed back explicitly, since the
+            // poll/push guards now stay sticky on an AB source until told otherwise.
+            if (item.SourceKind != PodcastSourceKind.Audiobookshelf) SpotiSharp.ViewModels.PlayerBarViewModel.Instance.NotifySpotifyPlaybackStarting();
+            else
+            {
+                // Spotify has nothing to play while this AB episode owns the audio - any song run
+                // queued ahead of it is otherwise left sitting in Spotify's real queue for the whole
+                // episode (which can run long), the exact kind of stray leftover that goes stale and
+                // was ratcheting the queue up over a session before this.
+                _ = AppRemotePlayback.ClearQueueAsync();
+            }
+            return PodcastPlaybackAdapters.For(item.SourceKind).Play(item, resumePositionMs);
         }
+
+        SpotiSharp.ViewModels.PlayerBarViewModel.Instance.NotifySpotifyPlaybackStarting();
 
         if (PlaybackCommands.PlayUri != null)
         {
@@ -481,11 +662,17 @@ public class RadioAudiobookshelfConductor
 
     private List<string> SongRunFrom(RadioAudiobookshelfItem item)
     {
-        var run = new List<string>();
-        foreach (var queued in _state.RemainingItems)
+        var run = new List<string> { item.PlayUri };
+        // Album songs can land in the cached radio list with the same URI as one already queued
+        // elsewhere (InsertAlbumSongs doesn't check the rest of the list) - a radio generated before
+        // that got deduped, or edited by hand, can still carry a duplicate. Queueing the same uri
+        // twice in one run leaves Spotify holding two copies of it, with App Remote's queue being
+        // append-only meaning neither we nor Spotify ever clean that up on their own.
+        var seen = new HashSet<string> { item.PlayUri };
+        foreach (var queued in _state.RemainingItems.Skip(1))
         {
             if (queued.IsPodcastSegment) break;
-            run.Add(queued.PlayUri);
+            if (seen.Add(queued.PlayUri)) run.Add(queued.PlayUri);
             if (run.Count == MAX_SONG_RUN) break;
         }
         return run;

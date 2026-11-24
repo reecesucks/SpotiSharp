@@ -78,6 +78,7 @@ internal static class SpotifyAppRemoteConnector
         PlaybackCommands.Pause = () => { LogCommand("pause"); Pause(); };
         PlaybackCommands.Resume = () => { LogCommand("resume"); Resume(); };
         PlaybackCommands.SkipNext = () => { LogCommand("skip next"); SkipNext(); };
+        PlaybackCommands.SkipNextAsync = () => { LogCommand("skip next"); return SkipNextAsync(); };
         PlaybackCommands.SkipPrevious = () => { LogCommand("skip previous"); SkipPrevious(); };
         PlaybackCommands.SetShuffle = shuffle => { LogCommand($"set shuffle {shuffle}"); SetShuffle(shuffle); };
         PlaybackCommands.ToggleRepeat = () => { LogCommand("toggle repeat"); ToggleRepeat(); };
@@ -149,28 +150,145 @@ internal static class SpotifyAppRemoteConnector
         DiagnosticLog.Write($"[AppRemote] pull answered again after {(_pullAnsweredAtUtc - _pullRequestedAtUtc).TotalSeconds:F0}s");
     }
 
-    private static void LogCommand(string command) => DiagnosticLog.Write($"[Cmd] {command}");
+    // Bumped on every fresh (non-retry) command so a retry fired after the SDK finally gets
+    // back to it - sometimes a long while later, see below - can tell whether anything newer
+    // has been asked for since and skip itself instead of acting on stale intent.
+    private static int _commandGeneration;
 
-    private static void Pause(bool isRetry = false) =>
-        _appRemote?.PlayerApi.Pause()?.SetErrorCallback(new CommandErrorCallback("pause", isRetry ? null : () => Pause(true)));
+    private static void LogCommand(string command)
+    {
+        _commandGeneration++;
+        DiagnosticLog.Write($"[Cmd] {command}");
+    }
 
-    private static void Resume(bool isRetry = false) =>
-        _appRemote?.PlayerApi.Resume()?.SetErrorCallback(new CommandErrorCallback("resume", isRetry ? null : () => Resume(true)));
+    // A retry's generation is the counter value from when the ORIGINAL (non-retry) call was
+    // made. Rapid taps (pause -> skip -> resume, repeated as the user flicks through tracks)
+    // can leave an early Pause's SDK result queued up behind later commands; if it only errors
+    // out, and retries, after a subsequent Resume/Play has already landed, blindly re-sending
+    // it would silently re-pause playback that the user has since moved past - with nothing
+    // left watching for that stray pause to undo it. Checking the generation lets the retry see
+    // it's been superseded and drop itself instead.
+    private static bool Superseded(int generation) => generation != _commandGeneration;
 
-    private static void SkipNext(bool isRetry = false) =>
-        _appRemote?.PlayerApi.SkipNext()?.SetErrorCallback(new CommandErrorCallback("skip next", isRetry ? null : () => SkipNext(true)));
+    private static void Pause(bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] pause retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
 
-    private static void SkipPrevious(bool isRetry = false) =>
-        _appRemote?.PlayerApi.SkipPrevious()?.SetErrorCallback(new CommandErrorCallback("skip previous", isRetry ? null : () => SkipPrevious(true)));
+        _appRemote?.PlayerApi.Pause()?.SetErrorCallback(new CommandErrorCallback("pause", isRetry ? null : () => Pause(true, generation)));
+    }
 
-    private static void SetShuffle(bool shuffle, bool isRetry = false) =>
-        _appRemote?.PlayerApi.SetShuffle(shuffle)?.SetErrorCallback(new CommandErrorCallback("set shuffle", isRetry ? null : () => SetShuffle(shuffle, true)));
+    private static void Resume(bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] resume retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
 
-    private static void ToggleRepeat(bool isRetry = false) =>
-        _appRemote?.PlayerApi.ToggleRepeat()?.SetErrorCallback(new CommandErrorCallback("toggle repeat", isRetry ? null : () => ToggleRepeat(true)));
+        _appRemote?.PlayerApi.Resume()?.SetErrorCallback(new CommandErrorCallback("resume", isRetry ? null : () => Resume(true, generation)));
+    }
 
-    private static void SeekTo(int positionMs, bool isRetry = false) =>
-        _appRemote?.PlayerApi.SeekTo(positionMs)?.SetErrorCallback(new CommandErrorCallback("seek", isRetry ? null : () => SeekTo(positionMs, true)));
+    private static void SkipNext(bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] skip next retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
+
+        _appRemote?.PlayerApi.SkipNext()?.SetErrorCallback(new CommandErrorCallback("skip next", isRetry ? null : () => SkipNext(true, generation)));
+    }
+
+    /// <summary>Result-reporting "skip next", with no retry of its own - unlike <see cref="SkipNext"/>,
+    /// a caller flushing many of these in a row (<see cref="AppRemotePlayback"/>) needs to see a
+    /// failure as "nothing left to skip past", not have it silently retried and blur that signal.</summary>
+    private static Task<bool> SkipNextAsync()
+    {
+        if (_appRemote?.IsConnected != true) return Task.FromResult(false);
+
+        var tcs = new TaskCompletionSource<bool>();
+        _appRemote.PlayerApi.SkipNext()
+            ?.SetResultCallback(new PlayResultCallback(tcs))
+            ?.SetErrorCallback(new PlayErrorCallback(tcs, "skip next"));
+
+        return WithTimeout(tcs.Task, "skip next");
+    }
+
+    private static void SkipPrevious(bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] skip previous retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
+
+        _appRemote?.PlayerApi.SkipPrevious()?.SetErrorCallback(new CommandErrorCallback("skip previous", isRetry ? null : () => SkipPrevious(true, generation)));
+    }
+
+    private static void SetShuffle(bool shuffle, bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] set shuffle retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
+
+        _appRemote?.PlayerApi.SetShuffle(shuffle)?.SetErrorCallback(new CommandErrorCallback("set shuffle", isRetry ? null : () => SetShuffle(shuffle, true, generation)));
+    }
+
+    private static void ToggleRepeat(bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] toggle repeat retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
+
+        _appRemote?.PlayerApi.ToggleRepeat()?.SetErrorCallback(new CommandErrorCallback("toggle repeat", isRetry ? null : () => ToggleRepeat(true, generation)));
+    }
+
+    private static void SeekTo(int positionMs, bool isRetry = false, int generation = -1)
+    {
+        if (isRetry)
+        {
+            if (Superseded(generation))
+            {
+                DiagnosticLog.Write("[AppRemote] seek retry dropped: superseded by a newer command");
+                return;
+            }
+        }
+        else generation = _commandGeneration;
+
+        _appRemote?.PlayerApi.SeekTo(positionMs)?.SetErrorCallback(new CommandErrorCallback("seek", isRetry ? null : () => SeekTo(positionMs, true, generation)));
+    }
 
     private static Task<bool> PlayUriAsync(string uri)
     {

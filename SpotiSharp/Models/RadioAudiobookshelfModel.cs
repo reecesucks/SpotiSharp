@@ -53,13 +53,25 @@ public class RadioAudiobookshelfModel
             // the timer should take over.
             bool hasSpliceData = !fullEpisodes && episode.SpliceStartMs != null && episode.SpliceStartMs.Count > 0;
 
-            if (hasSpliceData)
-            {
-                var spliceStartsMs = episode.SpliceStartMs.Where(spliceMs => spliceMs > startMs && spliceMs < episode.DurationMs).ToList();
+            // No ad cuts on this episode - its own music-break candidates (ShillSkip's MusicBreaks)
+            // are a second-choice source of break points, run through the same NormalizeSegmentStarts
+            // nudging toward the configured segment length, so they only get used where they actually
+            // land close to it rather than wherever the show happens to put them.
+            bool hasMusicBreakData = !fullEpisodes && !hasSpliceData && episode.MusicBreakStartMs != null && episode.MusicBreakStartMs.Count > 0;
 
-                var segmentStartsMs = new List<int> { startMs };
-                segmentStartsMs.AddRange(spliceStartsMs);
+            if (hasSpliceData || hasMusicBreakData)
+            {
+                var breakSourceMs = hasSpliceData ? episode.SpliceStartMs : episode.MusicBreakStartMs;
+                var breakStartsMs = breakSourceMs.Where(breakMs => breakMs > startMs && breakMs < episode.DurationMs).ToList();
+
+                var rawSegmentStartsMs = new List<int> { startMs };
+                rawSegmentStartsMs.AddRange(breakStartsMs);
+                var segmentStartsMs = NormalizeSegmentStarts(rawSegmentStartsMs, episode.DurationMs);
                 int totalSegments = segmentStartsMs.Count;
+
+                string breakKind = hasSpliceData ? "splice" : "music-break";
+                DiagnosticLog.Write($"[Radio] segmenting \"{episode.EpisodeName}\" on {breakStartsMs.Count} {breakKind} point(s) from {startMs / 1000}s: " +
+                    $"[{string.Join(", ", segmentStartsMs.Select(ms => $"{ms / 1000}s"))}] (episode has {breakSourceMs.Count} total, {breakSourceMs.Count - breakStartsMs.Count} before resume/past the end)");
 
                 for (int segmentIndex = 0; segmentIndex < totalSegments; segmentIndex++)
                 {
@@ -76,6 +88,9 @@ public class RadioAudiobookshelfModel
 
             int totalFixedSegments = fullEpisodes ? 1 : Math.Max(segmentCount, SegmentCountFor(episode.DurationMs));
             int firstSegmentNumber = totalFixedSegments - segmentCount;
+
+            DiagnosticLog.Write($"[Radio] segmenting \"{episode.EpisodeName}\" on the fixed {SegmentLengthMs / 1000}s timer from {startMs / 1000}s " +
+                $"({segmentCount} segment(s), no usable splice data: {(episode.SpliceStartMs?.Count ?? 0)} splice point(s) on the episode, fullEpisodes={fullEpisodes})");
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
@@ -110,6 +125,44 @@ public class RadioAudiobookshelfModel
         return fullSegments;
     }
 
+    /// <summary>Nudges raw splice-point boundaries toward the configured <see cref="SegmentLengthMs"/>
+    /// without throwing away the splice points themselves - they're still where the ad breaks actually
+    /// are, this just stops them from dictating a 5-second segment because one landed right after the
+    /// last, or a 50-minute segment because the next one is a long way off. A segment well under the
+    /// configured length folds into its neighbour (forward, since that's the segment the listener was
+    /// about to be cut into anyway; backward for the episode's last segment, which has no "next" to fold
+    /// into), and a gap well over it is split into even pieces close to the configured length, since an
+    /// uneven leftover chunk would just recreate the same too-short/too-long problem at one end.</summary>
+    private static List<int> NormalizeSegmentStarts(List<int> segmentStartsMs, int episodeEndMs)
+    {
+        int segmentLengthMs = SegmentLengthMs;
+        if (segmentLengthMs <= 0 || segmentStartsMs.Count == 0) return segmentStartsMs;
+
+        int mergeThresholdMs = segmentLengthMs / 3;
+
+        var merged = new List<int> { segmentStartsMs[0] };
+        for (int i = 1; i < segmentStartsMs.Count; i++)
+        {
+            if (segmentStartsMs[i] - merged[^1] < mergeThresholdMs) continue;
+            merged.Add(segmentStartsMs[i]);
+        }
+        if (merged.Count > 1 && episodeEndMs - merged[^1] < mergeThresholdMs) merged.RemoveAt(merged.Count - 1);
+
+        var normalized = new List<int>();
+        for (int i = 0; i < merged.Count; i++)
+        {
+            int gapStart = merged[i];
+            int gapEndMs = i + 1 < merged.Count ? merged[i + 1] : episodeEndMs;
+            int gapMs = gapEndMs - gapStart;
+
+            int pieceCount = SegmentCountFor(gapMs);
+            for (int piece = 0; piece < pieceCount; piece++)
+                normalized.Add(gapStart + (int)((long)gapMs * piece / pieceCount));
+        }
+
+        return normalized;
+    }
+
     private static void InsertAlbumSongs(List<RadioAudiobookshelfItem> radio)
     {
         var albumModes = RadioAudiobookshelfConfigModel.Config.AlbumModes
@@ -119,6 +172,12 @@ public class RadioAudiobookshelfModel
 
         var savedAlbums = SavedAlbumsModel.CachedAlbums;
         var random = new Random();
+
+        // Songs/podcast segments already in the radio - BuildSongPool's own pool is deduped by
+        // URI, but an album pulled in here is a separate source with no such guarantee, so a song
+        // that's both saved as an album and sitting in a playlist/liked source would otherwise be
+        // queued twice.
+        var usedUris = new HashSet<string>(radio.Select(item => item.PlayUri));
 
         foreach (var (albumId, mode) in albumModes)
         {
@@ -130,11 +189,14 @@ public class RadioAudiobookshelfModel
 
             // a random handful, kept in album track order
             var picked = songs
+                .Where(song => !usedUris.Contains(song.SongUri))
                 .OrderBy(_ => random.Next())
                 .Take(ALBUM_SONG_COUNT)
                 .OrderBy(song => songs.IndexOf(song))
                 .Select(song => RadioAudiobookshelfItem.ForSong(song.SongTitle, song.SongArtists, album.AlbumImageUrl, song.SongUri, ShortSourceName(album.AlbumName)))
                 .ToList();
+
+            foreach (var item in picked) usedUris.Add(item.PlayUri);
 
             if (mode == RadioAudiobookshelfAlbumMode.Consecutive)
             {
@@ -187,7 +249,7 @@ public class RadioAudiobookshelfModel
     /// and resume logic below stays source-agnostic.
     /// </summary>
     private static List<IPodcastEpisodeSource> GetEpisodes(out Dictionary<string, EpisodeProgress> liveProgress, out HashSet<string> staleBingeEpisodeIds,
-        out List<RecentEpisode> moreEpisodes)
+        out List<IPodcastEpisodeSource> moreEpisodes)
     {
         return EpisodeProvider.GetEpisodes(out liveProgress, out staleBingeEpisodeIds, out moreEpisodes);
     }
@@ -195,7 +257,7 @@ public class RadioAudiobookshelfModel
     private const string MORE_EPISODES_CACHE_KEY = "radio_more_episodes";
 
     /// <summary>The episodes the last generation left out, for the podcasts view's "More episodes".</summary>
-    internal static List<RecentEpisode> CachedMoreEpisodes => DiskCacheHelper.Load<List<RecentEpisode>>(MORE_EPISODES_CACHE_KEY);
+    internal static List<IPodcastEpisodeSource> CachedMoreEpisodes => DiskCacheHelper.Load<List<IPodcastEpisodeSource>>(MORE_EPISODES_CACHE_KEY);
 
     // the playlists currently feeding the radio's song pool
     internal static List<string> SourcePlaylistIds()

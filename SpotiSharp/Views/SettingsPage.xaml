@@ -9,9 +9,10 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Grid Grid.Row="1" Margin="10" RowDefinitions="Auto,Auto" RowSpacing="0">
+            <ScrollView Grid.Row="1">
+            <Grid Margin="10" RowDefinitions="Auto,Auto" RowSpacing="0">
                 <!-- Collaboration host controls, hidden while the feature is disabled.
                      Flip IsVisible to True (and re-enable StorageHandler.IsUsingCollaborationHost) to restore. -->
                 <VerticalStackLayout Grid.Row="0" IsVisible="False" Spacing="4">
@@ -102,6 +103,7 @@
                 </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Grid>
+            </ScrollView>
         </Grid>
     </views:BasePage.Content>
 </views:BasePage>
